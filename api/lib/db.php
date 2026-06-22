@@ -32,6 +32,12 @@ function db() {
 /* Devuelve toda la configuración (por si algún endpoint la necesita). */
 function cfg() {
   static $c = null;
-  if ($c === null) $c = require dirname(__DIR__) . '/config.php';
+  if ($c === null) {
+    $cfgPath = dirname(__DIR__) . '/config.php';
+    if (!file_exists($cfgPath)) {
+      json_error('No se encuentra config.php. Verificá que exista en la carpeta api/.', 500);
+    }
+    $c = require $cfgPath;
+  }
   return $c;
 }
