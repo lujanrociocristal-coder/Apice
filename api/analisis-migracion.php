@@ -1,13 +1,14 @@
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
-require __DIR__ . '/lib/db.php';
-require __DIR__ . '/lib/respond.php';
+
+$cfg = require __DIR__ . '/config.php';
+$dsn = "mysql:host={$cfg['db_host']};dbname={$cfg['db_name']};charset=utf8mb4";
+$pdo = new PDO($dsn, $cfg['db_user'], $cfg['db_pass'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
 
 header('Content-Type: application/json');
 
 try {
-    $pdo = db();
     $st = $pdo->prepare('SELECT clave, valor FROM estado_app WHERE clave IN ("gestor_cli_v1", "gestor_causas_v6", "gestor_aud_v1", "gestor_dir_v1") LIMIT 4');
     $st->execute();
     
@@ -15,7 +16,6 @@ try {
     while ($row = $st->fetch()) {
         $arr = json_decode($row['valor'], true);
         if (is_array($arr) && count($arr) > 0) {
-            // Tomar el primer elemento como muestra de estructura
             $muestras[$row['clave']] = [
                 'total_records' => count($arr),
                 'sample' => $arr[0] ?? null
