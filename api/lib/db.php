@@ -9,7 +9,7 @@ function db() {
   static $pdo = null;            // se conecta una sola vez por pedido
   if ($pdo !== null) return $pdo;
 
-  $cfgPath = __DIR__ . '/../config.php';
+  $cfgPath = dirname(__DIR__) . '/config.php';
   if (!file_exists($cfgPath)) {
     json_error('Falta el archivo config.php en el servidor. Copiá config.example.php a config.php y completá los datos.', 500);
   }
@@ -32,6 +32,6 @@ function db() {
 /* Devuelve toda la configuración (por si algún endpoint la necesita). */
 function cfg() {
   static $c = null;
-  if ($c === null) $c = require __DIR__ . '/../config.php';
+  if ($c === null) $c = require dirname(__DIR__) . '/config.php';
   return $c;
 }
