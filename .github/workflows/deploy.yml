@@ -32,7 +32,7 @@ jobs:
           server:   ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps          # FTP seguro (con cifrado). Si falla, probá "ftp".
+          protocol: ftp           # FTP simple: el host de Hostinger es una IP, ftps daria error de certificado
           port: 21
           local-dir: ./public/    # qué carpeta del repo se sube
           server-dir: ./public_html/   # a dónde se sube en Hostinger
