@@ -71,11 +71,14 @@
 
     // Nuevo comportamiento del boton ingresar/crear cuenta de tu pantalla.
     window.onbEnter = async function (method) {
-      var em = ((window.onbState && onbState.email) || '').trim();
-      var pw = (window.onbState && onbState.pass) || '';
+      var elEmail = document.getElementById('onb_email');
+      var elPass = document.getElementById('onb_pass');
+      var em = elEmail ? elEmail.value.trim() : '';
+      var pw = elPass ? elPass.value : '';
       if (!em || !pw) { alert('Completa tu correo y contrasena para continuar.'); return; }
 
-      var perfil = (window.onbState && onbState.profile) || 'abogado';
+      var state = (typeof onbState !== 'undefined') ? onbState : {};
+      var perfil = state.profile || 'abogado';
 
       // En esta etapa el portal de clientes todavia no se habilita (secreto
       // profesional: requiere el aislamiento fino por cliente de la etapa
@@ -85,7 +88,7 @@
         return;
       }
 
-      var modo = (window.onbState && onbState.mode) || 'login';
+      var modo = state.mode || 'login';
       try {
         if (modo === 'register') {
           var nombre = em.split('@')[0];

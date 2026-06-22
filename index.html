@@ -3335,6 +3335,18 @@ function onbProfile(p){onbState.profile=p;onbState.legalView=null;renderOnboardi
 function onbMode(m){onbState.mode=m;renderOnboarding();}
 function onbLegal(v){onbState.legalView=(onbState.legalView===v?null:v);onbState.full=false;renderOnboarding();}
 function onbFull(){onbState.full=!onbState.full;renderOnboarding();}
+function onbTogglePass() {
+  const el = document.getElementById('onb_pass');
+  const eye = document.getElementById('onb_pass_eye');
+  if (!el || !eye) return;
+  if (el.type === 'password') {
+    el.type = 'text';
+    eye.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+  } else {
+    el.type = 'password';
+    eye.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+  }
+}
 function onbLegalName(t){return t==='terminos'?(onbState.profile==='cliente'?'Términos':'Términos y Condiciones'):t==='privacidad'?'Política de Privacidad':'Política de Cookies';}
 function onbLegalContent(){const t=onbState.legalView;if(!t)return '';
   if(onbState.profile==='cliente'){const o=LEGAL_CLI[t]||LEGAL_CLI.terminos;return onbState.full?o.full:`<p>${o.short}</p>`;}
@@ -3362,7 +3374,18 @@ function renderOnboarding(){
     <ul class="onb-bullets">${c.checks.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>
 
     <div class="onb-field"><label>Correo electrónico</label><input id="onb_email" type="email" value="${attr(onbState.email||'')}" oninput="onbState.email=this.value" placeholder="${p==='cliente'?'tucorreo@email.com':'vos@estudio.com'}"></div>
-    <div class="onb-field"><label>Contraseña</label><input id="onb_pass" type="password" value="${attr(onbState.pass||'')}" oninput="onbState.pass=this.value" placeholder="••••••••"></div>
+    <div class="onb-field">
+      <label>Contraseña</label>
+      <div style="position: relative;">
+        <input id="onb_pass" type="password" value="${attr(onbState.pass||'')}" oninput="onbState.pass=this.value" placeholder="••••••••" style="padding-right: 36px;">
+        <button type="button" onclick="onbTogglePass()" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--mut); padding: 4px; display: flex; align-items: center; justify-content: center;">
+          <svg id="onb_pass_eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
     <button class="onb-primary onb-btn" onclick="onbEnter('email')">${esc(primaryLabel)} →</button>
     <div class="onb-switch">${onbState.mode==='register'?'¿Ya tenés cuenta? <a onclick="onbMode(\'login\')">Ingresá</a>':'¿No tenés cuenta todavía? <a onclick="onbMode(\'register\')">Creá una</a>'}</div>
 
