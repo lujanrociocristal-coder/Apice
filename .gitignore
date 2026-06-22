@@ -1,6 +1,4 @@
-# No subir NUNCA el archivo con la clave de la base de datos
-api/config.php
-**/config.php
+# Archivo de estado del desplegador FTP (se genera solo)
 
 # Estado del desplegador FTP (se genera solo)
 .ftp-deploy-sync-state.json
