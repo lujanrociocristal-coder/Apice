@@ -82,9 +82,9 @@ if ($ya > 0) {
     <label>Nombre del estudio</label>
     <input name="estudio" value="Estudio Luján & Breppe" required>
     <label>Tu nombre completo</label>
-    <input name="nombre" value="Valeria Daiana Breppe" required>
+    <input name="nombre" value="Rocio Cristal Lujan" required>
     <label>Email (para iniciar sesión)</label>
-    <input name="email" type="email" placeholder="tu@email.com" required>
+    <input name="email" type="email" value="lujanrociocristal@gmail.com" placeholder="tu@email.com" required>
     <label>Contraseña (mínimo 8 caracteres)</label>
     <input name="password" type="password" required>
     <label>Repetir contraseña</label>

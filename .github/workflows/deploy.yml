@@ -1,9 +1,15 @@
 # ============================================================================
-#  Despliegue automatico a Hostinger por FTP
-#  Sube los archivos web (index.html, api.js, install.php, api/) directo a
-#  public_html cada vez que se actualiza la rama main.
-#  Secrets: FTP_SERVER (212.85.6.157) / FTP_USERNAME (u434165369) / FTP_PASSWORD
-#  No toca config.php ni sube database/ ni docs/.
+#  Despliegue automático a Hostinger por FTP
+#
+#  Qué hace: cada vez que subís cambios a la rama "main", GitHub sube los
+#  archivos web (index.html, api.js, install.php y la carpeta api/) a tu
+#  Hostinger, directo dentro de public_html.
+#
+#  Necesita 3 "secrets" en GitHub:
+#    FTP_SERVER (212.85.6.157)  ·  FTP_USERNAME (u434165369)  ·  FTP_PASSWORD
+#
+#  No toca tu config.php del servidor (está excluido) y no sube las carpetas
+#  database/ ni docs/ (son solo para vos, no van a la web).
 # ============================================================================
 name: Desplegar a Hostinger
 
@@ -25,10 +31,11 @@ jobs:
           server:   ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
+          protocol: ftp            # FTP simple: el host de Hostinger es una IP
           port: 21
-          local-dir: ./
-          server-dir: ./public_html/
+          local-dir: ./           # se sube desde la raíz del repo...
+          server-dir: ./public_html/   # ...directo a public_html
+          # Lo que NO se sube (cosas internas, secretos y carpetas no-web):
           exclude: |
             **/.git*
             **/.git*/**

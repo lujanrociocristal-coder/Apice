@@ -71,10 +71,6 @@
 
     // Nuevo comportamiento del boton ingresar/crear cuenta de tu pantalla.
     window.onbEnter = async function (method) {
-      if (method === 'google') {
-        alert('Ingresar con Google se activa en la proxima etapa. Por ahora ingresa con tu correo y contrasena.');
-        return;
-      }
       var em = ((window.onbState && onbState.email) || '').trim();
       var pw = (window.onbState && onbState.pass) || '';
       if (!em || !pw) { alert('Completa tu correo y contrasena para continuar.'); return; }
