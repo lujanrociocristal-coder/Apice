@@ -1,0 +1,44 @@
+# ============================================================================
+#  Despliegue automático a Hostinger por FTP
+#
+#  Qué hace: cada vez que subís cambios a la rama "main" de este repo, GitHub
+#  toma la carpeta "public/" y la sube sola a tu Hostinger (a public_html).
+#
+#  Necesita 3 datos guardados como "secrets" en GitHub (ver GUIA-GITHUB.md):
+#    FTP_SERVER    -> el servidor FTP de Hostinger (ej: ftp.abogadoscatamarca.com)
+#    FTP_USERNAME  -> el usuario FTP
+#    FTP_PASSWORD  -> la contraseña FTP
+#
+#  No toca tu config.php del servidor (está excluido), así no se borran tus
+#  datos de conexión a la base.
+# ============================================================================
+name: Desplegar a Hostinger
+
+on:
+  push:
+    branches: [ main ]      # se dispara al actualizar la rama main
+  workflow_dispatch:        # también permite ejecutarlo a mano desde GitHub
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Traer los archivos del repo
+        uses: actions/checkout@v4
+
+      - name: Subir por FTP a Hostinger
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:   ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps          # FTP seguro (con cifrado). Si falla, probá "ftp".
+          port: 21
+          local-dir: ./public/    # qué carpeta del repo se sube
+          server-dir: ./public_html/   # a dónde se sube en Hostinger
+          # Archivos que NUNCA se tocan en el servidor (para no borrar secretos):
+          exclude: |
+            **/config.php
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
