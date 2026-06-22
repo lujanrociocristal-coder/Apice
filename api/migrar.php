@@ -10,6 +10,9 @@ require __DIR__ . '/lib/db.php';
 require __DIR__ . '/lib/respond.php';
 require __DIR__ . '/lib/auth.php';
 
+// Iniciar sesión manualmente (este script se llama directo, no pasa por index.php)
+start_secure_session();
+
 // Solo permitir si está logueado como profesional
 $u = require_profesional();
 $eid = (int)$u['estudio_id'];
