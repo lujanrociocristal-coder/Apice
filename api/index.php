@@ -60,4 +60,6 @@ try {
   $fn($method, $resto);
 } catch (Throwable $e) {
   // Log interno (no se muestra al usuario).
-  error_log('[APICE] ' . $e
+  error_log('[APICE] ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine());
+  json_error('Error interno del servidor. Intentá de nuevo.', 500);
+}
