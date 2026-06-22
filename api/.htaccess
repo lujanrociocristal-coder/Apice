@@ -1,9 +1,10 @@
 # Manda TODOS los pedidos de /api/... al router (index.php).
 # Esto permite URLs lindas como /api/causas en vez de /api/index.php?...
+Options -MultiViews
 RewriteEngine On
 RewriteBase /api/
 
-# Si el archivo o carpeta existe de verdad, dejarlo pasar (ej: imágenes).
+# Si el archivo o carpeta existe de verdad, dejarlo pasar (ej: diagnosticos).
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
