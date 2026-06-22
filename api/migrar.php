@@ -18,51 +18,63 @@ $u = require_profesional();
 $eid = (int)$u['estudio_id'];
 $pdo = db();
 
-try {
-    $pdo->beginTransaction();
+// Agrega columna uuid si no existe (sin usar IF NOT EXISTS en KEY)
+function agregar_columna_uuid($pdo, $tabla) {
+    $st = $pdo->query("SHOW COLUMNS FROM `{$tabla}` LIKE 'uuid'");
+    if ($st->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE `{$tabla}` ADD COLUMN `uuid` VARCHAR(80) NULL");
+    }
+    // Agregar índice único si no existe
+    $st2 = $pdo->query("SHOW INDEX FROM `{$tabla}` WHERE Key_name = 'uq_{$tabla}_uuid'");
+    if ($st2->rowCount() === 0) {
+        // Usar ALTER IGNORE para no fallar si hay duplicados vacíos
+        $pdo->exec("ALTER TABLE `{$tabla}` ADD UNIQUE KEY `uq_{$tabla}_uuid` (`uuid`)");
+    }
+}
 
-    // 1. Asegurar que existan las columnas uuid para mapeo de frontend
-    $pdo->exec("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS uuid VARCHAR(80) NULL AFTER id, ADD UNIQUE KEY IF NOT EXISTS uq_clientes_uuid (uuid)");
-    $pdo->exec("ALTER TABLE causas ADD COLUMN IF NOT EXISTS uuid VARCHAR(80) NULL AFTER id, ADD UNIQUE KEY IF NOT EXISTS uq_causas_uuid (uuid)");
+$inTransaction = false;
+try {
+    // Paso 1: Modificar esquema FUERA de la transacción (DDL hace auto-commit)
+    agregar_columna_uuid($pdo, 'clientes');
+    agregar_columna_uuid($pdo, 'causas');
+
+    // Paso 2: Migrar datos DENTRO de la transacción
+    $pdo->beginTransaction();
+    $inTransaction = true;
 
     $resultados = ['clientes_insertados' => 0, 'causas_insertadas' => 0];
 
-    // 2. MIGRAR CLIENTES
+    // ── MIGRAR CLIENTES ──────────────────────────────────────────────────────
     $stCli = $pdo->prepare('SELECT valor FROM estado_app WHERE estudio_id = ? AND clave = "gestor_cli_v1"');
     $stCli->execute([$eid]);
     $cliJson = $stCli->fetchColumn();
-    
-    $mapaClientes = []; // uuid (front) => id (db)
 
     if ($cliJson) {
         $clientesArray = json_decode($cliJson, true);
         if (is_array($clientesArray)) {
-            $insCli = $pdo->prepare('INSERT IGNORE INTO clientes (estudio_id, uuid, nombre, dni_cuit, email, telefono, domicilio, notas) VALUES (?,?,?,?,?,?,?,?)');
+            $insCli = $pdo->prepare(
+                'INSERT INTO clientes (estudio_id, uuid, nombre, dni_cuit, email, telefono, domicilio, notas)
+                 VALUES (?,?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE nombre=VALUES(nombre)'
+            );
             foreach ($clientesArray as $c) {
-                // frontend structure: {id, nombre, dni, correo, tel, dir, notas}
                 if (!isset($c['id'])) continue;
-                $uuid = $c['id'];
-                $nombre = $c['nombre'] ?? 'Sin Nombre';
-                $dni = $c['dni'] ?? null;
-                $email = $c['correo'] ?? null;
-                $tel = $c['tel'] ?? null;
-                $dir = $c['dir'] ?? null;
-                $notas = $c['notas'] ?? null;
-
-                $insCli->execute([$eid, $uuid, $nombre, $dni, $email, $tel, $dir, $notas]);
-                $resultados['clientes_insertados']++;
+                $insCli->execute([
+                    $eid,
+                    $c['id'],
+                    $c['nombre'] ?? 'Sin Nombre',
+                    $c['dni']    ?? null,
+                    $c['correo'] ?? null,
+                    $c['tel']    ?? null,
+                    $c['dir']    ?? null,
+                    $c['notas']  ?? null,
+                ]);
+                if ($insCli->rowCount() > 0) $resultados['clientes_insertados']++;
             }
         }
     }
 
-    // Cargar mapa de clientes para enlazar causas
-    $stIds = $pdo->prepare('SELECT id, uuid FROM clientes WHERE estudio_id = ? AND uuid IS NOT NULL');
-    $stIds->execute([$eid]);
-    while ($r = $stIds->fetch()) {
-        $mapaClientes[$r['uuid']] = $r['id'];
-    }
-
-    // 3. MIGRAR CAUSAS
+    // ── MIGRAR CAUSAS ────────────────────────────────────────────────────────
     $stCau = $pdo->prepare('SELECT valor FROM estado_app WHERE estudio_id = ? AND clave = "gestor_causas_v6"');
     $stCau->execute([$eid]);
     $cauJson = $stCau->fetchColumn();
@@ -70,46 +82,51 @@ try {
     if ($cauJson) {
         $causasArray = json_decode($cauJson, true);
         if (is_array($causasArray)) {
-            $insCau = $pdo->prepare('INSERT IGNORE INTO causas (estudio_id, owner_id, uuid, estado, caratula, cliente_nombre, expediente, objeto, fuero, juzgado, juez, secretaria, letrada, posicion, actor_rol, actor, demandado_rol, demandado, materias) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-            
-            $insMov = $pdo->prepare('INSERT INTO movimientos (causa_id, fecha_txt, texto, inicio) VALUES (?,?,?,?)');
+            $insCau = $pdo->prepare(
+                'INSERT INTO causas
+                   (estudio_id, owner_id, uuid, estado, caratula, cliente_nombre,
+                    expediente, objeto, fuero, juzgado, juez, secretaria,
+                    letrada, posicion, actor_rol, actor, demandado_rol, demandado, materias)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE estado=VALUES(estado), caratula=VALUES(caratula)'
+            );
+            $insMov = $pdo->prepare(
+                'INSERT INTO movimientos (causa_id, fecha_txt, texto, inicio) VALUES (?,?,?,?)'
+            );
 
             foreach ($causasArray as $c) {
                 if (!isset($c['id'])) continue;
-                $uuid = $c['id'];
-                $estado = $c['estado'] ?? 'preparacion';
-                $caratula = $c['caratula'] ?? 'Sin Carátula';
-                $clienteNom = $c['cliente'] ?? null;
-                $exp = $c['expediente'] ?? null;
-                $obj = $c['objeto'] ?? null;
-                $fuero = $c['fuero'] ?? null;
-                $juz = $c['juzgado'] ?? null;
-                $juez = $c['juez'] ?? null;
-                $sec = $c['secretaria'] ?? null;
-                $let = $c['letrada'] ?? null;
-                $pos = $c['posicion'] ?? null;
-                $actRol = $c['actorRol'] ?? null;
-                $act = $c['actor'] ?? null;
-                $demRol = $c['demandadoRol'] ?? null;
-                $dem = $c['demandado'] ?? null;
                 $mat = isset($c['materia']) ? json_encode($c['materia'], JSON_UNESCAPED_UNICODE) : null;
 
                 $insCau->execute([
-                    $eid, $u['id'], $uuid, $estado, $caratula, $clienteNom, $exp, $obj, $fuero, $juz, $juez, $sec, $let, $pos, $actRol, $act, $demRol, $dem, $mat
+                    $eid,             $u['id'],           $c['id'],
+                    $c['estado']       ?? 'preparacion',  $c['caratula']    ?? 'Sin Carátula',
+                    $c['cliente']      ?? null,            $c['expediente']  ?? null,
+                    $c['objeto']       ?? null,            $c['fuero']       ?? null,
+                    $c['juzgado']      ?? null,            $c['juez']        ?? null,
+                    $c['secretaria']   ?? null,            $c['letrada']     ?? null,
+                    $c['posicion']     ?? null,            $c['actorRol']    ?? null,
+                    $c['actor']        ?? null,            $c['demandadoRol'] ?? null,
+                    $c['demandado']    ?? null,            $mat,
                 ]);
-                
-                // Si la insertó (INSERT IGNORE)
-                if ($insCau->rowCount() > 0) {
-                    $resultados['causas_insertadas']++;
-                    $causa_id = $pdo->lastInsertId();
 
-                    // Migrar movimientos (bitacora)
+                // Buscar el id real de la causa (por uuid)
+                $stId = $pdo->prepare('SELECT id FROM causas WHERE uuid = ?');
+                $stId->execute([$c['id']]);
+                $causa_id = $stId->fetchColumn();
+
+                if ($causa_id) {
+                    $resultados['causas_insertadas']++;
+                    // Reimportar bitácora (borrar y reinsertar para evitar duplicados)
+                    $pdo->prepare('DELETE FROM movimientos WHERE causa_id = ?')->execute([$causa_id]);
                     if (isset($c['bitacora']) && is_array($c['bitacora'])) {
                         foreach ($c['bitacora'] as $mov) {
-                            $fecha = $mov['fecha'] ?? '';
-                            $texto = $mov['texto'] ?? '';
-                            $inicio = empty($mov['inicio']) ? 0 : 1;
-                            $insMov->execute([$causa_id, $fecha, $texto, $inicio]);
+                            $insMov->execute([
+                                $causa_id,
+                                $mov['fecha'] ?? '',
+                                $mov['texto'] ?? '',
+                                empty($mov['inicio']) ? 0 : 1,
+                            ]);
                         }
                     }
                 }
@@ -121,6 +138,8 @@ try {
     json_ok(['migracion' => 'exitosa', 'resultados' => $resultados]);
 
 } catch (Exception $e) {
-    $pdo->rollBack();
+    if ($inTransaction && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     json_error('Error en migración: ' . $e->getMessage());
 }
