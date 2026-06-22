@@ -11,7 +11,7 @@ function db() {
 
   $cfgPath = dirname(__DIR__) . '/config.php';
   if (!file_exists($cfgPath)) {
-    json_error('Falta el archivo config.php en el servidor. Copiá config.example.php a config.php y completá los datos.', 500);
+    json_error('Falta el archivo config.php en: ' . $cfgPath, 500);
   }
   $cfg = require $cfgPath;
 
@@ -35,7 +35,7 @@ function cfg() {
   if ($c === null) {
     $cfgPath = dirname(__DIR__) . '/config.php';
     if (!file_exists($cfgPath)) {
-      json_error('No se encuentra config.php. Verificá que exista en la carpeta api/.', 500);
+      json_error('No se encuentra config.php en: ' . $cfgPath, 500);
     }
     $c = require $cfgPath;
   }
