@@ -8,6 +8,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', '1');
 require __DIR__ . '/lib/db.php';
 require __DIR__ . '/lib/respond.php';
+require __DIR__ . '/lib/auth.php';
 
 // Solo permitir si está logueado como profesional
 $u = require_profesional();
