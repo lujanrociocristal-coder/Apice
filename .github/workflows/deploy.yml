@@ -1,23 +1,16 @@
 # ============================================================================
-#  Despliegue automático a Hostinger por FTP
-#
-#  Qué hace: cada vez que subís cambios a la rama "main" de este repo, GitHub
-#  toma la carpeta "public/" y la sube sola a tu Hostinger (a public_html).
-#
-#  Necesita 3 datos guardados como "secrets" en GitHub (ver GUIA-GITHUB.md):
-#    FTP_SERVER    -> el servidor FTP de Hostinger (ej: ftp.abogadoscatamarca.com)
-#    FTP_USERNAME  -> el usuario FTP
-#    FTP_PASSWORD  -> la contraseña FTP
-#
-#  No toca tu config.php del servidor (está excluido), así no se borran tus
-#  datos de conexión a la base.
+#  Despliegue automatico a Hostinger por FTP
+#  Sube los archivos web (index.html, api.js, install.php, api/) directo a
+#  public_html cada vez que se actualiza la rama main.
+#  Secrets: FTP_SERVER (212.85.6.157) / FTP_USERNAME (u434165369) / FTP_PASSWORD
+#  No toca config.php ni sube database/ ni docs/.
 # ============================================================================
 name: Desplegar a Hostinger
 
 on:
   push:
-    branches: [ main ]      # se dispara al actualizar la rama main
-  workflow_dispatch:        # también permite ejecutarlo a mano desde GitHub
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -32,13 +25,16 @@ jobs:
           server:   ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp           # FTP simple: el host de Hostinger es una IP, ftps daria error de certificado
+          protocol: ftp
           port: 21
-          local-dir: ./public/    # qué carpeta del repo se sube
-          server-dir: ./public_html/   # a dónde se sube en Hostinger
-          # Archivos que NUNCA se tocan en el servidor (para no borrar secretos):
+          local-dir: ./
+          server-dir: ./public_html/
           exclude: |
-            **/config.php
             **/.git*
             **/.git*/**
-            **/node_modules/**
+            .github/**
+            database/**
+            docs/**
+            README.md
+            .gitignore
+            **/config.php
