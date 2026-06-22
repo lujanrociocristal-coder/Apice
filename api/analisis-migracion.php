@@ -11,32 +11,29 @@ $pdo = new PDO($dsn, $cfg['db_user'], $cfg['db_pass'], [
 
 header('Content-Type: application/json');
 
-// Listar todas las claves existentes
-$claves = $pdo->query('SELECT clave, LENGTH(valor) as bytes, SUBSTRING(valor,1,2) as tipo FROM estado_app')->fetchAll();
+$claves = $pdo->query('SELECT clave FROM estado_app')->fetchAll(PDO::FETCH_COLUMN);
 
 $muestras = [];
-foreach ($claves as $row) {
+foreach ($claves as $clave) {
     $st = $pdo->prepare('SELECT valor FROM estado_app WHERE clave = ?');
-    $st->execute([$row['clave']]);
+    $st->execute([$clave]);
     $raw = $st->fetchColumn();
-    $arr = json_decode($raw, true);
-    
-    if (is_array($arr)) {
-        $primer = !empty($arr) ? array_values($arr)[0] : null;
-        $muestras[$row['clave']] = [
-            'total' => count($arr),
-            'keys'  => $primer ? array_keys($primer) : [],
-            'sample'=> $primer
+    $decoded = json_decode($raw, true);
+
+    if (is_array($decoded) && !empty($decoded)) {
+        $primer = array_values($decoded)[0];
+        $muestras[$clave] = [
+            'tipo'   => 'array',
+            'total'  => count($decoded),
+            'keys'   => is_array($primer) ? array_keys($primer) : gettype($primer),
+            'sample' => $primer
         ];
-    } elseif (is_object(json_decode($raw))) {
-        $obj = json_decode($raw, true);
-        $muestras[$row['clave']] = [
-            'tipo'  => 'objeto',
-            'keys'  => array_keys($obj),
-            'sample'=> $obj
-        ];
+    } elseif (is_array($decoded)) {
+        $muestras[$clave] = ['tipo' => 'array_vacio', 'total' => 0];
+    } elseif (is_string($decoded) || is_numeric($decoded)) {
+        $muestras[$clave] = ['tipo' => 'escalar', 'valor' => $decoded];
     } else {
-        $muestras[$row['clave']] = ['tipo' => 'otro', 'bytes' => $row['bytes']];
+        $muestras[$clave] = ['tipo' => 'otro', 'raw_inicio' => substr($raw, 0, 200)];
     }
 }
 
