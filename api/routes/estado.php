@@ -144,6 +144,8 @@ function handle_estado($method, $resto) {
 
   // ══════════════════════════════════════════════════════════════════════════
   //  CLIENTES
+  //  El frontend guarda clientes como OBJETO: { "Nombre": { datos... } }
+  //  El uuid en BD es: "cli_" + md5(nombre) o simplemente el nombre codificado
   // ══════════════════════════════════════════════════════════════════════════
   if ($clave === 'gestor_cli_v1') {
 
@@ -151,54 +153,58 @@ function handle_estado($method, $resto) {
       $st = $pdo->prepare('SELECT * FROM clientes WHERE estudio_id=? ORDER BY nombre ASC');
       $st->execute([$eid]);
       $rows = $st->fetchAll();
-      $arr = [];
+      // Reconstruir el diccionario { nombre => datos } que espera el frontend
+      $obj = [];
       foreach ($rows as $c) {
-        $arr[] = [
-          'id'         => $c['uuid'] ?: 'cli_'.$c['id'],
-          'nombre'     => $c['nombre'],
-          'tipo'       => $c['tipo'],
-          'cuit'       => $c['dni_cuit'],
-          'dni'        => $c['dni_cuit'],
-          'email'      => $c['email'],
-          'telefono'   => $c['telefono'],
-          'whatsapp'   => $c['telefono'],
-          'domicilio'  => $c['domicilio'],
-          'notas'      => $c['notas'],
-          '_createdAt' => strtotime($c['creado_en']) * 1000,
+        $obj[$c['nombre']] = [
+          'tipo'        => $c['tipo'],
+          'cuit'        => $c['dni_cuit'] ?? '',
+          'dni'         => $c['dni_cuit'] ?? '',
+          'email'       => $c['email'] ?? '',
+          'telefono'    => $c['telefono'] ?? '',
+          'whatsapp'    => $c['telefono'] ?? '',
+          'domicilio'   => $c['domicilio'] ?? '',
+          'notas'       => $c['notas'] ?? '',
+          '_createdAt'  => strtotime($c['creado_en']) * 1000,
         ];
       }
-      json_ok(['value' => json_encode($arr, JSON_UNESCAPED_UNICODE)]);
+      json_ok(['value' => json_encode($obj, JSON_UNESCAPED_UNICODE)]);
     }
 
     if ($method === 'PUT') {
       if ($u['rol'] !== 'profesional') json_error('Sin permiso.',403);
       $valor = field('value');
-      if (is_string($valor)) $valor = json_decode($valor,true);
+      if (is_string($valor)) $valor = json_decode($valor, true);
+      // $valor es { "Nombre" => { datos } }
       if (!is_array($valor)) json_error('Formato inválido.');
 
       $ups = $pdo->prepare('
-        INSERT INTO clientes (estudio_id,uuid,nombre,tipo,dni_cuit,email,telefono,domicilio,notas)
+        INSERT INTO clientes (estudio_id, uuid, nombre, tipo, dni_cuit, email, telefono, domicilio, notas)
         VALUES (?,?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
-          nombre=VALUES(nombre),tipo=VALUES(tipo),dni_cuit=VALUES(dni_cuit),
-          email=VALUES(email),telefono=VALUES(telefono),domicilio=VALUES(domicilio),notas=VALUES(notas)
+          tipo=VALUES(tipo), dni_cuit=VALUES(dni_cuit),
+          email=VALUES(email), telefono=VALUES(telefono),
+          domicilio=VALUES(domicilio), notas=VALUES(notas)
       ');
-      foreach ($valor as $c) {
-        $uuid = $c['id'] ?? null;
-        if (!$uuid) continue;
-        $tipo = ($c['tipo']??'fisica') === 'juridica' ? 'juridica' : 'fisica';
+      foreach ($valor as $nombre => $c) {
+        if (!is_string($nombre) || trim($nombre) === '') continue;
+        $uuid = 'cli_' . md5($nombre . '_' . $eid);
+        $tipo = ($c['tipo'] ?? 'fisica') === 'juridica' ? 'juridica' : 'fisica';
         $ups->execute([
-          $eid,$uuid,$c['nombre']??'Sin nombre',$tipo,
-          $c['cuit']??($c['dni']??null),$c['email']??null,
-          $c['telefono']??($c['whatsapp']??null),$c['domicilio']??null,$c['notas']??null,
+          $eid, $uuid, $nombre, $tipo,
+          $c['cuit'] ?? ($c['dni'] ?? null),
+          $c['email'] ?? null,
+          $c['telefono'] ?? ($c['whatsapp'] ?? null),
+          $c['domicilio'] ?? null,
+          $c['notas'] ?? null,
         ]);
       }
-      json_ok(['guardado'=>true]);
+      json_ok(['guardado' => true]);
     }
 
     if ($method === 'DELETE') {
       if ($u['rol'] !== 'profesional') json_error('Sin permiso.',403);
-      json_ok(['borrado'=>true]);
+      json_ok(['borrado' => true]);
     }
     json_error('Método no permitido.',405);
   }

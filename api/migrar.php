@@ -42,31 +42,52 @@ try {
 
     if ($cliJson) {
         $lista = json_decode($cliJson, true);
+        // El frontend guarda clientes como objeto: {"Nombre": {datos...}}
+        // Si viene como array (estructura vieja), también lo manejamos
         if (is_array($lista)) {
             $ins = $pdo->prepare('
                 INSERT INTO clientes (estudio_id, uuid, nombre, tipo, dni_cuit, email, telefono, domicilio, notas)
                 VALUES (?,?,?,?,?,?,?,?,?)
                 ON DUPLICATE KEY UPDATE
-                  nombre=VALUES(nombre), tipo=VALUES(tipo), dni_cuit=VALUES(dni_cuit),
+                  tipo=VALUES(tipo), dni_cuit=VALUES(dni_cuit),
                   email=VALUES(email), telefono=VALUES(telefono), domicilio=VALUES(domicilio)
             ');
-            foreach ($lista as $c) {
-                $uuid = $c['id'] ?? ('cli_' . md5($c['nombre'] ?? '') . '_' . $eid);
-                $tipo = ($c['tipo'] ?? 'fisica') === 'juridica' ? 'juridica' : 'fisica';
-                $ins->execute([
-                    $eid, $uuid,
-                    $c['nombre']    ?? 'Sin nombre',
-                    $tipo,
-                    $c['cuit'] ?: ($c['dni'] ?? null),
-                    $c['email']     ?? null,
-                    $c['telefono'] ?: ($c['whatsapp'] ?? null),
-                    $c['domicilio'] ?? null,
-                    null,
-                ]);
+
+            // Detectar si es diccionario {nombre: datos} o array [{nombre, ...}]
+            $esDiccionario = !isset($lista[0]);
+
+            foreach ($lista as $key => $c) {
+                if ($esDiccionario) {
+                    // key = nombre, c = datos
+                    $nombre = $key;
+                    $uuid = 'cli_' . md5($nombre . '_' . $eid);
+                    $tipo = ($c['tipo'] ?? 'fisica') === 'juridica' ? 'juridica' : 'fisica';
+                    $ins->execute([
+                        $eid, $uuid, $nombre, $tipo,
+                        $c['cuit'] ?: ($c['dni'] ?? null),
+                        $c['email']    ?? null,
+                        $c['telefono'] ?: ($c['whatsapp'] ?? null),
+                        $c['domicilio'] ?? null, null,
+                    ]);
+                } else {
+                    // array con objetos {nombre, tipo, ...}
+                    if (empty($c['nombre'])) continue;
+                    $nombre = $c['nombre'];
+                    $uuid = $c['id'] ?? ('cli_' . md5($nombre . '_' . $eid));
+                    $tipo = ($c['tipo'] ?? 'fisica') === 'juridica' ? 'juridica' : 'fisica';
+                    $ins->execute([
+                        $eid, $uuid, $nombre, $tipo,
+                        $c['cuit'] ?: ($c['dni'] ?? null),
+                        $c['email']    ?? null,
+                        $c['telefono'] ?: ($c['whatsapp'] ?? null),
+                        $c['domicilio'] ?? null, null,
+                    ]);
+                }
                 if ($ins->rowCount() > 0) $res['clientes']++;
             }
         }
     }
+
 
     // ── CAUSAS ───────────────────────────────────────────────────────────────
     $raw2 = $pdo->prepare('SELECT valor FROM estado_app WHERE estudio_id=? AND clave="gestor_causas_v6"');
