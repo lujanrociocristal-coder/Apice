@@ -2831,6 +2831,7 @@ function volverClientes(){st.cliVer=null;render();}
 function setCliDetTab(t){st.cliDetTab=t;render();}
 function nuevoCliente(){st.cliForm={nombre:'',tipo:'fisica'};openModal({tipo:'clidatos'});}
 function editarCliente(enc){const n=decodeURIComponent(enc);st.cliForm={nombre:n,tipo:(clientes[n]&&clientes[n].tipo)||'fisica'};openModal({tipo:'clidatos'});}
+function borrarCliente(enc){const n=decodeURIComponent(enc);if(!confirm(`¿Estás seguro de que querés eliminar al cliente "${n}"? Esto no borrará sus causas.`))return;delete clientes[n];persistCli();volverClientes();}
 function setCliFormTipo(t){if(st.cliForm)st.cliForm.tipo=t;render();}
 
 function renderClientes(){
@@ -2880,7 +2881,10 @@ function renderClienteDetalle(nombre){
     <div class="ficha-top">
       <button class="volver" onclick="volverClientes()">‹ Clientes</button>
       <div class="cli-det-h"><span class="cli-ini big">${cliInitials(nombre)}</span><div class="cli-det-id"><div class="clab">Cliente</div><h2 style="padding-left:0">${esc(nombre)}</h2><div class="cli-det-sub">${tipoBadge}<span class="cli-meta">${cs.length} expediente${cs.length!==1?'s':''} · ${activos} activo${activos!==1?'s':''}</span></div></div>
-        <button class="btn-sec cli-edit" onclick="editarCliente('${encName(nombre)}')">${data?'Editar datos':'Completar datos'}</button></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sec cli-edit" onclick="editarCliente('${encName(nombre)}')">${data?'Editar datos':'Completar datos'}</button>
+          <button class="btn-sec danger cli-del" onclick="borrarCliente('${encName(nombre)}')">✕ Eliminar</button>
+        </div></div>
       ${clave}</div>
     <div class="tabs">${tb('datos','Datos del cliente')}${tb('exp','Expedientes ('+cs.length+')')}</div>
     <div class="panel">${panel}</div></div>`;
