@@ -2,8 +2,9 @@
 /* ============================================================================
  *  ESTADO DE LA APP  (/api/estado/...)
  *
- *  FASE 2 COMPLETA:
- *   - gestor_causas_v6  → tabla causas + movimientos
+ *  FASE 2 COMPLETA — TODOS los sub-datos de la causa persisten en SQL:
+ *   - gestor_causas_v6  → tabla causas (incluye honorarios, documentos,
+ *                          pendientes/tareas, alertas, bitacora/movimientos)
  *   - gestor_cli_v1     → tabla clientes
  *   - gestor_aud_v1     → tabla audiencias
  *   - gestor_dir_v1     → tabla guia_judicial
@@ -19,8 +20,15 @@ function handle_estado($method, $resto) {
   $eid = (int)$u['estudio_id'];
   $pdo = db();
 
+  // Agrega columna JSON si no existe en una tabla
+  function col_json($pdo, $tabla, $columna) {
+    $r = $pdo->query("SHOW COLUMNS FROM `{$tabla}` LIKE '{$columna}'");
+    if ($r->rowCount() === 0)
+      $pdo->exec("ALTER TABLE `{$tabla}` ADD COLUMN `{$columna}` JSON NULL");
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
-  //  CAUSAS
+  //  CAUSAS  (incluye pendientes, honorarios, documentos, alertas)
   // ══════════════════════════════════════════════════════════════════════════
   if ($clave === 'gestor_causas_v6') {
 
@@ -55,14 +63,15 @@ function handle_estado($method, $resto) {
           'demandado'     => $c['demandado'],
           'clienteCalidad'=> $c['cliente_calidad'],
           'posicion'      => $c['posicion'],
-          'materia'       => $c['materias'] ? json_decode($c['materias'],true) : [],
+          'materia'       => $c['materias']   ? json_decode($c['materias'],   true) : [],
+          'honorarios'    => $c['honorarios'] ? json_decode($c['honorarios'], true) : ['ius'=>0,'gastos'=>[],'pagos'=>[]],
+          'documentos'    => $c['documentos'] ? json_decode($c['documentos'], true) : [],
+          'pendientes'    => $c['pendientes'] ? json_decode($c['pendientes'], true) : [],
+          'alertas'       => $c['alertas']    ? json_decode($c['alertas'],    true) : [],
           'bitacora'      => $bit,
           'ultimoMov'     => !empty($bit) ? end($bit) : null,
-          'documentos'    => [],
-          'pendientes'    => [],
-          'alertas'       => [],
-          'ficha'         => $c['ficha_id'] ?? '',
-          'folder'        => $c['folder_id'] ?? '',
+          'ficha'         => $c['ficha_id']   ?? '',
+          'folder'        => $c['folder_id']  ?? '',
         ];
       }
       json_ok(['value' => json_encode($arr, JSON_UNESCAPED_UNICODE)]);
@@ -70,6 +79,13 @@ function handle_estado($method, $resto) {
 
     if ($method === 'PUT') {
       if ($u['rol'] !== 'profesional') json_error('Sin permiso.',403);
+
+      // Asegurar que existen las columnas JSON en causas
+      col_json($pdo, 'causas', 'honorarios');
+      col_json($pdo, 'causas', 'documentos');
+      col_json($pdo, 'causas', 'pendientes');
+      col_json($pdo, 'causas', 'alertas');
+
       $valor = field('value');
       if (is_string($valor)) $valor = json_decode($valor,true);
       if (!is_array($valor)) json_error('Formato inválido.');
@@ -78,8 +94,9 @@ function handle_estado($method, $resto) {
         INSERT INTO causas
           (estudio_id,owner_id,uuid,estado,procesal,caratula,cliente_nombre,
            expediente,cuij,objeto,fuero,juzgado,juez,secretaria,letrada,
-           cliente_es,actor_rol,actor,demandado_rol,demandado,cliente_calidad,posicion,materias)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           cliente_es,actor_rol,actor,demandado_rol,demandado,cliente_calidad,
+           posicion,materias,honorarios,documentos,pendientes,alertas)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
           estado=VALUES(estado),procesal=VALUES(procesal),caratula=VALUES(caratula),
           cliente_nombre=VALUES(cliente_nombre),expediente=VALUES(expediente),cuij=VALUES(cuij),
@@ -87,13 +104,16 @@ function handle_estado($method, $resto) {
           secretaria=VALUES(secretaria),letrada=VALUES(letrada),cliente_es=VALUES(cliente_es),
           actor_rol=VALUES(actor_rol),actor=VALUES(actor),demandado_rol=VALUES(demandado_rol),
           demandado=VALUES(demandado),cliente_calidad=VALUES(cliente_calidad),
-          posicion=VALUES(posicion),materias=VALUES(materias)
+          posicion=VALUES(posicion),materias=VALUES(materias),
+          honorarios=VALUES(honorarios),documentos=VALUES(documentos),
+          pendientes=VALUES(pendientes),alertas=VALUES(alertas)
       ');
       $insMov = $pdo->prepare('INSERT INTO movimientos (causa_id,fecha_txt,texto,inicio) VALUES (?,?,?,?)');
       $getId  = $pdo->prepare('SELECT id FROM causas WHERE uuid=?');
+
       foreach ($valor as $c) {
         if (!isset($c['id'])) continue;
-        $mat = isset($c['materia']) ? json_encode($c['materia'],JSON_UNESCAPED_UNICODE) : null;
+        $j = fn($v) => isset($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : null;
         $ups->execute([
           $eid,$u['id'],$c['id'],
           $c['estado']??'preparacion',$c['procesal']??null,$c['caratula']??'',
@@ -101,7 +121,12 @@ function handle_estado($method, $resto) {
           $c['objeto']??null,$c['fuero']??null,$c['juzgado']??null,$c['juez']??null,
           $c['secretaria']??null,$c['letrada']??null,$c['clienteEs']??'activa',
           $c['actorRol']??null,$c['actor']??null,$c['demandadoRol']??null,
-          $c['demandado']??null,$c['clienteCalidad']??null,$c['posicion']??null,$mat,
+          $c['demandado']??null,$c['clienteCalidad']??null,$c['posicion']??null,
+          $j($c['materia']??null),
+          $j($c['honorarios']??null),
+          $j($c['documentos']??null),
+          $j($c['pendientes']??null),
+          $j($c['alertas']??null),
         ]);
         $getId->execute([$c['id']]);
         $cid = $getId->fetchColumn();
@@ -184,7 +209,7 @@ function handle_estado($method, $resto) {
   if ($clave === 'gestor_aud_v1') {
 
     if ($method === 'GET') {
-      $st = $pdo->prepare('SELECT * FROM audiencias WHERE estudio_id=? ORDER BY fecha ASC');
+      $st = $pdo->prepare('SELECT * FROM audiencias WHERE estudio_id=? ORDER BY fecha ASC, hora ASC');
       $st->execute([$eid]);
       $rows = $st->fetchAll();
       $arr = [];
@@ -211,6 +236,8 @@ function handle_estado($method, $resto) {
       // Agregar columna uuid si no existe
       $r = $pdo->query("SHOW COLUMNS FROM audiencias LIKE 'uuid'");
       if ($r->rowCount()===0) $pdo->exec("ALTER TABLE audiencias ADD COLUMN uuid VARCHAR(80) NULL");
+      $r2 = $pdo->query("SHOW INDEX FROM audiencias WHERE Key_name='uq_aud_uuid'");
+      if ($r2->rowCount()===0) $pdo->exec("ALTER TABLE audiencias ADD UNIQUE KEY uq_aud_uuid (uuid)");
 
       $valor = field('value');
       if (is_string($valor)) $valor = json_decode($valor,true);
@@ -228,9 +255,15 @@ function handle_estado($method, $resto) {
         $uuid = $a['id'] ?? null;
         if (!$uuid) continue;
         $tipo = in_array($a['tipo']??'', ['juzgado','mediacion','cita']) ? $a['tipo'] : 'cita';
+        // convertir fecha dd/mm/yyyy a yyyy-mm-dd si es necesario
+        $fecha = $a['fecha'] ?? date('Y-m-d');
+        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $fecha)) {
+          [$d,$m,$y] = explode('/',$fecha);
+          $fecha = "$y-$m-$d";
+        }
         $ups->execute([
-          $eid,$uuid,$tipo,
-          $a['fecha']??date('Y-m-d'),$a['hora']??null,$a['detalle']??null,
+          $eid,$uuid,$tipo,$fecha,
+          $a['hora']??null,$a['detalle']??null,
           $a['clienteNombre']??null,$a['materia']??null,
           empty($a['cliAsiste'])?0:1,$a['modalidad']??null,$a['lugar']??null,$a['link']??null,
         ]);
@@ -279,6 +312,11 @@ function handle_estado($method, $resto) {
       if (is_string($valor)) $valor = json_decode($valor,true);
       if (!is_array($valor)) json_error('Formato inválido.');
 
+      // Asegurar índice único en ref
+      $r = $pdo->query("SHOW INDEX FROM guia_judicial WHERE Key_name='uq_guia_ref'");
+      if ($r->rowCount()===0)
+        $pdo->exec("ALTER TABLE guia_judicial ADD UNIQUE KEY uq_guia_ref (estudio_id, ref(60))");
+
       $cats = ['juzgado','mediacion','equipo','mesa','asesoria','colega'];
       $ups = $pdo->prepare('
         INSERT INTO guia_judicial (estudio_id,ref,categoria,nombre,rol,integrantes,direccion,tel,email,notas,oficial,actualizado)
@@ -288,10 +326,6 @@ function handle_estado($method, $resto) {
           integrantes=VALUES(integrantes),direccion=VALUES(direccion),tel=VALUES(tel),
           email=VALUES(email),notas=VALUES(notas),actualizado=VALUES(actualizado)
       ');
-      // Necesitamos uq en ref para el ON DUPLICATE KEY
-      $r = $pdo->query("SHOW INDEX FROM guia_judicial WHERE Key_name='uq_guia_ref'");
-      if ($r->rowCount()===0) $pdo->exec("ALTER TABLE guia_judicial ADD UNIQUE KEY uq_guia_ref (estudio_id, ref(60))");
-
       foreach ($valor as $g) {
         $ref = $g['id'] ?? null;
         if (!$ref) continue;
@@ -315,7 +349,7 @@ function handle_estado($method, $resto) {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  FLUJO ORIGINAL  (config y cualquier otra clave)
+  //  FLUJO ORIGINAL  (gestor_cfg_v9 y cualquier otra clave futura)
   // ══════════════════════════════════════════════════════════════════════════
   if ($method === 'GET') {
     $st = $pdo->prepare('SELECT valor FROM estado_app WHERE estudio_id=? AND clave=?');

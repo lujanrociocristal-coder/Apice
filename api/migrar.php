@@ -76,25 +76,35 @@ try {
     if ($cauJson) {
         $lista2 = json_decode($cauJson, true);
         if (is_array($lista2)) {
+            // Asegurar columnas JSON
+            foreach (['honorarios','documentos','pendientes','alertas'] as $col) {
+                $r = $pdo->query("SHOW COLUMNS FROM causas LIKE '{$col}'");
+                if ($r->rowCount()===0) $pdo->exec("ALTER TABLE causas ADD COLUMN `{$col}` JSON NULL");
+            }
+
             $ins2 = $pdo->prepare('
                 INSERT INTO causas
                   (estudio_id, owner_id, uuid, estado, procesal, caratula,
                    cliente_nombre, expediente, cuij, objeto, fuero, juzgado, juez,
                    secretaria, letrada, cliente_es, actor_rol, actor, demandado_rol,
-                   demandado, cliente_calidad, posicion, materias)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   demandado, cliente_calidad, posicion, materias,
+                   honorarios, documentos, pendientes, alertas)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON DUPLICATE KEY UPDATE
                   estado=VALUES(estado), caratula=VALUES(caratula),
                   procesal=VALUES(procesal), expediente=VALUES(expediente),
                   cuij=VALUES(cuij), juez=VALUES(juez),
-                  secretaria=VALUES(secretaria), materias=VALUES(materias)
+                  secretaria=VALUES(secretaria), materias=VALUES(materias),
+                  honorarios=VALUES(honorarios), documentos=VALUES(documentos),
+                  pendientes=VALUES(pendientes), alertas=VALUES(alertas)
             ');
             $insMov = $pdo->prepare('INSERT INTO movimientos (causa_id, fecha_txt, texto, inicio) VALUES (?,?,?,?)');
             $getId  = $pdo->prepare('SELECT id FROM causas WHERE uuid=?');
 
+            $j = fn($v) => isset($v) && $v !== null ? json_encode($v, JSON_UNESCAPED_UNICODE) : null;
+
             foreach ($lista2 as $c) {
                 if (!isset($c['id'])) continue;
-                $mat = isset($c['materia']) ? json_encode($c['materia'], JSON_UNESCAPED_UNICODE) : null;
 
                 $ins2->execute([
                     $eid, $u['id'], $c['id'],
@@ -117,7 +127,11 @@ try {
                     $c['demandado']      ?? null,
                     $c['clienteCalidad'] ?? null,
                     $c['posicion']       ?? null,
-                    $mat,
+                    $j($c['materia']   ?? null),
+                    $j($c['honorarios']?? null),
+                    $j($c['documentos']?? null),
+                    $j($c['pendientes']?? null),
+                    $j($c['alertas']   ?? null),
                 ]);
 
                 $getId->execute([$c['id']]);
