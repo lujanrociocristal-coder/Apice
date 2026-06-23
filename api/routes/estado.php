@@ -157,7 +157,11 @@ function handle_estado($method, $resto) {
         throw $t;
       }
     }
-    if ($method === 'DELETE') json_ok(['borrado'=>true]);
+    if ($method === 'DELETE') {
+      if ($u['rol'] !== 'profesional') json_error('Sin permiso.',403);
+      $pdo->prepare('DELETE FROM causas WHERE estudio_id=?')->execute([$eid]);
+      json_ok(['borrado'=>true]);
+    }
     json_error('Método no permitido.',405);
   }
 
@@ -242,6 +246,7 @@ function handle_estado($method, $resto) {
 
     if ($method === 'DELETE') {
       if ($u['rol'] !== 'profesional') json_error('Sin permiso.',403);
+      $pdo->prepare('DELETE FROM clientes WHERE estudio_id=?')->execute([$eid]);
       json_ok(['borrado' => true]);
     }
     json_error('Método no permitido.',405);
@@ -336,6 +341,7 @@ function handle_estado($method, $resto) {
 
     if ($method === 'DELETE') {
       if ($u['rol'] !== 'profesional') json_error('Sin permiso.',403);
+      $pdo->prepare('DELETE FROM audiencias WHERE estudio_id=?')->execute([$eid]);
       json_ok(['borrado'=>true]);
     }
     json_error('Método no permitido.',405);
@@ -425,6 +431,7 @@ function handle_estado($method, $resto) {
 
     if ($method === 'DELETE') {
       if ($u['rol'] !== 'profesional') json_error('Sin permiso.',403);
+      $pdo->prepare('DELETE FROM guia_judicial WHERE estudio_id=?')->execute([$eid]);
       json_ok(['borrado'=>true]);
     }
     json_error('Método no permitido.',405);
