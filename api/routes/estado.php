@@ -90,53 +90,72 @@ function handle_estado($method, $resto) {
       if (is_string($valor)) $valor = json_decode($valor,true);
       if (!is_array($valor)) json_error('Formato inválido.');
 
-      $ups = $pdo->prepare('
-        INSERT INTO causas
-          (estudio_id,owner_id,uuid,estado,procesal,caratula,cliente_nombre,
-           expediente,cuij,objeto,fuero,juzgado,juez,secretaria,letrada,
-           cliente_es,actor_rol,actor,demandado_rol,demandado,cliente_calidad,
-           posicion,materias,honorarios,documentos,pendientes,alertas)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE
-          estado=VALUES(estado),procesal=VALUES(procesal),caratula=VALUES(caratula),
-          cliente_nombre=VALUES(cliente_nombre),expediente=VALUES(expediente),cuij=VALUES(cuij),
-          objeto=VALUES(objeto),fuero=VALUES(fuero),juzgado=VALUES(juzgado),juez=VALUES(juez),
-          secretaria=VALUES(secretaria),letrada=VALUES(letrada),cliente_es=VALUES(cliente_es),
-          actor_rol=VALUES(actor_rol),actor=VALUES(actor),demandado_rol=VALUES(demandado_rol),
-          demandado=VALUES(demandado),cliente_calidad=VALUES(cliente_calidad),
-          posicion=VALUES(posicion),materias=VALUES(materias),
-          honorarios=VALUES(honorarios),documentos=VALUES(documentos),
-          pendientes=VALUES(pendientes),alertas=VALUES(alertas)
-      ');
-      $insMov = $pdo->prepare('INSERT INTO movimientos (causa_id,fecha_txt,texto,inicio) VALUES (?,?,?,?)');
-      $getId  = $pdo->prepare('SELECT id FROM causas WHERE uuid=?');
+      $pdo->beginTransaction();
+      try {
+        $ups = $pdo->prepare('
+          INSERT INTO causas
+            (estudio_id,owner_id,uuid,estado,procesal,caratula,cliente_nombre,
+             expediente,cuij,objeto,fuero,juzgado,juez,secretaria,letrada,
+             cliente_es,actor_rol,actor,demandado_rol,demandado,cliente_calidad,
+             posicion,materias,honorarios,documentos,pendientes,alertas)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ON DUPLICATE KEY UPDATE
+            estado=VALUES(estado),procesal=VALUES(procesal),caratula=VALUES(caratula),
+            cliente_nombre=VALUES(cliente_nombre),expediente=VALUES(expediente),cuij=VALUES(cuij),
+            objeto=VALUES(objeto),fuero=VALUES(fuero),juzgado=VALUES(juzgado),juez=VALUES(juez),
+            secretaria=VALUES(secretaria),letrada=VALUES(letrada),cliente_es=VALUES(cliente_es),
+            actor_rol=VALUES(actor_rol),actor=VALUES(actor),demandado_rol=VALUES(demandado_rol),
+            demandado=VALUES(demandado),cliente_calidad=VALUES(cliente_calidad),
+            posicion=VALUES(posicion),materias=VALUES(materias),
+            honorarios=VALUES(honorarios),documentos=VALUES(documentos),
+            pendientes=VALUES(pendientes),alertas=VALUES(alertas)
+        ');
+        $insMov = $pdo->prepare('INSERT INTO movimientos (causa_id,fecha_txt,texto,inicio) VALUES (?,?,?,?)');
+        $getId  = $pdo->prepare('SELECT id FROM causas WHERE uuid=?');
 
-      foreach ($valor as $c) {
-        if (!isset($c['id'])) continue;
-        $j = fn($v) => isset($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : null;
-        $ups->execute([
-          $eid,$u['id'],$c['id'],
-          $c['estado']??'preparacion',$c['procesal']??null,$c['caratula']??'',
-          $c['cliente']??null,$c['expediente']??null,$c['cuij']??null,
-          $c['objeto']??null,$c['fuero']??null,$c['juzgado']??null,$c['juez']??null,
-          $c['secretaria']??null,$c['letrada']??null,$c['clienteEs']??'activa',
-          $c['actorRol']??null,$c['actor']??null,$c['demandadoRol']??null,
-          $c['demandado']??null,$c['clienteCalidad']??null,$c['posicion']??null,
-          $j($c['materia']??null),
-          $j($c['honorarios']??null),
-          $j($c['documentos']??null),
-          $j($c['pendientes']??null),
-          $j($c['alertas']??null),
-        ]);
-        $getId->execute([$c['id']]);
-        $cid = $getId->fetchColumn();
-        if ($cid && isset($c['bitacora']) && is_array($c['bitacora'])) {
-          $pdo->prepare('DELETE FROM movimientos WHERE causa_id=?')->execute([$cid]);
-          foreach ($c['bitacora'] as $m)
-            $insMov->execute([$cid,$m['fecha']??'',$m['texto']??'',empty($m['inicio'])?0:1]);
+        $keepIds = [];
+        foreach ($valor as $c) {
+          if (!isset($c['id'])) continue;
+          $keepIds[] = $c['id'];
+          $j = fn($v) => isset($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : null;
+          $ups->execute([
+            $eid,$u['id'],$c['id'],
+            $c['estado']??'preparacion',$c['procesal']??null,$c['caratula']??'',
+            $c['cliente']??null,$c['expediente']??null,$c['cuij']??null,
+            $c['objeto']??null,$c['fuero']??null,$c['juzgado']??null,$c['juez']??null,
+            $c['secretaria']??null,$c['letrada']??null,$c['clienteEs']??'activa',
+            $c['actorRol']??null,$c['actor']??null,$c['demandadoRol']??null,
+            $c['demandado']??null,$c['clienteCalidad']??null,$c['posicion']??null,
+            $j($c['materia']??null),
+            $j($c['honorarios']??null),
+            $j($c['documentos']??null),
+            $j($c['pendientes']??null),
+            $j($c['alertas']??null),
+          ]);
+          $getId->execute([$c['id']]);
+          $cid = $getId->fetchColumn();
+          if ($cid && isset($c['bitacora']) && is_array($c['bitacora'])) {
+            $pdo->prepare('DELETE FROM movimientos WHERE causa_id=?')->execute([$cid]);
+            foreach ($c['bitacora'] as $m)
+              $insMov->execute([$cid,$m['fecha']??'',$m['texto']??'',empty($m['inicio'])?0:1]);
+          }
         }
+
+        if (empty($keepIds)) {
+          $pdo->prepare('DELETE FROM causas WHERE estudio_id = ?')->execute([$eid]);
+        } else {
+          $in  = str_repeat('?,', count($keepIds) - 1) . '?';
+          $sql = "DELETE FROM causas WHERE estudio_id = ? AND uuid NOT IN ($in)";
+          $params = array_merge([$eid], $keepIds);
+          $pdo->prepare($sql)->execute($params);
+        }
+
+        $pdo->commit();
+        json_ok(['guardado'=>true]);
+      } catch (Throwable $t) {
+        $pdo->rollBack();
+        throw $t;
       }
-      json_ok(['guardado'=>true]);
     }
     if ($method === 'DELETE') json_ok(['borrado'=>true]);
     json_error('Método no permitido.',405);
@@ -178,28 +197,47 @@ function handle_estado($method, $resto) {
       // $valor es { "Nombre" => { datos } }
       if (!is_array($valor)) json_error('Formato inválido.');
 
-      $ups = $pdo->prepare('
-        INSERT INTO clientes (estudio_id, uuid, nombre, tipo, dni_cuit, email, telefono, domicilio, notas)
-        VALUES (?,?,?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE
-          tipo=VALUES(tipo), dni_cuit=VALUES(dni_cuit),
-          email=VALUES(email), telefono=VALUES(telefono),
-          domicilio=VALUES(domicilio), notas=VALUES(notas)
-      ');
-      foreach ($valor as $nombre => $c) {
-        if (!is_string($nombre) || trim($nombre) === '') continue;
-        $uuid = 'cli_' . md5($nombre . '_' . $eid);
-        $tipo = ($c['tipo'] ?? 'fisica') === 'juridica' ? 'juridica' : 'fisica';
-        $ups->execute([
-          $eid, $uuid, $nombre, $tipo,
-          $c['cuit'] ?? ($c['dni'] ?? null),
-          $c['email'] ?? null,
-          $c['telefono'] ?? ($c['whatsapp'] ?? null),
-          $c['domicilio'] ?? null,
-          $c['notas'] ?? null,
-        ]);
+      $pdo->beginTransaction();
+      try {
+        $ups = $pdo->prepare('
+          INSERT INTO clientes (estudio_id, uuid, nombre, tipo, dni_cuit, email, telefono, domicilio, notas)
+          VALUES (?,?,?,?,?,?,?,?,?)
+          ON DUPLICATE KEY UPDATE
+            tipo=VALUES(tipo), dni_cuit=VALUES(dni_cuit),
+            email=VALUES(email), telefono=VALUES(telefono),
+            domicilio=VALUES(domicilio), notas=VALUES(notas)
+        ');
+        $keepUuids = [];
+        foreach ($valor as $nombre => $c) {
+          if (!is_string($nombre) || trim($nombre) === '') continue;
+          $uuid = 'cli_' . md5($nombre . '_' . $eid);
+          $keepUuids[] = $uuid;
+          $tipo = ($c['tipo'] ?? 'fisica') === 'juridica' ? 'juridica' : 'fisica';
+          $ups->execute([
+            $eid, $uuid, $nombre, $tipo,
+            $c['cuit'] ?? ($c['dni'] ?? null),
+            $c['email'] ?? null,
+            $c['telefono'] ?? ($c['whatsapp'] ?? null),
+            $c['domicilio'] ?? null,
+            $c['notas'] ?? null,
+          ]);
+        }
+
+        if (empty($keepUuids)) {
+          $pdo->prepare('DELETE FROM clientes WHERE estudio_id = ?')->execute([$eid]);
+        } else {
+          $in  = str_repeat('?,', count($keepUuids) - 1) . '?';
+          $sql = "DELETE FROM clientes WHERE estudio_id = ? AND uuid NOT IN ($in)";
+          $params = array_merge([$eid], $keepUuids);
+          $pdo->prepare($sql)->execute($params);
+        }
+
+        $pdo->commit();
+        json_ok(['guardado' => true]);
+      } catch (Throwable $t) {
+        $pdo->rollBack();
+        throw $t;
       }
-      json_ok(['guardado' => true]);
     }
 
     if ($method === 'DELETE') {
@@ -249,32 +287,51 @@ function handle_estado($method, $resto) {
       if (is_string($valor)) $valor = json_decode($valor,true);
       if (!is_array($valor)) json_error('Formato inválido.');
 
-      $ups = $pdo->prepare('
-        INSERT INTO audiencias (estudio_id,uuid,tipo,fecha,hora,detalle,cliente_nombre,materia,cli_asiste,modalidad,lugar,link)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE
-          tipo=VALUES(tipo),fecha=VALUES(fecha),hora=VALUES(hora),detalle=VALUES(detalle),
-          cliente_nombre=VALUES(cliente_nombre),materia=VALUES(materia),
-          cli_asiste=VALUES(cli_asiste),modalidad=VALUES(modalidad),lugar=VALUES(lugar),link=VALUES(link)
-      ');
-      foreach ($valor as $a) {
-        $uuid = $a['id'] ?? null;
-        if (!$uuid) continue;
-        $tipo = in_array($a['tipo']??'', ['juzgado','mediacion','cita']) ? $a['tipo'] : 'cita';
-        // convertir fecha dd/mm/yyyy a yyyy-mm-dd si es necesario
-        $fecha = $a['fecha'] ?? date('Y-m-d');
-        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $fecha)) {
-          [$d,$m,$y] = explode('/',$fecha);
-          $fecha = "$y-$m-$d";
+      $pdo->beginTransaction();
+      try {
+        $ups = $pdo->prepare('
+          INSERT INTO audiencias (estudio_id,uuid,tipo,fecha,hora,detalle,cliente_nombre,materia,cli_asiste,modalidad,lugar,link)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+          ON DUPLICATE KEY UPDATE
+            tipo=VALUES(tipo),fecha=VALUES(fecha),hora=VALUES(hora),detalle=VALUES(detalle),
+            cliente_nombre=VALUES(cliente_nombre),materia=VALUES(materia),
+            cli_asiste=VALUES(cli_asiste),modalidad=VALUES(modalidad),lugar=VALUES(lugar),link=VALUES(link)
+        ');
+        $keepUuids = [];
+        foreach ($valor as $a) {
+          $uuid = $a['id'] ?? null;
+          if (!$uuid) continue;
+          $keepUuids[] = $uuid;
+          $tipo = in_array($a['tipo']??'', ['juzgado','mediacion','cita']) ? $a['tipo'] : 'cita';
+          // convertir fecha dd/mm/yyyy a yyyy-mm-dd si es necesario
+          $fecha = $a['fecha'] ?? date('Y-m-d');
+          if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $fecha)) {
+            [$d,$m,$y] = explode('/',$fecha);
+            $fecha = "$y-$m-$d";
+          }
+          $ups->execute([
+            $eid,$uuid,$tipo,$fecha,
+            $a['hora']??null,$a['detalle']??null,
+            $a['clienteNombre']??null,$a['materia']??null,
+            empty($a['cliAsiste'])?0:1,$a['modalidad']??null,$a['lugar']??null,$a['link']??null,
+          ]);
         }
-        $ups->execute([
-          $eid,$uuid,$tipo,$fecha,
-          $a['hora']??null,$a['detalle']??null,
-          $a['clienteNombre']??null,$a['materia']??null,
-          empty($a['cliAsiste'])?0:1,$a['modalidad']??null,$a['lugar']??null,$a['link']??null,
-        ]);
+
+        if (empty($keepUuids)) {
+          $pdo->prepare('DELETE FROM audiencias WHERE estudio_id = ?')->execute([$eid]);
+        } else {
+          $in  = str_repeat('?,', count($keepUuids) - 1) . '?';
+          $sql = "DELETE FROM audiencias WHERE estudio_id = ? AND uuid NOT IN ($in)";
+          $params = array_merge([$eid], $keepUuids);
+          $pdo->prepare($sql)->execute($params);
+        }
+
+        $pdo->commit();
+        json_ok(['guardado'=>true]);
+      } catch (Throwable $t) {
+        $pdo->rollBack();
+        throw $t;
       }
-      json_ok(['guardado'=>true]);
     }
 
     if ($method === 'DELETE') {
@@ -323,28 +380,47 @@ function handle_estado($method, $resto) {
       if ($r->rowCount()===0)
         $pdo->exec("ALTER TABLE guia_judicial ADD UNIQUE KEY uq_guia_ref (estudio_id, ref(60))");
 
-      $cats = ['juzgado','mediacion','equipo','mesa','asesoria','colega'];
-      $ups = $pdo->prepare('
-        INSERT INTO guia_judicial (estudio_id,ref,categoria,nombre,rol,integrantes,direccion,tel,email,notas,oficial,actualizado)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE
-          categoria=VALUES(categoria),nombre=VALUES(nombre),rol=VALUES(rol),
-          integrantes=VALUES(integrantes),direccion=VALUES(direccion),tel=VALUES(tel),
-          email=VALUES(email),notas=VALUES(notas),actualizado=VALUES(actualizado)
-      ');
-      foreach ($valor as $g) {
-        $ref = $g['id'] ?? null;
-        if (!$ref) continue;
-        $cat = in_array($g['categoria']??'', $cats) ? $g['categoria'] : 'juzgado';
-        $int = isset($g['integrantes']) ? json_encode($g['integrantes'],JSON_UNESCAPED_UNICODE) : null;
-        $ups->execute([
-          $eid,$ref,$cat,$g['nombre']??'Sin nombre',
-          $g['rol']??null,$int,$g['direccion']??null,
-          $g['tel']??null,$g['email']??null,$g['notas']??null,
-          empty($g['oficial'])?0:1,$g['actualizado']??null,
-        ]);
+      $pdo->beginTransaction();
+      try {
+        $cats = ['juzgado','mediacion','equipo','mesa','asesoria','colega'];
+        $ups = $pdo->prepare('
+          INSERT INTO guia_judicial (estudio_id,ref,categoria,nombre,rol,integrantes,direccion,tel,email,notas,oficial,actualizado)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+          ON DUPLICATE KEY UPDATE
+            categoria=VALUES(categoria),nombre=VALUES(nombre),rol=VALUES(rol),
+            integrantes=VALUES(integrantes),direccion=VALUES(direccion),tel=VALUES(tel),
+            email=VALUES(email),notas=VALUES(notas),actualizado=VALUES(actualizado)
+        ');
+        $keepRefs = [];
+        foreach ($valor as $g) {
+          $ref = $g['id'] ?? null;
+          if (!$ref) continue;
+          $keepRefs[] = $ref;
+          $cat = in_array($g['categoria']??'', $cats) ? $g['categoria'] : 'juzgado';
+          $int = isset($g['integrantes']) ? json_encode($g['integrantes'],JSON_UNESCAPED_UNICODE) : null;
+          $ups->execute([
+            $eid,$ref,$cat,$g['nombre']??'Sin nombre',
+            $g['rol']??null,$int,$g['direccion']??null,
+            $g['tel']??null,$g['email']??null,$g['notas']??null,
+            empty($g['oficial'])?0:1,$g['actualizado']??null,
+          ]);
+        }
+
+        if (empty($keepRefs)) {
+          $pdo->prepare('DELETE FROM guia_judicial WHERE estudio_id = ?')->execute([$eid]);
+        } else {
+          $in  = str_repeat('?,', count($keepRefs) - 1) . '?';
+          $sql = "DELETE FROM guia_judicial WHERE estudio_id = ? AND ref NOT IN ($in)";
+          $params = array_merge([$eid], $keepRefs);
+          $pdo->prepare($sql)->execute($params);
+        }
+
+        $pdo->commit();
+        json_ok(['guardado'=>true]);
+      } catch (Throwable $t) {
+        $pdo->rollBack();
+        throw $t;
       }
-      json_ok(['guardado'=>true]);
     }
 
     if ($method === 'DELETE') {
