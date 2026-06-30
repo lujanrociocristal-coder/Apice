@@ -13,9 +13,9 @@ function start_secure_session() {
   session_set_cookie_params([
     'lifetime' => 0,
     'path'     => '/',
-    'domain'   => '',                       // mismo dominio
+    'domain'   => '',
     'secure'   => !empty($c['cookie_secure']),
-    'httponly' => true,                     // la cookie no es accesible por JavaScript
+    'httponly' => true,
     'samesite' => 'Lax',
   ]);
   session_name('APICE_SES');
@@ -32,12 +32,27 @@ function check_password($plano, $hash) {
   return $hash && password_verify($plano, $hash);
 }
 
+/* Genera una clave temporal fácil de leer (para blanqueos). */
+function generar_clave_temporal() {
+  // Sin caracteres confusos (0/O, 1/l). Ej: "Apice-7K4P".
+  $letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  $nums   = '23456789';
+  $s = '';
+  for ($i = 0; $i < 4; $i++) $s .= $letras[random_int(0, strlen($letras) - 1)];
+  for ($i = 0; $i < 2; $i++) $s .= $nums[random_int(0, strlen($nums) - 1)];
+  return 'Apice-' . $s;
+}
+
 /* Devuelve la usuaria logueada (arreglo) o null si no hay sesión. */
 function current_user() {
   static $u = null;
   if ($u !== null) return $u ?: null;
   if (empty($_SESSION['uid'])) { $u = false; return null; }
-  $st = db()->prepare('SELECT id, estudio_id, nombre, email, rol, matricula, avatar_url FROM usuarios WHERE id = ? AND activo = 1');
+  $st = db()->prepare('SELECT u.id, u.estudio_id, u.nombre, u.email, u.rol, u.matricula, u.avatar_url,
+                              u.es_admin, u.es_superadmin, u.debe_cambiar_clave, u.activo,
+                              e.tipo AS estudio_tipo
+                       FROM usuarios u JOIN estudios e ON e.id = u.estudio_id
+                       WHERE u.id = ? AND u.activo = 1');
   $st->execute([$_SESSION['uid']]);
   $u = $st->fetch() ?: false;
   return $u ?: null;
@@ -57,15 +72,32 @@ function require_profesional() {
   return $u;
 }
 
+/* Exige que sea la ADMINISTRADORA del estudio (lead de la firma). */
+function require_admin() {
+  $u = require_login();
+  if ($u['rol'] !== 'profesional' || (int)$u['es_admin'] !== 1) {
+    json_error('Solo la administradora del estudio puede hacer esta acción.', 403);
+  }
+  return $u;
+}
+
+/* Exige ser la SUPER-ADMINISTRADORA de la plataforma (dueña: decide qué
+ * estudios/abogados acceden). Solo ella puede crear estudios nuevos. */
+function require_superadmin() {
+  $u = require_login();
+  if ((int)$u['es_superadmin'] !== 1) {
+    json_error('Solo la super-administradora de la plataforma puede hacer esta acción.', 403);
+  }
+  return $u;
+}
+
 /* El estudio de la usuaria actual (todas las consultas se filtran por esto). */
 function estudio_actual() {
   $u = require_login();
   return (int)$u['estudio_id'];
 }
 
-/* ¿La usuaria puede ver/editar esta causa?
- * Reglas: misma firma + (es la dueña  O  está como colaboradora  O
- *         es el cliente de la causa, en modo lectura). */
+/* ¿La usuaria puede ver/editar esta causa? */
 function puede_acceder_causa($causaId, $soloLectura = false) {
   $u = require_login();
   $st = db()->prepare('SELECT id, estudio_id, owner_id, cliente_id FROM causas WHERE id = ?');
@@ -75,7 +107,6 @@ function puede_acceder_causa($causaId, $soloLectura = false) {
   if ((int)$c['estudio_id'] !== (int)$u['estudio_id']) json_error('No tenés acceso a esta causa.', 403);
 
   if ($u['rol'] === 'cliente') {
-    // El cliente solo puede LEER sus propias causas.
     if (!$soloLectura) json_error('Los clientes tienen acceso de solo lectura.', 403);
     $cli = db()->prepare('SELECT 1 FROM clientes WHERE id = ? AND usuario_id = ?');
     $cli->execute([$c['cliente_id'], $u['id']]);
@@ -83,7 +114,6 @@ function puede_acceder_causa($causaId, $soloLectura = false) {
     return $c;
   }
 
-  // Profesional: dueña o colaboradora.
   if ((int)$c['owner_id'] === (int)$u['id']) return $c;
   $col = db()->prepare('SELECT permiso FROM causa_colaboradores WHERE causa_id = ? AND usuario_id = ?');
   $col->execute([$causaId, $u['id']]);

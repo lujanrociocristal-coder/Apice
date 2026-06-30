@@ -89,9 +89,36 @@ if ($accion !== 'instalar') {
       . 'padding:11px 18px;border-radius:9px;text-decoration:none;font-weight:600">Instalar ahora →</a></p>');
 }
 
+// Agrega una columna a una tabla solo si todavía no existe (para bases ya creadas).
+function agregarColumnaSiFalta($pdo, $tabla, $columna, $definicion) {
+  $q = $pdo->prepare('SELECT COUNT(*) FROM information_schema.columns
+                      WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?');
+  $q->execute([$tabla, $columna]);
+  if ((int)$q->fetchColumn() === 0) {
+    $pdo->exec("ALTER TABLE `$tabla` ADD COLUMN $definicion");
+  }
+}
+
 // 5) Ejecutar
 try {
   $t = correrSql($pdo, $schemaPath);   // crea tablas (usa CREATE TABLE IF NOT EXISTS)
+
+  // Migración: columnas de gestión de claves y control de acceso (por si la base
+  // ya existía de antes).
+  agregarColumnaSiFalta($pdo, 'usuarios', 'es_admin',           'es_admin TINYINT(1) NOT NULL DEFAULT 0');
+  agregarColumnaSiFalta($pdo, 'usuarios', 'es_superadmin',      'es_superadmin TINYINT(1) NOT NULL DEFAULT 0');
+  agregarColumnaSiFalta($pdo, 'usuarios', 'debe_cambiar_clave', 'debe_cambiar_clave TINYINT(1) NOT NULL DEFAULT 0');
+  agregarColumnaSiFalta($pdo, 'estudios', 'tipo',               "tipo ENUM('individual','estudio') NOT NULL DEFAULT 'estudio'");
+
+  // Si ya existe una usuaria pero ninguna es super-administradora, marcar a la
+  // primera (la que creó la plataforma) como super-admin y admin.
+  $haySuper = (int)$pdo->query('SELECT COUNT(*) FROM usuarios WHERE es_superadmin = 1')->fetchColumn();
+  $hayUsuarios = (int)$pdo->query('SELECT COUNT(*) FROM usuarios')->fetchColumn();
+  if ($haySuper === 0 && $hayUsuarios > 0) {
+    $pid = (int)$pdo->query('SELECT id FROM usuarios ORDER BY id ASC LIMIT 1')->fetchColumn();
+    $pdo->prepare('UPDATE usuarios SET es_superadmin = 1, es_admin = 1 WHERE id = ?')->execute([$pid]);
+  }
+
   // Cargar feriados solo si la tabla está vacía (para no duplicar).
   $hayFeriados = (int)$pdo->query('SELECT COUNT(*) FROM feriados')->fetchColumn();
   $f = 0;

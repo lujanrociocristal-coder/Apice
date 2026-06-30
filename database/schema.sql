@@ -24,6 +24,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE IF NOT EXISTS estudios (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
   nombre        VARCHAR(160) NOT NULL,                 -- "Estudio Luján & Breppe"
+  tipo          ENUM('individual','estudio') NOT NULL DEFAULT 'estudio', -- individual = 1 abogada; estudio = 2 o más
   domicilio     VARCHAR(255) NULL,
   telefono      VARCHAR(60)  NULL,
   email         VARCHAR(160) NULL,
@@ -53,6 +54,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
   telefono        VARCHAR(60)  NULL,
   avatar_url      VARCHAR(255) NULL,
   google_id       VARCHAR(120) NULL,                     -- preparado para "Ingresar con Google" (etapa 2)
+  es_admin           TINYINT(1) NOT NULL DEFAULT 0,       -- 1 = administradora del estudio (lead de la firma)
+  es_superadmin      TINYINT(1) NOT NULL DEFAULT 0,       -- 1 = dueña de la plataforma (decide qué estudios acceden)
+  debe_cambiar_clave TINYINT(1) NOT NULL DEFAULT 0,       -- 1 = clave temporal: debe cambiarla al ingresar
   activo          TINYINT(1) NOT NULL DEFAULT 1,
   creado_en       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ultimo_acceso   DATETIME NULL,

@@ -7,6 +7,15 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>ÁPICE · Gestión Jurídica Inteligente</title>
+<!-- App instalable en el celular (PWA) -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1C2433">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ÁPICE">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1871,6 +1880,7 @@ function renderFicha(){
         <button class="btn-sec" onclick="openModal({tipo:'estado',id:'${c.id}'})">↻ Cambiar estado</button>
         <button class="btn-sec" onclick="toggleCliente(true)">👁 Vista de cliente</button>
         <a class="btn-sec" href="${D}${c.ficha}/edit" target="_blank" rel="noopener">↗ Abrir ficha en Drive</a>
+        <button class="btn-sec danger" onclick="delCausa('${c.id}')">🗑 Eliminar causa</button>
       </div></div>
     <div class="tabs">${tabBtn("datos","Datos de la causa")}${tabBtn("avance","Avance progresivo")}${tabBtn("docs","Documentación")}${tabBtn("pend","Pendientes")}${tabBtn("honorarios","Honorarios")}</div>
     <div class="panel">${panel}</div></div>
@@ -2063,18 +2073,22 @@ function mHistDoc(c,i){const d=c.documentos[i];const h=d.historial||[];
    <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cerrar</button></div></div>`;
 }
 function panelPend(c){
-  const items=c.pendientes.map((p,i)=>({p,i})).filter(o=>!o.p.done);
+  /* #3 — mostramos TODOS: los hechos quedan tachados (no desaparecen).
+     Se completan/descompletan con el tilde y se borran con la × */
+  const items=c.pendientes.map((p,i)=>({p,i})).sort((a,b)=>(a.p.done?1:0)-(b.p.done?1:0));
   return `<div class="bloque-titulo">Pendientes / próximos pasos</div>
   <div class="pend">${items.length?items.map(o=>{const p=o.p,i=o.i;
     const editing=st.editPend&&st.editPend.id===c.id&&st.editPend.i===i;
+    const stTxt=p.done?'text-decoration:line-through;color:#9aa1ab':'';
+    const stChk=p.done?'background:#15803D;color:#fff;border-color:#15803D':'';
     return `<div class="pitem">
-      <div class="pcheck" onclick="togglePend('${c.id}',${i})">${iCheck}</div>
+      <div class="pcheck" style="${stChk}" onclick="togglePend('${c.id}',${i})" title="${p.done?'Marcar como no hecha':'Marcar como hecha'}">${iCheck}</div>
       ${editing?`<input class="pedit" id="pe" value="${attr(p.t)}" onkeydown="if(event.key==='Enter')savePendText('${c.id}',${i})" onblur="savePendText('${c.id}',${i})">`
-        :`<div class="ptxt" onclick="startEditPend('${c.id}',${i})">${esc(p.t)}</div>`}
+        :`<div class="ptxt" style="${stTxt}" onclick="startEditPend('${c.id}',${i})">${esc(p.t)}</div>`}
       <input type="date" class="pfecha ${p.fecha&&p.fecha<hoyKey()&&!p.done?'venc':''}" value="${attr(p.fecha||'')}" onchange="savePendFecha('${c.id}',${i},this.value)" title="Fecha (opcional)">
       <span class="picon" onclick="startEditPend('${c.id}',${i})" title="Editar">✎</span>
       <span class="pdel" onclick="delPend('${c.id}',${i})" title="Eliminar">×</span></div>`;
-  }).join(""):`<div class="vacio">Sin pendientes activos. Agregá uno abajo.</div>`}</div>
+  }).join(""):`<div class="vacio">Sin pendientes. Agregá uno abajo.</div>`}</div>
   <div class="padd"><input id="np" placeholder="Escribir un nuevo pendiente y Enter…" onkeydown="if(event.key==='Enter')addPend('${c.id}')"><input type="date" id="npf" class="pfecha" title="Fecha (opcional)"><button onclick="addPend('${c.id}')">Agregar</button></div>`;
 }
 function renderCliente(c){
@@ -2173,10 +2187,16 @@ function modalContent(){
   return "";
 }
 function mAgregar(){
+  const cliOpts=clienteNombres().sort((a,b)=>a.localeCompare(b,'es')).map(n=>`<option value="${attr(n)}">${esc(n)}</option>`).join('');
   return `<div class="modal wide"><h3>Agregar causa</h3>
-  <div class="msub">Se crea como causa <b>en preparación</b>. Cuando la presentes, desde la ficha la pasás a <b>en trámite</b> y le agregás el N° de expediente.</div>
+  <div class="msub">Elegí el <b>estado inicial</b>. Si la creás <b>en trámite</b> (ya presentada), cargá el N° de expediente. Si la creás <b>en preparación</b> (todavía no presentada), el expediente queda pendiente.</div>
   <div class="field"><label>Carátula *</label><input id="n_car" placeholder="APELLIDO, Nombre c/ … s/ …"></div>
-  <div class="field"><label>Cliente</label><input id="n_cli" placeholder="Nombre del cliente"></div>
+  <div class="grid2">
+    <div class="field"><label>Estado inicial</label><select id="n_est"><option value="preparacion">En preparación (no presentada)</option><option value="tramite">En trámite (ya presentada)</option></select></div>
+    <div class="field"><label>N° de expediente</label><input id="n_exp" placeholder="Ej: 271/2022 — si está en trámite"></div>
+  </div>
+  <div class="field"><label>Cliente</label><select id="n_cli_sel"><option value="">— Elegí un cliente existente —</option>${cliOpts}<option value="__nuevo__">➕ Cargar un cliente nuevo</option></select></div>
+  <div class="field"><label>…o nombre del cliente nuevo</label><input id="n_cli_nuevo" placeholder="Completá solo si elegiste “cliente nuevo”"></div>
   <div class="field"><label>Materia</label><select id="n_mat">${materiasFiltro().map(x=>`<option>${esc(x)}</option>`).join("")}</select></div>
   <div class="field"><label>Objeto</label><input id="n_obj" placeholder="Breve descripción del objeto"></div>
   <div class="field"><label>Partes intervinientes</label><textarea id="n_par" rows="2" placeholder="Actora / demandado / causante…"></textarea></div>
@@ -2198,7 +2218,7 @@ function mAgregar(){
     <div class="field na-addwrap"><button class="btn-sec na-addbtn" onclick="naAddToGuia()">＋ Agregar este juzgado a la Guía</button></div>
   </div>
   <div class="field"><label>Abogado/a interviniente</label><select id="n_let">${abogados().map((a,i)=>`<option value="${attr(a)}" ${i===0?'selected':''}>${esc(a)}</option>`).join('')}</select></div>
-  <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn-prim" onclick="guardarNueva()">Crear en preparación</button></div></div>`;
+  <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn-prim" onclick="guardarNueva()">Crear causa</button></div></div>`;
 }
 function mEditar(c){
   return `<div class="modal wide"><h3>Editar datos de la causa</h3>
@@ -2515,18 +2535,42 @@ function resolver(id,idx,opcion){const c=get(id);const a=c.alertas[idx];if(!a)re
 function postergar(id,idx){const c=get(id);const a=c.alertas[idx];if(a)a.postergada=true;persist();
   if(st.modal&&st.modal.tipo==='resolver')st.modal={tipo:'verificar'};
   render();if(st.vista==="ficha"&&!st.modal)renderFicha();}
-function guardarNueva(){const g=id=>document.getElementById(id).value.trim();const car=g("n_car");if(!car){alert("La carátula es obligatoria.");return;}
-  causas.unshift({id:"nueva-"+Date.now(),estado:"preparacion",procesal:null,materia:[g("n_mat")||"Sucesión"],
-    caratula:car,cliente:g("n_cli")||"A completar",expediente:null,cuij:null,objeto:g("n_obj")||"A completar.",
+function guardarNueva(){const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};const car=g("n_car");if(!car){alert("La carátula es obligatoria.");return;}
+  const est=((document.getElementById("n_est")||{}).value==='tramite')?'tramite':'preparacion';
+  const exp=g("n_exp")||null;
+  /* Cliente: existente (del selector) o nuevo (texto) */
+  const sel=(document.getElementById("n_cli_sel")||{}).value||'';
+  const cliName=(sel&&sel!=='__nuevo__')?sel:g("n_cli_nuevo");
+  /* #5 — aviso de causa duplicada por N° de expediente (un mismo cliente puede tener
+     varias causas, pero no dos con el mismo expediente) */
+  if(exp){const norm=s=>String(s||'').replace(/\s/g,'').toLowerCase();
+    const dup=causas.find(c=>c.expediente&&norm(c.expediente)===norm(exp));
+    if(dup){if(!confirm('Ya existe una causa con el expediente '+exp+':\n"'+dup.caratula+'".\n\n¿Crear otra causa igual de todos modos?'))return;}}
+  const enTr=est==='tramite';
+  const txtUlt=enTr?'Causa en trámite (alta manual). Verificá el último movimiento en el expediente.':'Causa creada como borrador en preparación.';
+  const txtAlta=enTr?'Alta de la causa en trámite (carga manual).':'Alta de la causa en preparación (carga manual).';
+  const pend=enTr
+    ?[{t:"Verificar el último movimiento en el expediente (IURIX).",done:false},{t:"Completar datos y documentación.",done:false}]
+    :[{t:"Completar datos y documentación.",done:false},{t:"Preparar escrito de inicio.",done:false}];
+  causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:[g("n_mat")||"Sucesión"],
+    caratula:car,cliente:cliName||"A completar",expediente:exp,cuij:null,objeto:g("n_obj")||"A completar.",
     fuero:g("n_fuero")||"A definir",juzgado:g("n_juz")||"A definir al presentar",juez:g("n_juez")||"—",secretaria:g("n_sec")||"—",dirJuzId:(document.getElementById("n_dirjuz")||{}).value||null,
     letrada:g("n_let")||"Dra. Rocío Cristal Luján",clienteEs:"activa",actorRol:"Actora",actor:g("n_par")||"A completar",actorPat:g("n_let")||"Dra. Rocío Cristal Luján",demandadoRol:"Demandado",demandado:"A completar",demandadoPat:"",clienteCalidad:"por derecho propio",posicion:"—",
-    ultimoMov:{fecha:hoy(),texto:"Causa creada como borrador en preparación."},
-    bitacora:[{fecha:hoy(),texto:"Alta de la causa en preparación (carga manual).",inicio:true}],
-    documentos:[],pendientes:[{t:"Completar datos y documentación.",done:false},{t:"Preparar escrito de inicio.",done:false}],
+    ultimoMov:{fecha:hoy(),texto:txtUlt},
+    bitacora:[{fecha:hoy(),texto:txtAlta,inicio:true}],
+    documentos:[],pendientes:pend,
     alertas:[],ficha:"",folder:""});
-  persist();const cliName=g("n_cli");closeModal();
+  persist();closeModal();
   if(cliName&&cliName!=='A completar'&&!clientes[cliName]){st.cliForm={nombre:cliName,tipo:'fisica'};openModal({tipo:'clidatos'});}}
 function hoy(){const d=new Date();return String(d.getDate()).padStart(2,'0')+"/"+String(d.getMonth()+1).padStart(2,'0')+"/"+d.getFullYear();}
+/* #2 — Eliminar una causa completa (con doble confirmación, por seguridad) */
+function delCausa(id){const c=get(id);if(!c)return;
+  if(!confirm('¿Eliminar la causa "'+c.caratula+'"?\n\nSe borra TODO lo de esta causa: bitácora, documentos, pendientes y honorarios. Esta acción NO se puede deshacer.'))return;
+  if(!confirm('Última confirmación: esta eliminación es DEFINITIVA.\n\n¿Eliminar la causa?'))return;
+  causas=causas.filter(x=>x.id!==id);persist();
+  st.actual=null;st.vista='tablero';st.tab='datos';st.editPend=null;
+  if(typeof closeModal==='function')closeModal();
+  navTo('causas');}
 /* ===== CADUCIDAD DE INSTANCIA (CPCyC Catamarca, Ley 2339, arts. 310-318) ===== */
 const CAD_TIPOS={
  ordinario:{l:"Ordinario / conocimiento (1ª inst.) — 6 meses",meses:6},
@@ -2801,20 +2845,27 @@ function delAudiencia(id){audiencias=audiencias.filter(a=>a.id!==id);persistAud(
 function renderTareas(){
   const cont=document.getElementById('sideContent');if(!cont)return;
   cont.classList.add('wide');
-  let groups='',total=0;
+  /* #3 — mostramos TODAS: las hechas quedan tachadas y se borran con la × */
+  let groups='';
   causas.forEach(c=>{
-    const items=c.pendientes.map((p,i)=>({p,i})).filter(o=>!o.p.done);
-    if(!items.length)return;total+=items.length;
-    items.sort((a,b)=>((a.p.fecha||'9999-99')+'').localeCompare((b.p.fecha||'9999-99')+''));
+    const items=c.pendientes.map((p,i)=>({p,i}));
+    if(!items.length)return;
+    items.sort((a,b)=>{if(!!a.p.done!==!!b.p.done)return a.p.done?1:-1;return ((a.p.fecha||'9999-99')+'').localeCompare((b.p.fecha||'9999-99')+'');});
     const k=cc(c.estado);
     groups+=`<div class="tarea-grp"><button class="tg-h" onclick="abrirFicha('${c.id}')"><span class="tg-dot ${k}"></span><span class="tg-car">${esc(c.caratula)}</span><span class="tg-go">Ver causa ›</span></button>`+
-      items.map(o=>{const f=o.p.fecha;const chip=f?`<span class="tt-date ${f<hoyKey()?'venc':(f===hoyKey()?'hoy':'')}">${audFechaDMY(f)}</span>`:'';return `<div class="tarea-it"><div class="tcheck" onclick="toggleTarea('${c.id}',${o.i})" title="Marcar como hecha"></div><div class="ttxt" onclick="abrirFicha('${c.id}')">${esc(o.p.t)}</div>${chip}</div>`;}).join('')+`</div>`;
+      items.map(o=>{const f=o.p.fecha,done=o.p.done;
+        const chip=f?`<span class="tt-date ${f<hoyKey()&&!done?'venc':(f===hoyKey()?'hoy':'')}">${audFechaDMY(f)}</span>`:'';
+        const stTxt=done?'text-decoration:line-through;color:#9aa1ab':'';
+        const stChk=done?'background:#15803D;color:#fff;border-color:#15803D':'';
+        return `<div class="tarea-it"><div class="tcheck" style="${stChk}" onclick="toggleTarea('${c.id}',${o.i})" title="${done?'Marcar como no hecha':'Marcar como hecha'}"></div><div class="ttxt" style="${stTxt}" onclick="abrirFicha('${c.id}')">${esc(o.p.t)}</div>${chip}<span class="pdel" style="margin-left:auto;cursor:pointer;padding:0 6px" onclick="delTareaGlobal('${c.id}',${o.i})" title="Eliminar">×</span></div>`;
+      }).join('')+`</div>`;
   });
   cont.innerHTML=`<div class="side-sectit">Tareas</div>
-    <div class="side-secsub">Son los pendientes de todas las causas. Tocá una tarea o el expediente para ir a la causa; al tildarlas desaparecen acá y en la ficha.</div>
-    ${total?`<div class="tareas-grid">${groups}</div>`:`<div class="vacio" style="padding:14px 2px">No tenés pendientes activos.</div>`}`;
+    <div class="side-secsub">Son los pendientes de todas las causas. Al tildarlas quedan <b>tachadas</b> (no desaparecen); para borrarlas, tocá la ×.</div>
+    ${groups?`<div class="tareas-grid">${groups}</div>`:`<div class="vacio" style="padding:14px 2px">No tenés tareas cargadas.</div>`}`;
 }
-function toggleTarea(id,i){const c=get(id);if(c&&c.pendientes[i]){c.pendientes[i].done=true;persist();}if(st.vista==='ficha'&&st.actual===id)renderFicha();renderSection();}
+function toggleTarea(id,i){const c=get(id);if(c&&c.pendientes[i]){c.pendientes[i].done=!c.pendientes[i].done;persist();}if(st.vista==='ficha'&&st.actual===id)renderFicha();renderSection();}
+function delTareaGlobal(id,i){const c=get(id);if(c&&c.pendientes[i]){c.pendientes.splice(i,1);persist();}if(st.vista==='ficha'&&st.actual===id)renderFicha();renderSection();}
 /* ===== MÓDULO CLIENTES (v21) ===== */
 const CLI='gestor_cli_v1';
 let clientes={};
@@ -2906,7 +2957,9 @@ function mClienteDatos(){
 function guardarCliente(){
   const f=st.cliForm||{nombre:'',tipo:'fisica'};const v=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
   let key=f.nombre;
-  if(!key){key=v('cl_key');if(!key){alert('Poné el nombre o la razón social.');return;}}
+  if(!key){key=v('cl_key');if(!key){alert('Poné el nombre o la razón social.');return;}
+    /* #5 — aviso de cliente duplicado */
+    if(clientes[key]){if(!confirm('Ya existe un cliente registrado como "'+key+'".\n\n¿Querés actualizar sus datos con lo que cargaste?'))return;}}
   const tipo=f.tipo;const data={tipo,cuit:v('cl_cuit'),telefono:v('cl_tel'),email:v('cl_mail')};
   if(tipo==='fisica')Object.assign(data,{nombre:key,dni:v('cl_dni'),fechaNac:v('cl_nac'),estadoCivil:v('cl_ec'),profesion:v('cl_prof'),domicilio:v('cl_dom'),whatsapp:v('cl_wa')});
   else Object.assign(data,{razonSocial:key,domicilioLegal:v('cl_dom'),actividad:v('cl_act'),representante:v('cl_rep')});
@@ -3393,12 +3446,13 @@ function renderOnboarding(){
         </button>
       </div>
     </div>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--mut);margin:6px 2px 12px;text-align:left;line-height:1.45;cursor:pointer"><input type="checkbox" id="onb_acepta" ${onbState.acepta?'checked':''} onchange="onbState.acepta=this.checked" style="margin-top:2px;flex:none"> Leí y acepto los <a onclick="onbLegal('terminos')" style="color:var(--azul);font-weight:600;text-decoration:underline;cursor:pointer">Términos</a> y la <a onclick="onbLegal('privacidad')" style="color:var(--azul);font-weight:600;text-decoration:underline;cursor:pointer">Política de Privacidad</a>.</label>
     <button class="onb-primary onb-btn" onclick="onbEnter('email')">${esc(primaryLabel)} →</button>
     <div class="onb-switch">${onbState.mode==='register'?'¿Ya tenés cuenta? <a onclick="onbMode(\'login\')">Ingresá</a>':'¿No tenés cuenta todavía? <a onclick="onbMode(\'register\')">Creá una</a>'}</div>
 
     <div class="onb-consent">${consent}</div>
     ${legalPop}
-    <div class="onb-disc">${esc(c.disc)}<br><span class="onb-proto">Prototipo A: el ingreso es simulado y la aceptación se registra en este dispositivo.</span></div>
+    <div class="onb-disc">${esc(c.disc)}<br><span class="onb-proto">Tu aceptación de los Términos y la Política de Privacidad queda registrada con fecha (Ley 25.326 de Protección de Datos Personales).</span></div>
   </div>`;
 }
 /* ===== Pedido de datos para EstrategIA — dentro de la app (Opción B) ===== */
@@ -3841,7 +3895,7 @@ function render(){
   const o=document.getElementById("ov");if(o)o.remove();
   if(st.modal)document.body.insertAdjacentHTML("beforeend",`<div id="ov"><div class="overlay" onclick="if(event.target===this)closeModal()">${modalContent()}</div></div>`);
 }
-async function init(){const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg.valorIUS==='number')config=savedCfg;const saved=await loadState();if(saved&&Array.isArray(saved)&&saved.length){causas=saved;normalize();}else{seedCausas();}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone)injectTutorial();}
+async function init(){const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg.valorIUS==='number')config=savedCfg;const saved=await loadState();if(saved&&Array.isArray(saved)&&saved.length){causas=saved;normalize();}else{seedCausas();}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 </script>
 </body>

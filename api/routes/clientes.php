@@ -90,7 +90,8 @@ function cliente_dar_acceso($id) {
   if ($chk->fetch()) json_error('Ya existe un usuario con ese email.');
 
   $pdo = db(); $pdo->beginTransaction();
-  $pdo->prepare('INSERT INTO usuarios (estudio_id, nombre, email, password_hash, rol) VALUES (?,?,?,?,?)')
+  // El cliente entra con una clave inicial y debe cambiarla en el primer ingreso.
+  $pdo->prepare('INSERT INTO usuarios (estudio_id, nombre, email, password_hash, rol, debe_cambiar_clave) VALUES (?,?,?,?,?,1)')
       ->execute([$u['estudio_id'], $c['nombre'], $email, hash_password($pass), 'cliente']);
   $uid = (int)$pdo->lastInsertId();
   $pdo->prepare('UPDATE clientes SET usuario_id = ?, email = ? WHERE id = ?')->execute([$uid, $email, $id]);

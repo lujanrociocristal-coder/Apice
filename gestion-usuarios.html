@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ÁPICE · Usuarios y claves</title>
+<style>
+  :root{
+    --tinta:#1C2433;--mut:#6B7280;--linea:#E5E7EB;--linea2:#D3D7DE;
+    --papel:#F6F7F9;--tarjeta:#FFFFFF;--azul:#2563EB;--verde:#15803D;
+    --verde-bg:#E7F1EA;--rojo:#8a2828;--rojo-bg:#FBEBEB;--amar-bg:#FBF3D9;--amar-tx:#854D0E;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,sans-serif;background:var(--papel);color:var(--tinta);line-height:1.5;padding:28px 16px 80px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:22px;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:14px;margin-bottom:22px}
+  .volver{display:inline-block;font-size:13px;color:var(--azul);text-decoration:none;margin-bottom:16px}
+  .card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;padding:20px 22px;margin-bottom:18px}
+  .card h2{font-size:16px;margin-bottom:14px}
+  label{display:block;font-size:13px;font-weight:600;margin:10px 0 5px}
+  input{width:100%;padding:10px 12px;border:1px solid var(--linea2);border-radius:9px;font-size:14px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:180px}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-weight:600;font-size:13px;padding:10px 14px}
+  .btn-main{background:var(--tinta);color:#fff;margin-top:14px}
+  .btn-main:hover{background:#10151f}
+  .btn-sec{background:#fff;border:1px solid var(--linea2);color:var(--tinta)}
+  .btn-sec:hover{border-color:var(--tinta)}
+  .btn-warn{background:var(--amar-bg);color:var(--amar-tx);border:1px solid #E4C97A}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--linea)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+  .tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+  .tag.prof{background:#E7EDFC;color:#1E3A8A}.tag.cli{background:#EEF1F4;color:#3F4A5A}
+  .tag.admin{background:var(--verde-bg);color:var(--verde)}
+  .tag.off{background:var(--rojo-bg);color:var(--rojo)}
+  .acc{display:flex;gap:6px;flex-wrap:wrap}
+  .acc button{padding:6px 10px;font-size:12px}
+  .msg{padding:11px 14px;border-radius:9px;font-size:13px;margin-top:12px}
+  .ok{background:var(--verde-bg);color:var(--verde)}
+  .err{background:var(--rojo-bg);color:var(--rojo)}
+  .clavebox{background:var(--amar-bg);color:var(--amar-tx);border:1px solid #E4C97A;border-radius:10px;padding:14px 16px;margin-top:14px;font-size:14px}
+  .clavebox b{font-family:ui-monospace,monospace;font-size:18px;letter-spacing:1px}
+  .hide{display:none}
+  .nota{font-size:12px;color:var(--mut);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="volver" href="/">‹ Volver a ÁPICE</a>
+  <h1>Usuarios y claves</h1>
+  <div class="sub">Gestión de accesos del estudio. Solo para la administradora.</div>
+
+  <div id="bloqueo" class="card hide">
+    <h2>Acceso restringido</h2>
+    <p id="bloqueoTxt" class="nota"></p>
+    <a class="btn-sec" href="/" style="display:inline-block;margin-top:12px;text-decoration:none;padding:10px 14px">Ir a ÁPICE</a>
+  </div>
+
+  <div id="panel" class="hide">
+
+    <!-- Panel exclusivo de la super-administradora (dueña de la plataforma) -->
+    <div id="superPanel" class="card hide" style="border-color:#C7D2FE;background:#F7F9FF">
+      <h2>🏛 Estudios de la plataforma <span style="font-size:11px;background:#E7F1EA;color:#15803D;padding:2px 8px;border-radius:999px;vertical-align:middle">Super-admin</span></h2>
+      <div class="nota" style="margin-bottom:12px">Acá decidís qué estudios acceden a ÁPICE. Al crear uno, se genera la abogada administradora de esa firma con una clave temporal.</div>
+      <div id="estudiosWrap" style="margin-bottom:16px">Cargando…</div>
+      <div style="border-top:1px solid var(--linea);padding-top:14px">
+        <b style="font-size:14px">Dar acceso a un estudio nuevo</b>
+        <div class="row" style="margin-top:8px">
+          <div><label>Tipo de cuenta</label>
+            <select id="ne_tipo" style="width:100%;padding:10px 12px;border:1px solid var(--linea2);border-radius:9px;font-size:14px">
+              <option value="individual">Abogada individual (una sola persona)</option>
+              <option value="estudio" selected>Estudio jurídico (2 o más abogadas)</option>
+            </select>
+          </div>
+          <div><label>Nombre del estudio / profesional</label><input id="ne_estudio" placeholder="Estudio Pérez & Asoc."></div>
+        </div>
+        <div class="row" style="margin-top:0">
+          <div><label>Abogada administradora</label><input id="ne_nombre" placeholder="Dra. Ana Pérez"></div>
+          <div><label>Email</label><input id="ne_email" type="email" placeholder="ana@email.com"></div>
+        </div>
+        <div class="nota" style="margin-top:6px"><b>Individual:</b> una sola abogada, no puede sumar colegas (sí sus clientes). <b>Estudio:</b> puede sumar otras abogadas de la firma.</div>
+        <button class="btn-main" onclick="crearEstudio()">Crear y generar clave temporal</button>
+        <div id="ne_msg"></div>
+      </div>
+    </div>
+
+    <!-- Lista de usuarios -->
+    <div class="card">
+      <h2>Personas de mi estudio</h2>
+      <div id="tablaWrap">Cargando…</div>
+    </div>
+
+    <!-- Crear profesional -->
+    <div class="card" id="cardAddAbogada">
+      <h2>Agregar una abogada (profesional)</h2>
+      <div class="row">
+        <div><label>Nombre</label><input id="np_nombre" placeholder="Dra. Valeria Breppe"></div>
+        <div><label>Email</label><input id="np_email" type="email" placeholder="valeria@email.com"></div>
+      </div>
+      <button class="btn-main" onclick="crearProfesional()">Crear acceso</button>
+      <div class="nota">Se genera una clave temporal que le pasás a la persona. La cambia cuando entra por primera vez.</div>
+      <div id="np_msg"></div>
+    </div>
+
+    <!-- Cambiar mi clave -->
+    <div class="card">
+      <h2>Cambiar mi contraseña</h2>
+      <div class="row">
+        <div><label>Contraseña actual</label><input id="mc_actual" type="password"></div>
+        <div><label>Nueva contraseña</label><input id="mc_nueva" type="password" placeholder="mínimo 6 caracteres"></div>
+      </div>
+      <button class="btn-main" onclick="cambiarMiClave()">Guardar nueva contraseña</button>
+      <div id="mc_msg"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = '/api';
+async function api(path, method, body){
+  const opt = { method: method||'GET', headers:{'Content-Type':'application/json'}, credentials:'same-origin' };
+  if(body!==undefined) opt.body = JSON.stringify(body);
+  const r = await fetch(API+path, opt);
+  let j=null; try{ j=await r.json(); }catch(e){}
+  if(!r.ok || (j && j.ok===false)) throw new Error((j&&j.error)||('Error '+r.status));
+  return j ? j.data : null;
+}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function msg(id, texto, ok){ document.getElementById(id).innerHTML = '<div class="msg '+(ok?'ok':'err')+'">'+esc(texto)+'</div>'; }
+function claveBox(id, clave, quien){
+  document.getElementById(id).innerHTML =
+    '<div class="clavebox">Clave temporal para <b style="font-size:14px">'+esc(quien)+'</b>:<br><b>'+esc(clave)+'</b>'
+    +'<div style="margin-top:8px;font-size:12px">Pasásela a la persona (por WhatsApp o en persona). Al entrar, el sistema le va a pedir que la cambie.</div></div>';
+}
+
+let yo = null;
+
+async function init(){
+  try{
+    yo = await api('/auth/me');
+  }catch(e){ yo = null; }
+  if(!yo || !yo.logueada){
+    mostrarBloqueo('Tenés que iniciar sesión en ÁPICE primero.');
+    return;
+  }
+  if(yo.rol !== 'profesional'){
+    mostrarBloqueo('Esta sección es solo para abogadas del estudio.');
+    return;
+  }
+  document.getElementById('panel').classList.remove('hide');
+  // Cuenta individual: no se pueden sumar colegas -> ocultar esa tarjeta.
+  if(yo.estudio_tipo === 'individual'){
+    const c = document.getElementById('cardAddAbogada');
+    if(c) c.classList.add('hide');
+  }
+  // Panel exclusivo de la super-administradora (dueña de la plataforma).
+  if(Number(yo.es_superadmin) === 1){
+    document.getElementById('superPanel').classList.remove('hide');
+    cargarEstudios();
+  }
+  cargarUsuarios();
+}
+function mostrarBloqueo(txt){
+  document.getElementById('bloqueo').classList.remove('hide');
+  document.getElementById('bloqueoTxt').textContent = txt;
+}
+
+async function cargarUsuarios(){
+  const cont = document.getElementById('tablaWrap');
+  try{
+    const us = await api('/usuarios');
+    if(!us.length){ cont.innerHTML = '<div class="nota">Todavía no hay usuarios.</div>'; return; }
+    let h = '<table><thead><tr><th>Nombre</th><th>Email</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
+    us.forEach(u=>{
+      const tipo = u.rol==='profesional'
+        ? '<span class="tag prof">Abogada</span>'+(Number(u.es_admin)? ' <span class="tag admin">Admin</span>':'')
+        : '<span class="tag cli">Cliente</span>';
+      const estado = Number(u.activo)? 'Activo' : '<span class="tag off">Inactivo</span>';
+      const yoMismo = (u.id===yo.id);
+      h += '<tr><td>'+esc(u.nombre)+'</td><td>'+esc(u.email)+'</td><td>'+tipo+'</td><td>'+estado+'</td><td><div class="acc">'
+        + '<button class="btn-warn" onclick="blanquear('+u.id+',\''+esc(u.nombre).replace(/'/g,"")+'\')">Blanquear clave</button>'
+        + (yoMismo ? '' :
+            (Number(u.activo)
+              ? '<button class="btn-sec" onclick="activar('+u.id+',0)">Desactivar</button>'
+              : '<button class="btn-sec" onclick="activar('+u.id+',1)">Activar</button>'))
+        + '</div><div id="rowmsg_'+u.id+'"></div></td></tr>';
+    });
+    h += '</tbody></table>';
+    cont.innerHTML = h;
+  }catch(e){ cont.innerHTML = '<div class="msg err">'+esc(e.message)+'</div>'; }
+}
+
+async function crearProfesional(){
+  const nombre = document.getElementById('np_nombre').value.trim();
+  const email  = document.getElementById('np_email').value.trim();
+  if(!nombre || !email){ msg('np_msg','Completá nombre y email.',false); return; }
+  try{
+    const r = await api('/usuarios','POST',{nombre, email});
+    claveBox('np_msg', r.clave_temporal, nombre);
+    document.getElementById('np_nombre').value=''; document.getElementById('np_email').value='';
+    cargarUsuarios();
+  }catch(e){ msg('np_msg', e.message, false); }
+}
+
+async function blanquear(id, nombre){
+  if(!confirm('¿Blanquear la clave de '+nombre+'? Se va a generar una clave temporal nueva.')) return;
+  try{
+    const r = await api('/usuarios/'+id+'/blanquear','POST',{});
+    claveBox('rowmsg_'+id, r.clave_temporal, nombre);
+  }catch(e){ document.getElementById('rowmsg_'+id).innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; }
+}
+
+async function activar(id, valor){
+  try{
+    await api('/usuarios/'+id,'PUT',{activo: valor?1:0});
+    cargarUsuarios();
+  }catch(e){ alert(e.message); }
+}
+
+async function cambiarMiClave(){
+  const actual = document.getElementById('mc_actual').value;
+  const nueva  = document.getElementById('mc_nueva').value;
+  if(!actual || nueva.length<6){ msg('mc_msg','Completá la actual y una nueva de al menos 6 caracteres.',false); return; }
+  try{
+    await api('/auth/cambiar-clave','POST',{actual, nueva});
+    msg('mc_msg','Listo, tu contraseña se cambió.',true);
+    document.getElementById('mc_actual').value=''; document.getElementById('mc_nueva').value='';
+  }catch(e){ msg('mc_msg', e.message, false); }
+}
+
+/* ---- Super-administradora: estudios de la plataforma ---- */
+async function cargarEstudios(){
+  const cont = document.getElementById('estudiosWrap');
+  try{
+    const es = await api('/usuarios/estudios');
+    if(!es.length){ cont.innerHTML = '<div class="nota">Todavía no hay otros estudios.</div>'; return; }
+    let h = '<table><thead><tr><th>Estudio</th><th>Tipo</th><th>Abog.</th><th>Clien.</th><th></th></tr></thead><tbody>';
+    es.forEach(e=>{
+      const ind = (e.tipo === 'individual');
+      const tag = ind ? '<span class="tag cli">Individual</span>' : '<span class="tag prof">Estudio</span>';
+      const otro = ind ? 'estudio' : 'individual';
+      const lblBtn = ind ? 'Convertir en estudio' : 'Convertir en individual';
+      h += '<tr><td>'+esc(e.nombre)+'</td><td>'+tag+'</td><td>'+(e.abogadas||0)+'</td><td>'+(e.clientes||0)+'</td>'
+         + '<td><button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarTipoEstudio('+e.id+',\''+otro+'\')">'+lblBtn+'</button></td></tr>';
+    });
+    h += '</tbody></table>';
+    cont.innerHTML = h;
+  }catch(e){ cont.innerHTML = '<div class="msg err">'+esc(e.message)+'</div>'; }
+}
+
+async function cambiarTipoEstudio(id, tipo){
+  const txt = tipo==='estudio' ? 'permitir sumar más abogadas (Estudio)' : 'dejar como una sola abogada (Individual)';
+  if(!confirm('¿Cambiar este estudio para '+txt+'?')) return;
+  try{ await api('/usuarios/estudio/'+id,'PUT',{tipo}); cargarEstudios(); }
+  catch(e){ alert(e.message); }
+}
+
+async function crearEstudio(){
+  const tipo    = document.getElementById('ne_tipo').value;
+  const estudio = document.getElementById('ne_estudio').value.trim();
+  const nombre  = document.getElementById('ne_nombre').value.trim();
+  const email   = document.getElementById('ne_email').value.trim();
+  if(!estudio || !nombre || !email){ msg('ne_msg','Completá todos los campos.',false); return; }
+  try{
+    const r = await api('/usuarios/estudio','POST',{estudio, nombre, email, tipo});
+    claveBox('ne_msg', r.clave_temporal, nombre + ' (' + estudio + ')');
+    document.getElementById('ne_estudio').value=''; document.getElementById('ne_nombre').value=''; document.getElementById('ne_email').value='';
+    cargarEstudios();
+  }catch(e){ msg('ne_msg', e.message, false); }
+}
+
+init();
+</script>
+</body>
+</html>

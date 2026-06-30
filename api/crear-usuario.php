@@ -43,7 +43,9 @@ if ($ya > 0) {
     $pdo = db(); $pdo->beginTransaction();
     $pdo->prepare('INSERT INTO estudios (nombre) VALUES (?)')->execute([$estudio]);
     $eid = (int)$pdo->lastInsertId();
-    $pdo->prepare('INSERT INTO usuarios (estudio_id, nombre, email, password_hash, rol) VALUES (?,?,?,?,?)')
+    // La PRIMERA usuaria (vos) queda como SUPER-ADMINISTRADORA de la plataforma
+    // (es_superadmin = 1) y además administradora de su propio estudio (es_admin = 1).
+    $pdo->prepare('INSERT INTO usuarios (estudio_id, nombre, email, password_hash, rol, es_admin, es_superadmin) VALUES (?,?,?,?,?,1,1)')
         ->execute([$eid, $nombre, $email, hash_password($pass), 'profesional']);
     $uid = (int)$pdo->lastInsertId();
     // Feriados y guía judicial globales -> también para este estudio (copia inicial).

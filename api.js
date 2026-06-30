@@ -64,10 +64,62 @@
     }
   };
 
+  // Registrar el service worker para que la app sea instalable en el celular.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js').catch(function () { /* si falla, la app igual funciona */ });
+    });
+  }
+
   // Conectar la pantalla de bienvenida con el login real. Se hace DESPUES de
   // que cargue el codigo de la app (evento load), porque recien ahi existen
   // onbEnter / cerrarSesion para reemplazar.
   window.addEventListener('load', function () {
+
+    // ÁPICE NO es de acceso público: se oculta el "Creá una cuenta" y el botón
+    // de Google. Solo se ingresa con email y contraseña que crea la administradora.
+    try {
+      var estilo = document.createElement('style');
+      estilo.textContent = '.onb-switch{display:none!important}.onb-google{display:none!important}.onb-or{display:none!important}';
+      document.head.appendChild(estilo);
+      if (typeof onbState !== 'undefined') onbState.mode = 'login';
+      // Por las dudas, si algo intenta poner modo "registro", lo forzamos a login.
+      window.onbMode = function () { if (typeof onbState !== 'undefined') { onbState.mode = 'login'; } if (typeof renderOnboarding === 'function') renderOnboarding(); };
+    } catch (e) {}
+
+    // Si la persona entró con una clave temporal, le pedimos crear una nueva
+    // antes de dejarla pasar. Devuelve true si la cambió, false si canceló.
+    function pedirNuevaClave(claveActual) {
+      return new Promise(function (resolve) {
+        var ov = document.createElement('div');
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+        ov.innerHTML =
+          '<div style="background:#fff;border-radius:14px;max-width:400px;width:100%;padding:26px;font-family:system-ui,sans-serif;color:#1C2433">'
+          + '<h2 style="font-size:18px;margin:0 0 6px">Cre&aacute; tu nueva contrase&ntilde;a</h2>'
+          + '<p style="font-size:13px;color:#6B7280;margin:0 0 14px">Entraste con una clave temporal. Por seguridad, eleg&iacute; una contrase&ntilde;a nueva para continuar.</p>'
+          + '<input id="apNuevaClave" type="password" placeholder="Nueva contrase&ntilde;a (m&iacute;n. 6)" style="width:100%;padding:11px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
+          + '<div id="apNuevaMsg" style="color:#8a2828;font-size:12px;margin-top:8px"></div>'
+          + '<button id="apNuevaBtn" style="margin-top:14px;width:100%;background:#1C2433;color:#fff;border:0;padding:12px;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer">Guardar y entrar</button>'
+          + '</div>';
+        document.body.appendChild(ov);
+        var input = ov.querySelector('#apNuevaClave');
+        var msgEl = ov.querySelector('#apNuevaMsg');
+        input.focus();
+        async function guardar() {
+          var nueva = input.value;
+          if (!nueva || nueva.length < 6) { msgEl.textContent = 'La contrasena debe tener al menos 6 caracteres.'; return; }
+          try {
+            await apiPost('/auth/cambiar-clave', { actual: claveActual, nueva: nueva });
+            document.body.removeChild(ov);
+            resolve(true);
+          } catch (e) {
+            msgEl.textContent = e.message || 'No se pudo cambiar la contrasena.';
+          }
+        }
+        ov.querySelector('#apNuevaBtn').addEventListener('click', guardar);
+        input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') guardar(); });
+      });
+    }
 
     // Nuevo comportamiento del boton ingresar/crear cuenta de tu pantalla.
     window.onbEnter = async function (method) {
@@ -76,6 +128,10 @@
       var em = elEmail ? elEmail.value.trim() : '';
       var pw = elPass ? elPass.value : '';
       if (!em || !pw) { alert('Completa tu correo y contrasena para continuar.'); return; }
+
+      // Aceptación obligatoria de términos y privacidad (abogadas y clientes).
+      var acc = document.getElementById('onb_acepta');
+      if (acc && !acc.checked) { alert('Para continuar tenés que leer y aceptar los Términos y la Política de Privacidad.'); return; }
 
       var state = (typeof onbState !== 'undefined') ? onbState : {};
       var perfil = state.profile || 'abogado';
@@ -89,16 +145,23 @@
       }
 
       var modo = state.mode || 'login';
+      var sesion = null;
       try {
         if (modo === 'register') {
           var nombre = em.split('@')[0];
-          await apiPost('/auth/register', { nombre: nombre, email: em, password: pw, estudio: ('Estudio de ' + nombre) });
+          sesion = await apiPost('/auth/register', { nombre: nombre, email: em, password: pw, estudio: ('Estudio de ' + nombre) });
         } else {
-          await apiPost('/auth/login', { email: em, password: pw });
+          sesion = await apiPost('/auth/login', { email: em, password: pw });
         }
       } catch (e) {
         alert(e.message === 'NO_SESION' ? 'Email o contrasena incorrectos.' : (e.message || 'No se pudo ingresar.'));
         return;
+      }
+
+      // Si la clave era temporal, pedir una nueva antes de entrar.
+      if (sesion && Number(sesion.debe_cambiar_clave) === 1) {
+        var ok = await pedirNuevaClave(pw);
+        if (!ok) return; // canceló: se queda en la pantalla de ingreso
       }
 
       // Registrar la aceptacion de terminos/privacidad (queda guardada con fecha).

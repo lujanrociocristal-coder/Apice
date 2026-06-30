@@ -1,11 +1,12 @@
 <?php
 /* ============================================================================
  *  AUTENTICACIÓN  (/api/auth/...)
- *    POST /api/auth/login      -> entrar (email + contraseña)
- *    POST /api/auth/logout     -> salir
- *    GET  /api/auth/me         -> ¿quién soy? (datos de la sesión)
- *    POST /api/auth/register   -> crear cuenta de profesional (abre estudio)
- *    POST /api/auth/aceptar    -> registrar aceptación de términos/privacidad
+ *    POST /api/auth/login         -> entrar (email + contraseña)
+ *    POST /api/auth/logout        -> salir
+ *    GET  /api/auth/me            -> ¿quién soy? (datos de la sesión)
+ *    POST /api/auth/register      -> crear cuenta de profesional (abre estudio)
+ *    POST /api/auth/aceptar       -> registrar aceptación de términos/privacidad
+ *    POST /api/auth/cambiar-clave -> cambiar mi propia contraseña
  * ========================================================================== */
 
 function handle_auth($method, $resto) {
@@ -16,13 +17,14 @@ function handle_auth($method, $resto) {
     $pass  = (string)field('password');
     if (!$email || !$pass) json_error('Ingresá email y contraseña.');
 
-    $st = db()->prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1');
+    $st = db()->prepare('SELECT u.*, e.tipo AS estudio_tipo
+                         FROM usuarios u JOIN estudios e ON e.id = u.estudio_id
+                         WHERE u.email = ? AND u.activo = 1');
     $st->execute([$email]);
     $u = $st->fetch();
     if (!$u || !check_password($pass, $u['password_hash'])) {
       json_error('Email o contraseña incorrectos.', 401);
     }
-    // Guardar sesión
     session_regenerate_id(true);
     $_SESSION['uid'] = (int)$u['id'];
     db()->prepare('UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?')->execute([$u['id']]);
@@ -30,6 +32,10 @@ function handle_auth($method, $resto) {
     json_ok([
       'id' => (int)$u['id'], 'nombre' => $u['nombre'], 'email' => $u['email'],
       'rol' => $u['rol'], 'estudio_id' => (int)$u['estudio_id'],
+      'es_admin' => (int)$u['es_admin'],
+      'es_superadmin' => (int)$u['es_superadmin'],
+      'estudio_tipo' => $u['estudio_tipo'],
+      'debe_cambiar_clave' => (int)$u['debe_cambiar_clave'],
     ]);
   }
 
@@ -50,34 +56,17 @@ function handle_auth($method, $resto) {
       'logueada' => true,
       'id' => (int)$u['id'], 'nombre' => $u['nombre'], 'email' => $u['email'],
       'rol' => $u['rol'], 'estudio_id' => (int)$u['estudio_id'], 'avatar' => $u['avatar_url'],
+      'es_admin' => (int)$u['es_admin'],
+      'es_superadmin' => (int)$u['es_superadmin'],
+      'estudio_tipo' => $u['estudio_tipo'],
+      'debe_cambiar_clave' => (int)$u['debe_cambiar_clave'],
     ]);
   }
 
   if ($accion === 'register' && $method === 'POST') {
-    // Crea un estudio nuevo + la primera profesional de ese estudio.
-    $nombre  = trim((string)field('nombre'));
-    $email   = strtolower(trim((string)field('email')));
-    $pass    = (string)field('password');
-    $estudio = trim((string)field('estudio')) ?: ('Estudio de ' . $nombre);
-    if (!$nombre || !$email || strlen($pass) < 6) {
-      json_error('Completá nombre, email y una contraseña de al menos 6 caracteres.');
-    }
-    $chk = db()->prepare('SELECT 1 FROM usuarios WHERE email = ?');
-    $chk->execute([$email]);
-    if ($chk->fetch()) json_error('Ya existe una cuenta con ese email.');
-
-    $pdo = db();
-    $pdo->beginTransaction();
-    $pdo->prepare('INSERT INTO estudios (nombre) VALUES (?)')->execute([$estudio]);
-    $estudioId = (int)$pdo->lastInsertId();
-    $pdo->prepare('INSERT INTO usuarios (estudio_id, nombre, email, password_hash, rol) VALUES (?,?,?,?,?)')
-        ->execute([$estudioId, $nombre, $email, hash_password($pass), 'profesional']);
-    $uid = (int)$pdo->lastInsertId();
-    $pdo->commit();
-
-    session_regenerate_id(true);
-    $_SESSION['uid'] = $uid;
-    json_ok(['id' => $uid, 'estudio_id' => $estudioId, 'nombre' => $nombre, 'rol' => 'profesional'], 201);
+    // REGISTRO PÚBLICO DESHABILITADO. ÁPICE no es de acceso público:
+    // solo la super-administradora crea los estudios y sus abogadas.
+    json_error('El registro abierto está deshabilitado. Pedile el acceso a la administradora de ÁPICE.', 403);
   }
 
   if ($accion === 'aceptar' && $method === 'POST') {
@@ -89,6 +78,23 @@ function handle_auth($method, $resto) {
     $ins = db()->prepare('INSERT INTO consentimientos (usuario_id, perfil, documento, version, metodo, ip) VALUES (?,?,?,?,?,?)');
     foreach ((array)$docs as $d) $ins->execute([$u['id'], $perfil, $d, 'v1', $metodo, $ip]);
     json_ok(['aceptado' => true]);
+  }
+
+  if ($accion === 'cambiar-clave' && $method === 'POST') {
+    $u = require_login();
+    $actual = (string)field('actual');
+    $nueva  = (string)field('nueva');
+    if (strlen($nueva) < 6) json_error('La nueva contraseña debe tener al menos 6 caracteres.');
+
+    // Traer el hash actual.
+    $st = db()->prepare('SELECT password_hash FROM usuarios WHERE id = ?');
+    $st->execute([$u['id']]);
+    $hash = $st->fetchColumn();
+    if (!check_password($actual, $hash)) json_error('La contraseña actual no es correcta.', 403);
+
+    db()->prepare('UPDATE usuarios SET password_hash = ?, debe_cambiar_clave = 0 WHERE id = ?')
+        ->execute([hash_password($nueva), $u['id']]);
+    json_ok(['cambiada' => true]);
   }
 
   json_error('Acción de auth no válida.', 404);
