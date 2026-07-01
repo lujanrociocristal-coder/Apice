@@ -2322,16 +2322,26 @@ function addPend(id){const c=get(id);const el=document.getElementById("np");cons
 function startEditPend(id,i){st.editPend={id,i};renderFicha();setTimeout(()=>{const e=document.getElementById("pe");if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},20);}
 function savePendText(id,i){const e=document.getElementById("pe");if(e){const v=e.value.trim();if(v){get(id).pendientes[i].t=v;persist();}}st.editPend=null;renderFicha();}
 function fmtPesos(n){n=Math.round(+n||0);return '$'+n.toLocaleString('es-AR');}
-/* --- Formato de miles argentino (puntos de mil, coma decimal) para el IUS --- */
+/* --- Formato de miles argentino (puntos de mil, coma decimal) para montos --- */
 function parseMiles(s){if(typeof s==='number')return s;if(s==null||s==='')return 0;
   var t=String(s).trim().replace(/\./g,'').replace(',', '.').replace(/[^0-9.\-]/g,'');
   var n=parseFloat(t);return isNaN(n)?0:n;}
 function fmtMiles(n){var num=(typeof n==='number')?n:parseMiles(n);if(isNaN(num))return '';
-  var neg=num<0;num=Math.abs(num);var p=(''+num).split('.');
-  var ent=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');return (neg?'-':'')+ent+(p[1]?(','+p[1]):'');}
-function iusInput(el){var raw=el.value.replace(/[^0-9,]/g,'');var p=raw.split(',');
-  var ent=(p[0]||'').replace(/^0+(?=\d)/,'');ent=ent.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
-  el.value=ent+(p.length>1?(','+p[1].slice(0,2)):'');}
+  var neg=num<0;num=Math.abs(num);
+  var s=(num%1===0)?String(num):num.toFixed(2);
+  var p=s.split('.');var ent=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  return (neg?'-':'')+ent+(p[1]?(','+p[1]):'');}
+/* Mientras se escribe: deja dígitos y UNA coma decimal. Acepta el PUNTO del
+   teclado del celular como coma decimal (hasta 2 decimales). */
+function numInput(el){var v=el.value.replace(/[^0-9.,]/g,'').replace(/\./g,',');
+  var i=v.indexOf(',');
+  if(i<0){el.value=v.replace(/,/g,'');return;}
+  var ent=v.slice(0,i).replace(/,/g,'');var dec=v.slice(i+1).replace(/,/g,'').slice(0,2);
+  el.value=ent+','+dec;}
+/* Al salir del campo: muestra con puntos de mil y coma decimal (ej: 1.138.690,50). */
+function numBlur(el){el.value=(el.value.trim()==='')?'':fmtMiles(parseMiles(el.value));}
+/* compatibilidad: iusInput sigue existiendo por si quedó referenciado */
+function iusInput(el){numInput(el);}
 function panelHonorarios(c){
   const h=c.honorarios||{ius:0,gastos:[],pagos:[]};
   const vIus=+config.valorIUS||0;
@@ -2378,7 +2388,7 @@ function panelHonorarios(c){
 function setValorIUS(){const v=parseMiles(document.getElementById('cfg_ius').value);if(v>=0){config.valorIUS=v;saveConfig();renderFicha();}}
 function mConfigIus(){return `<div class="modal"><h3>Valor del IUS</h3>
   <div class="msub">Este valor <b>solo lo ves y editás vos</b> (no aparece en la vista del cliente). Cargá el monto en pesos que publica el Colegio de Abogados de Catamarca este mes. Se aplica a todas las causas y recalcula los equivalentes en pesos.</div>
-  <div class="field"><label>Valor del IUS (en pesos)</label><input type="text" inputmode="decimal" id="cfg_ius2" value="${attr(fmtMiles(config.valorIUS))}" oninput="iusInput(this)" placeholder="Ej: 46.000"></div>
+  <div class="field"><label>Valor del IUS (en pesos)</label><input type="text" inputmode="decimal" id="cfg_ius2" value="${attr(fmtMiles(config.valorIUS))}" oninput="numInput(this)" onblur="numBlur(this)" placeholder="Ej: 46.000 o 46.000,50"></div>
   <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn-prim" onclick="setValorIUS2()">Guardar valor</button></div></div>`;}
 function setValorIUS2(){const v=parseMiles(document.getElementById('cfg_ius2').value);if(v>=0){config.valorIUS=v;saveConfig();}closeModal();if(calcSt.open)renderSide();}
 function setHonIus(id){const c=get(id);const v=+document.getElementById('hon_ius').value;c.honorarios.ius=v>=0?v:0;persist();renderFicha();}
@@ -2486,7 +2496,7 @@ function renderCalc(){
     }
   } else {
     const showOtro=calcSt.tipo==='otro';
-    h+='<div class="calc-field"><label>Monto base del asunto (en pesos)</label><input type="text" id="calc_base" inputmode="numeric" placeholder="Ej. 18.000.000" value="'+attr(calcSt.base)+'" oninput="calcSt.base=this.value"></div>'
+    h+='<div class="calc-field"><label>Monto base del asunto (en pesos)</label><input type="text" id="calc_base" inputmode="decimal" placeholder="Ej. 18.000.000" value="'+attr(calcSt.base?fmtMiles(parseMiles(calcSt.base)):'')+'" oninput="numInput(this);calcSt.base=this.value" onblur="numBlur(this);calcSt.base=this.value"></div>'
       +'<div class="calc-field"><label>Tipo de proceso (define el mínimo del art. 23)</label>'
       +'<select id="calc_tipo" onchange="calcSt.tipo=this.value;renderCalc()">'
       +'<option value="conocimiento" '+(calcSt.tipo==='conocimiento'?'selected':'')+'>Conocimiento — mín. 20 JUS</option>'
@@ -3208,7 +3218,7 @@ function renderConfig(){
     <button class="btn-sec" style="margin-top:10px" onclick="profAddRow()">+ Agregar profesional</button>
     <div class="cfg-note" style="margin-top:10px">Estos datos se usan en encabezados, escritos y reportes.</div></div>`;
   const valores=`<div class="cfg-block"><div class="cfg-bh"><h3>Honorarios y valores</h3><span class="cfg-badge a">Activo</span></div>
-    <div class="cfg-grid"><div class="field"><label>Valor del IUS (en pesos)</label><input id="cfg_ius" type="text" inputmode="decimal" value="${attr(fmtMiles(config.valorIUS))}" oninput="iusInput(this)" placeholder="Ej: 46.000"></div>${fld('cfg_iusf','Última actualización',config.iusFecha,'dd/mm/aaaa')}</div>
+    <div class="cfg-grid"><div class="field"><label>Valor del IUS (en pesos)</label><input id="cfg_ius" type="text" inputmode="decimal" value="${attr(fmtMiles(config.valorIUS))}" oninput="numInput(this)" onblur="numBlur(this)" placeholder="Ej: 46.000 o 46.000,50"></div>${fld('cfg_iusf','Última actualización',config.iusFecha,'dd/mm/aaaa')}</div>
     <div class="cfg-note">El IUS se usa para calcular y mostrar los honorarios en pesos (Ley 5724).</div></div>`;
   const escala=`<div class="cfg-block"><div class="cfg-bh"><h3>Escala de honorarios sugerida</h3><span class="cfg-badge a">Activo</span></div>
     <div class="cfg-note" style="margin-bottom:10px">Valores <b>orientativos</b> en IUS por materia, que vos definís y editás. En el convenio aparecen solo como sugerencia: el monto final siempre lo fijás vos.</div>
