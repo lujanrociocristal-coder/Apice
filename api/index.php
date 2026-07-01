@@ -42,6 +42,7 @@ $rutas = [
   'config'      => 'config.php',
   'estado'      => 'estado.php',  // estado de la app por estudio (conexión rápida)
   'usuarios'    => 'usuarios.php',// gestión de usuarios y claves (solo admin)
+  'archivos'    => 'archivos.php',// archivos adjuntos reales (PDF, Word, imágenes)
   'ia'          => 'ia.php',      // etapa 2 (preparado)
 ];
 
