@@ -1,0 +1,31 @@
+# ============================================================================
+#  ÁPICE — Configuración del servidor (carpeta public_html)
+#  Objetivo: que la app se actualice SOLA para todos los usuarios.
+#  - El código (html, js, json) nunca se guarda en caché: siempre se pide lo último.
+#  - Las imágenes y fuentes sí se cachean un día (para que cargue rápido).
+# ============================================================================
+
+# Forzar HTTPS (conexión segura)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# Control de caché
+<IfModule mod_headers.c>
+  # Código de la app: siempre la última versión (sin caché)
+  <FilesMatch "\.(html|js|json|webmanifest)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+  # El service worker: nunca cachear (para que las actualizaciones lleguen)
+  <FilesMatch "sw\.js$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+  # Imágenes, íconos y fuentes: se pueden cachear un día
+  <FilesMatch "\.(svg|png|jpg|jpeg|gif|ico|woff2?|ttf|css)$">
+    Header set Cache-Control "public, max-age=86400"
+  </FilesMatch>
+</IfModule>
