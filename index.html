@@ -1974,8 +1974,16 @@ function panelDocs(c){
   </div>`;
   const list=docFiltered(c);
   const rows=list.length?list.map(o=>docRow(c,o.d,o.i)).join(''):`<div class="vacio">No hay documentos que coincidan con el filtro.</div>`;
-  return `<div class="docs-head"><div><div class="docs-tit">Documentos</div><div class="docs-sub">${docs.length} en total · la visibilidad para el cliente se controla con el interruptor de cada fila</div></div>
-      <button class="btn-add" onclick="openModal({tipo:'subirdoc',id:'${c.id}'})">+ Subir documento</button></div>
+  return `<div class="archivos-card" style="background:#fff;border:1px solid var(--linea);border-radius:12px;padding:16px 18px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div><b style="font-size:15px">📎 Archivos adjuntos</b><div style="font-size:12px;color:var(--mut)">Subí PDF, Word o imágenes (hasta 20 MB). Se guardan seguros en el servidor.</div></div>
+        <label class="btn-add" style="cursor:pointer;display:inline-flex;align-items:center">+ Subir archivo<input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,image/*" style="display:none" onchange="subirArchivo('${c.id}',this)"></label>
+      </div>
+      <div id="archivosLista" style="margin-top:12px;font-size:13px;color:var(--mut)">Cargando archivos…</div>
+    </div>
+    <img src="/apice-trigger.gif" alt="" style="display:none" onerror="cargarArchivos('${c.id}');this.remove()">
+    <div class="docs-head"><div><div class="docs-tit">Documentos (fichas)</div><div class="docs-sub">${docs.length} en total · la visibilidad para el cliente se controla con el interruptor de cada fila</div></div>
+      <button class="btn-add" onclick="openModal({tipo:'subirdoc',id:'${c.id}'})">+ Ficha de documento</button></div>
     ${filtros}
     <div class="docs-wrap">${folderRail}<div class="doc-main">${rows}</div></div>
     <div class="doc-leg"><div class="dl-col"><div class="dl-h">Relevancia procesal</div>
@@ -1985,6 +1993,61 @@ function panelDocs(c){
       <div class="dl-col"><div class="dl-h">Visibilidad para el cliente</div>
         <div class="dl-row"><span class="vsw on"><span class="vk"></span></span> <b>Visible</b> — el cliente puede verlo y descargarlo.</div>
         <div class="dl-row"><span class="vsw"><span class="vk"></span></span> <b>No visible</b> — el cliente no tiene acceso.</div></div></div>`;
+}
+/* ===== ARCHIVOS ADJUNTOS REALES (subidos al servidor, seguros) ===== */
+function fmtTam(n){n=+n||0;if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(0)+' KB';return (n/1048576).toFixed(1)+' MB';}
+async function cargarArchivos(causaId){
+  const cont=document.getElementById('archivosLista');if(!cont)return;
+  try{
+    const r=await fetch('/api/archivos?causa='+encodeURIComponent(causaId),{credentials:'same-origin'});
+    const j=await r.json();
+    if(!j||j.ok===false)throw new Error((j&&j.error)||'Error');
+    const arr=j.data||[];
+    if(!arr.length){cont.innerHTML='<div style="color:var(--mut);font-style:italic">Todavía no hay archivos subidos.</div>';return;}
+    cont.innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'+arr.map(a=>{
+      const icon=a.tipo==='pdf'?'📄':((['jpg','jpeg','png'].indexOf(a.tipo)>=0)?'🖼':'📝');
+      const vis=Number(a.visible_cliente)?'👁 visible al cliente':'🔒 solo interno';
+      const nomJs=esc(a.nombre).replace(/'/g,'');
+      return '<div style="display:flex;align-items:center;gap:10px;border:1px solid var(--linea);border-radius:9px;padding:8px 10px;flex-wrap:wrap">'
+        +'<span style="font-size:18px">'+icon+'</span>'
+        +'<a href="/api/archivos/'+a.id+'/descargar" target="_blank" rel="noopener" style="font-weight:600;color:var(--tinta);text-decoration:none;flex:1;min-width:140px">'+esc(a.nombre)+'</a>'
+        +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'
+        +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+causaId+'\')">'+vis+'</button>'
+        +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+causaId+'\',\''+nomJs+'\')">Renombrar</button>'
+        +'<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarArchivo('+a.id+',\''+causaId+'\')">Eliminar</button>'
+        +'</div>';
+    }).join('')+'</div>';
+  }catch(e){cont.innerHTML='<div style="color:#B42318">No se pudieron cargar los archivos: '+esc(e.message)+'</div>';}
+}
+async function subirArchivo(causaId,input){
+  const file=input&&input.files&&input.files[0];if(!file)return;
+  if(file.size>20*1024*1024){alert('El archivo supera los 20 MB.');input.value='';return;}
+  const cont=document.getElementById('archivosLista');if(cont)cont.innerHTML='Subiendo "'+esc(file.name)+'"…';
+  const fd=new FormData();fd.append('file',file);fd.append('causa_id',causaId);
+  try{
+    const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});
+    const j=await r.json();
+    if(!j||j.ok===false)throw new Error((j&&j.error)||'Error al subir');
+    input.value='';cargarArchivos(causaId);
+  }catch(e){alert('No se pudo subir: '+e.message);cargarArchivos(causaId);}
+}
+async function archivoAccion(id,method,body){
+  const opt={method:method,credentials:'same-origin'};
+  if(body){opt.headers={'Content-Type':'application/json'};opt.body=JSON.stringify(body);}
+  const r=await fetch('/api/archivos/'+id,opt);const j=await r.json();
+  if(!j||j.ok===false)throw new Error((j&&j.error)||'Error');return j.data;
+}
+async function renombrarArchivo(id,causaId,actual){
+  const nuevo=prompt('Nuevo nombre del archivo:',actual);if(nuevo===null)return;
+  const n=nuevo.trim();if(!n){alert('El nombre no puede quedar vacío.');return;}
+  try{await archivoAccion(id,'PUT',{nombre:n});cargarArchivos(causaId);}catch(e){alert(e.message);}
+}
+async function toggleVisibleArchivo(id,valor,causaId){
+  try{await archivoAccion(id,'PUT',{visible_cliente:valor});cargarArchivos(causaId);}catch(e){alert(e.message);}
+}
+async function eliminarArchivo(id,causaId){
+  if(!confirm('¿Eliminar este archivo definitivamente? No se puede deshacer.'))return;
+  try{await archivoAccion(id,'DELETE');cargarArchivos(causaId);}catch(e){alert(e.message);}
 }
 function docRow(c,d,i){
   const cp=CARPETAS[d.carpeta]||CARPETAS.actuaciones;
