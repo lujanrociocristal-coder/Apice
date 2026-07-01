@@ -169,14 +169,20 @@
         await apiPost('/auth/aceptar', { perfil: perfil, documentos: ['terminos', 'privacidad', 'cookies'], metodo: method });
       } catch (e) { /* no bloquea el ingreso */ }
 
-      // Marcar el onboarding como aceptado y recargar limpio.
-      window.config = window.config || {};
-      config.onboarding = {
-        accepted: true, profile: perfil, metodo: method, consentimiento: 'explicito',
-        cuenta: em, fecha: new Date().toISOString(),
-        version: (typeof ONB_VERSION !== 'undefined' ? ONB_VERSION : 1)
-      };
-      try { await saveConfig(); } catch (e) {}
+      // Marcar el onboarding como aceptado SIN pisar la config real del estudio.
+      // IMPORTANTE: leemos la config que YA está en el servidor y solo le
+      // agregamos el "onboarding aceptado". Así no se pierden el valor del IUS,
+      // los feriados ni ningún ajuste que hayas guardado antes.
+      try {
+        var real = await window.storage.get('gestor_cfg_v9');
+        var cfgObj = (real && real.value) ? JSON.parse(real.value) : {};
+        cfgObj.onboarding = {
+          accepted: true, profile: perfil, metodo: method, consentimiento: 'explicito',
+          cuenta: em, fecha: new Date().toISOString(),
+          version: (typeof ONB_VERSION !== 'undefined' ? ONB_VERSION : 1)
+        };
+        await window.storage.set('gestor_cfg_v9', JSON.stringify(cfgObj));
+      } catch (e) { /* si falla, igual entra; init cargará la config del servidor */ }
 
       // Con la sesion ya activa, la app vuelve a cargar los datos del estudio.
       location.reload();

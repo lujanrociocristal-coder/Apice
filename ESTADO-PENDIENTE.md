@@ -72,3 +72,24 @@
   (para el ícono en iPhone) cuando vuelva el shell. En Android ya funciona con el SVG.
 - Rol doble confirmado: en `crear-usuario.php` la primera usuaria queda
   `es_superadmin=1` Y `es_admin=1` (super-admin + admin de su propio estudio).
+
+## 5) MEJORAS PENDIENTES (para próximas sesiones)
+
+- **Presentación en internet (SEO / vista previa del dominio):** cuando se busca
+  o comparte `abogadoscatamarca.com`, el título, la descripción y la imagen que
+  muestra Google/WhatsApp NO corresponden a ÁPICE. Hay que agregar en el `<head>`
+  de `index.html`:
+  - `<meta name="description">` con una descripción real de ÁPICE.
+  - Etiquetas Open Graph: `og:title`, `og:description`, `og:image` (imagen de
+    vista previa con el logo), `og:url`, `og:type`.
+  - Twitter Card (`twitter:card`, etc.).
+  - Favicon claro (ya está `icon.svg`; sumar `favicon.ico`/PNG si hace falta).
+  Nota: después de publicarlo, Google tarda **días** en actualizar lo que muestra
+  (se puede acelerar con Google Search Console).
+- **Íconos con el texto "ÁPICE":** regenerar `icon-192.png` / `icon-512.png` desde
+  `icon.svg` con una herramienta que renderice el texto (sharp/resvg), para que
+  el ícono de la app incluya la palabra ÁPICE (hoy muestran solo el triángulo).
+- **Usuarios:** dar de alta a Breppe y demás abogados/clientes desde el panel
+  *Usuarios y claves* (Configuración → 👥 Usuarios y claves).
+- **Etapa 2 (más adelante):** avisos al cliente por email/WhatsApp, sincronización
+  con Google Calendar, "Ingresar con Google", y las funciones de IA (EstrategIA).
