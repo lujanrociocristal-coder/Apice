@@ -82,7 +82,10 @@
       var estilo = document.createElement('style');
       estilo.textContent = '.onb-switch{display:none!important}.onb-google{display:none!important}.onb-or{display:none!important}';
       document.head.appendChild(estilo);
-      if (typeof onbState !== 'undefined') onbState.mode = 'login';
+      if (typeof onbState !== 'undefined') {
+        onbState.mode = 'login';
+        try { if (localStorage.getItem('apice_terms_ok')) onbState.acepta = true; } catch (e) {}
+      }
       // Por las dudas, si algo intenta poner modo "registro", lo forzamos a login.
       window.onbMode = function () { if (typeof onbState !== 'undefined') { onbState.mode = 'login'; } if (typeof renderOnboarding === 'function') renderOnboarding(); };
     } catch (e) {}
@@ -129,9 +132,11 @@
       var pw = elPass ? elPass.value : '';
       if (!em || !pw) { alert('Completa tu correo y contrasena para continuar.'); return; }
 
-      // Aceptación obligatoria de términos y privacidad (abogadas y clientes).
+      // Aceptación de términos: obligatoria la PRIMERA vez en este dispositivo.
+      // Si ya la aceptó antes acá, no se la volvemos a exigir en cada ingreso.
       var acc = document.getElementById('onb_acepta');
-      if (acc && !acc.checked) { alert('Para continuar tenés que leer y aceptar los Términos y la Política de Privacidad.'); return; }
+      var yaAcepto = false; try { yaAcepto = !!localStorage.getItem('apice_terms_ok'); } catch (e) {}
+      if (acc && !acc.checked && !yaAcepto) { alert('Para continuar tenés que leer y aceptar los Términos y la Política de Privacidad (tildá la casilla).'); return; }
 
       var state = (typeof onbState !== 'undefined') ? onbState : {};
       var perfil = state.profile || 'abogado';
@@ -168,6 +173,7 @@
       try {
         await apiPost('/auth/aceptar', { perfil: perfil, documentos: ['terminos', 'privacidad', 'cookies'], metodo: method });
       } catch (e) { /* no bloquea el ingreso */ }
+      try { localStorage.setItem('apice_terms_ok', '1'); } catch (e) {}
 
       // Marcar el onboarding como aceptado SIN pisar la config real del estudio.
       // IMPORTANTE: leemos la config que YA está en el servidor y solo le

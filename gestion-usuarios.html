@@ -180,12 +180,15 @@ async function cargarUsuarios(){
         : '<span class="tag cli">Cliente</span>';
       const estado = Number(u.activo)? 'Activo' : '<span class="tag off">Inactivo</span>';
       const yoMismo = (u.id===yo.id);
+      const nomJs = esc(u.nombre).replace(/'/g,"");
       h += '<tr><td>'+esc(u.nombre)+'</td><td>'+esc(u.email)+'</td><td>'+tipo+'</td><td>'+estado+'</td><td><div class="acc">'
-        + '<button class="btn-warn" onclick="blanquear('+u.id+',\''+esc(u.nombre).replace(/'/g,"")+'\')">Blanquear clave</button>'
+        + '<button class="btn-sec" onclick="editarNombre('+u.id+',\''+nomJs+'\')">Editar nombre</button>'
+        + '<button class="btn-warn" onclick="blanquear('+u.id+',\''+nomJs+'\')">Blanquear clave</button>'
         + (yoMismo ? '' :
             (Number(u.activo)
               ? '<button class="btn-sec" onclick="activar('+u.id+',0)">Desactivar</button>'
-              : '<button class="btn-sec" onclick="activar('+u.id+',1)">Activar</button>'))
+              : '<button class="btn-sec" onclick="activar('+u.id+',1)">Activar</button>')
+            + '<button class="btn-sec" style="color:#B42318;border-color:#FDA29B" onclick="eliminarUsuario('+u.id+',\''+nomJs+'\')">Eliminar</button>')
         + '</div><div id="rowmsg_'+u.id+'"></div></td></tr>';
     });
     h += '</tbody></table>';
@@ -220,6 +223,21 @@ async function activar(id, valor){
   }catch(e){ alert(e.message); }
 }
 
+async function editarNombre(id, nombreActual){
+  const nuevo = prompt('Nuevo nombre para esta persona:', nombreActual);
+  if(nuevo===null) return;
+  const n = nuevo.trim();
+  if(!n){ alert('El nombre no puede quedar vacío.'); return; }
+  try{ await api('/usuarios/'+id,'PUT',{nombre:n}); cargarUsuarios(); }
+  catch(e){ alert(e.message); }
+}
+
+async function eliminarUsuario(id, nombre){
+  if(!confirm('¿Eliminar definitivamente a "'+nombre+'"? Se borra su acceso. Esta acción no se puede deshacer.')) return;
+  try{ await api('/usuarios/'+id,'DELETE'); cargarUsuarios(); }
+  catch(e){ alert(e.message); }
+}
+
 async function cambiarMiClave(){
   const actual = document.getElementById('mc_actual').value;
   const nueva  = document.getElementById('mc_nueva').value;
@@ -243,8 +261,13 @@ async function cargarEstudios(){
       const tag = ind ? '<span class="tag cli">Individual</span>' : '<span class="tag prof">Estudio</span>';
       const otro = ind ? 'estudio' : 'individual';
       const lblBtn = ind ? 'Convertir en estudio' : 'Convertir en individual';
+      const nomJs = esc(e.nombre).replace(/'/g,"");
       h += '<tr><td>'+esc(e.nombre)+'</td><td>'+tag+'</td><td>'+(e.abogadas||0)+'</td><td>'+(e.clientes||0)+'</td>'
-         + '<td><button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarTipoEstudio('+e.id+',\''+otro+'\')">'+lblBtn+'</button></td></tr>';
+         + '<td><div class="acc">'
+         + '<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="editarNombreEstudio('+e.id+',\''+nomJs+'\')">Editar nombre</button>'
+         + '<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarTipoEstudio('+e.id+',\''+otro+'\')">'+lblBtn+'</button>'
+         + '<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarEstudio('+e.id+',\''+nomJs+'\')">Eliminar</button>'
+         + '</div></td></tr>';
     });
     h += '</tbody></table>';
     cont.innerHTML = h;
@@ -255,6 +278,22 @@ async function cambiarTipoEstudio(id, tipo){
   const txt = tipo==='estudio' ? 'permitir sumar más abogadas (Estudio)' : 'dejar como una sola abogada (Individual)';
   if(!confirm('¿Cambiar este estudio para '+txt+'?')) return;
   try{ await api('/usuarios/estudio/'+id,'PUT',{tipo}); cargarEstudios(); }
+  catch(e){ alert(e.message); }
+}
+
+async function editarNombreEstudio(id, nombreActual){
+  const nuevo = prompt('Nuevo nombre para el estudio:', nombreActual);
+  if(nuevo===null) return;
+  const n = nuevo.trim();
+  if(!n){ alert('El nombre no puede quedar vacío.'); return; }
+  try{ await api('/usuarios/estudio/'+id,'PUT',{nombre:n}); cargarEstudios(); }
+  catch(e){ alert(e.message); }
+}
+
+async function eliminarEstudio(id, nombre){
+  if(!confirm('¿Eliminar el estudio "'+nombre+'" y TODAS sus abogadas, clientes y causas? Esta acción NO se puede deshacer.')) return;
+  if(!confirm('Última confirmación: se borra TODO lo del estudio "'+nombre+'". ¿Eliminar?')) return;
+  try{ await api('/usuarios/estudio/'+id,'DELETE'); cargarEstudios(); }
   catch(e){ alert(e.message); }
 }
 
