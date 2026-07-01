@@ -35,12 +35,20 @@ function archivos_causa_safe($causaId) {
   return substr($s, 0, 64);
 }
 
+/* Carpetas donde se clasifica cada documento (mismas que muestra la app). */
+function archivos_carpetas() { return ['prueba','escritos','actuaciones','resoluciones','sentencias']; }
+function archivos_carpeta_ok($c) {
+  $c = strtolower(trim((string)$c));
+  return in_array($c, archivos_carpetas(), true) ? $c : 'actuaciones';
+}
+
 /* Crea la tabla de archivos si todavía no existe (auto-instala). */
 function asegurar_tabla_archivos() {
   db()->exec("CREATE TABLE IF NOT EXISTS archivos (
     id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
     estudio_id      INT UNSIGNED NOT NULL,
     causa_id        VARCHAR(64)  NOT NULL,
+    carpeta         VARCHAR(24)  NOT NULL DEFAULT 'actuaciones',
     nombre          VARCHAR(255) NOT NULL,
     archivo         VARCHAR(120) NOT NULL,
     tipo            VARCHAR(12)  NOT NULL,
@@ -58,6 +66,14 @@ function asegurar_tabla_archivos() {
     $col = db()->query("SHOW COLUMNS FROM archivos LIKE 'causa_id'")->fetch();
     if ($col && stripos((string)$col['Type'], 'int') !== false) {
       db()->exec("ALTER TABLE archivos MODIFY causa_id VARCHAR(64) NOT NULL");
+    }
+  } catch (Throwable $e) { /* silencioso */ }
+
+  /* Migración: agregar la columna carpeta si la tabla ya existía sin ella. */
+  try {
+    $col = db()->query("SHOW COLUMNS FROM archivos LIKE 'carpeta'")->fetch();
+    if (!$col) {
+      db()->exec("ALTER TABLE archivos ADD COLUMN carpeta VARCHAR(24) NOT NULL DEFAULT 'actuaciones' AFTER causa_id");
     }
   } catch (Throwable $e) { /* silencioso */ }
 }
@@ -120,10 +136,11 @@ function archivo_subir() {
 
   $nombre = trim((string)($_POST['nombre'] ?? '')) ?: $orig;
   $visible = !empty($_POST['visible_cliente']) ? 1 : 0;
+  $carpeta = archivos_carpeta_ok($_POST['carpeta'] ?? 'actuaciones');
 
-  db()->prepare('INSERT INTO archivos (estudio_id, causa_id, nombre, archivo, tipo, tamano, visible_cliente, subido_por)
-                 VALUES (?,?,?,?,?,?,?,?)')
-      ->execute([$estudioId, $causaId, $nombre, $stored, $ext, $size, $visible, $u['id']]);
+  db()->prepare('INSERT INTO archivos (estudio_id, causa_id, carpeta, nombre, archivo, tipo, tamano, visible_cliente, subido_por)
+                 VALUES (?,?,?,?,?,?,?,?,?)')
+      ->execute([$estudioId, $causaId, $carpeta, $nombre, $stored, $ext, $size, $visible, $u['id']]);
   json_ok(['id' => (int)db()->lastInsertId(), 'nombre' => $nombre], 201);
 }
 
@@ -132,7 +149,7 @@ function archivos_listar() {
   $u = require_login();
   $causaId = archivos_causa_safe($_GET['causa'] ?? '');
   if ($causaId === '') json_error('Falta indicar la causa.');
-  $st = db()->prepare('SELECT id, nombre, tipo, tamano, visible_cliente, creado_en
+  $st = db()->prepare('SELECT id, carpeta, nombre, tipo, tamano, visible_cliente, creado_en
                        FROM archivos WHERE causa_id = ? AND estudio_id = ? ORDER BY creado_en DESC');
   $st->execute([$causaId, (int)$u['estudio_id']]);
   $rows = $st->fetchAll();
@@ -181,6 +198,9 @@ function archivo_editar($id) {
   }
   if (field('visible_cliente', '__NO__') !== '__NO__') {
     $sets[] = 'visible_cliente = ?'; $vals[] = field('visible_cliente') ? 1 : 0;
+  }
+  if (field('carpeta', '__NO__') !== '__NO__') {
+    $sets[] = 'carpeta = ?'; $vals[] = archivos_carpeta_ok(field('carpeta'));
   }
   if (!$sets) json_error('No hay nada para actualizar.');
   $vals[] = $id;
