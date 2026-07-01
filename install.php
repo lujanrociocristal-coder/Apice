@@ -16,7 +16,12 @@
 
 header('Content-Type: text/html; charset=utf-8');
 
-$cfgPath    = __DIR__ . '/api/config.php';
+// config.php: primero en la carpeta segura FUERA de public_html, si no, dentro de api/.
+$raizDom    = dirname(__DIR__);                            // .../<dominio> (arriba de public_html)
+$cfgSecreto = $raizDom . '/apice_privado/apice_config.php';
+$cfgFuera   = $raizDom . '/config.php';
+$cfgPath    = is_file($cfgSecreto) ? $cfgSecreto
+            : (is_file($cfgFuera) ? $cfgFuera : (__DIR__ . '/api/config.php'));
 $schemaPath = __DIR__ . '/api/schema.sql';
 $seedPath   = __DIR__ . '/api/seed.sql';
 

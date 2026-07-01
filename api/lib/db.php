@@ -5,13 +5,31 @@
  *  Devuelve un objeto PDO (la herramienta de PHP para hablar con MySQL).
  * ========================================================================== */
 
+/* Devuelve la ruta del config.php. Orden de preferencia:
+ *   1) FUERA de public_html (una carpeta arriba). Es lo más seguro (no es
+ *      accesible desde la web) y el despliegue NUNCA lo toca ni lo borra.
+ *   2) Dentro de public_html/api/config.php (alternativa/compatibilidad).
+ *   db.php vive en .../public_html/api/lib, así que subir 3 niveles llega
+ *   a la carpeta del dominio (arriba de public_html). */
+function config_path() {
+  $raiz = dirname(__DIR__, 3);   // carpeta del dominio, arriba de public_html
+  // 1) Ubicación segura: carpeta propia con nombre no obvio, FUERA de public_html.
+  $secreto = $raiz . '/apice_privado/apice_config.php';
+  if (is_file($secreto)) return $secreto;
+  // 2) Alternativa: config.php directamente fuera de public_html.
+  $fuera = $raiz . '/config.php';
+  if (is_file($fuera)) return $fuera;
+  // 3) Respaldo/compatibilidad: dentro de public_html/api/config.php.
+  return dirname(__DIR__) . '/config.php';
+}
+
 function db() {
   static $pdo = null;            // se conecta una sola vez por pedido
   if ($pdo !== null) return $pdo;
 
-  $cfgPath = dirname(__DIR__) . '/config.php';
+  $cfgPath = config_path();
   if (!file_exists($cfgPath)) {
-    json_error('Falta el archivo config.php en: ' . $cfgPath, 500);
+    json_error('Falta el archivo config.php (se buscó fuera y dentro de public_html).', 500);
   }
   $cfg = require $cfgPath;
 
@@ -33,9 +51,9 @@ function db() {
 function cfg() {
   static $c = null;
   if ($c === null) {
-    $cfgPath = dirname(__DIR__) . '/config.php';
+    $cfgPath = config_path();
     if (!file_exists($cfgPath)) {
-      json_error('No se encuentra config.php en: ' . $cfgPath, 500);
+      json_error('No se encuentra config.php (ni fuera ni dentro de public_html).', 500);
     }
     $c = require $cfgPath;
   }
