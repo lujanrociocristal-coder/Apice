@@ -30,10 +30,25 @@ function asegurar_tabla_recibos() {
     KEY idx_rec_estudio (estudio_id),
     KEY idx_rec_num (estudio_id, numero)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-  // Contador correlativo por estudio.
+  // Si la tabla ya existía de una versión anterior, asegurar las columnas nuevas.
+  rec_col('causa_uuid',      "VARCHAR(80) NULL");
+  rec_col('caratula',        "VARCHAR(300) NULL");
+  rec_col('ius',             "DECIMAL(12,2) NOT NULL DEFAULT 0");
+  rec_col('monto_en_letras', "VARCHAR(400) NULL");
+  rec_col('concepto',        "VARCHAR(200) NULL");
+  // Una versión previa pudo dejar causa_id como entero NOT NULL: hacerlo opcional
+  // para que el guardado nuevo (que usa causa_uuid) no falle.
   try {
-    $col = db()->query("SHOW COLUMNS FROM estudios LIKE 'recibo_seq'")->fetch();
-    if (!$col) db()->exec("ALTER TABLE estudios ADD COLUMN recibo_seq INT UNSIGNED NOT NULL DEFAULT 1");
+    $c = db()->query("SHOW COLUMNS FROM recibos LIKE 'causa_id'")->fetch();
+    if ($c && stripos((string)$c['Null'], 'NO') !== false) db()->exec("ALTER TABLE recibos MODIFY causa_id INT NULL");
+  } catch (Throwable $e) { /* silencioso */ }
+}
+
+/* Agrega una columna a `recibos` si todavía no existe. */
+function rec_col($col, $def) {
+  try {
+    $c = db()->query("SHOW COLUMNS FROM recibos LIKE '{$col}'")->fetch();
+    if (!$c) db()->exec("ALTER TABLE recibos ADD COLUMN {$col} {$def}");
   } catch (Throwable $e) { /* silencioso */ }
 }
 
@@ -41,6 +56,7 @@ function handle_recibos($method, $resto) {
   asegurar_tabla_recibos();
   $id = isset($resto[0]) ? (int)$resto[0] : 0;
   if ($id && $method === 'GET') return recibo_detalle($id);
+  if ($id && $method === 'DELETE') return recibo_eliminar($id);
   if ($method === 'GET')  return recibos_listar();
   if ($method === 'POST') return recibo_emitir();
   json_error('Método no permitido.', 405);
@@ -65,16 +81,26 @@ function recibo_detalle($id) {
   json_ok($r);
 }
 
-/* Emitir: asigna el próximo número correlativo del estudio, de forma atómica. */
+/* Eliminar (anular) un recibo del estudio. */
+function recibo_eliminar($id) {
+  $u = require_profesional();
+  $st = db()->prepare('SELECT id FROM recibos WHERE id = ? AND estudio_id = ?');
+  $st->execute([$id, (int)$u['estudio_id']]);
+  if (!$st->fetch()) json_error('Recibo no encontrado.', 404);
+  db()->prepare('DELETE FROM recibos WHERE id = ? AND estudio_id = ?')->execute([$id, (int)$u['estudio_id']]);
+  json_ok(['eliminado' => true]);
+}
+
+/* Emitir: el próximo número es el mayor del estudio + 1 (correlativo, sin saltos). */
 function recibo_emitir() {
   $u = require_profesional();
   $pdo = db();
   $pdo->beginTransaction();
   try {
-    $st = $pdo->prepare('SELECT recibo_seq FROM estudios WHERE id = ? FOR UPDATE');
+    // Bloquea las filas del estudio para leer el máximo y sumar sin choques.
+    $st = $pdo->prepare('SELECT COALESCE(MAX(numero),0) FROM recibos WHERE estudio_id = ? FOR UPDATE');
     $st->execute([(int)$u['estudio_id']]);
-    $numero = (int)$st->fetchColumn();
-    if ($numero < 1) $numero = 1;
+    $numero = ((int)$st->fetchColumn()) + 1;
 
     $pdo->prepare('INSERT INTO recibos
       (estudio_id, numero, causa_uuid, cliente_nombre, caratula, fecha, concepto, ius, monto, monto_en_letras, emitido_por)
@@ -92,8 +118,6 @@ function recibo_emitir() {
         (int)$u['id'],
       ]);
     $reciboId = (int)$pdo->lastInsertId();
-
-    $pdo->prepare('UPDATE estudios SET recibo_seq = ? WHERE id = ?')->execute([$numero + 1, (int)$u['estudio_id']]);
     $pdo->commit();
     json_ok(['id' => $reciboId, 'numero' => $numero], 201);
   } catch (Throwable $e) {
