@@ -3015,6 +3015,7 @@ function repExportXLS(){
   const v=vIus();let filas,nombre;
   if(repSt.sec==='honorarios'){nombre='apice-honorarios.csv';filas=[['Cliente','Expediente','Total IUS','Cobrado IUS','Saldo IUS','Saldo $']];causas.forEach(c=>{if(repTotIus(c)<=0)return;filas.push([c.cliente,c.caratula,repTotIus(c),repPagIus(c),repSaldoIus(c),repSaldoIus(c)*v]);});}
   else if(repSt.sec==='clientes'){nombre='apice-clientes.csv';filas=[['Cliente','Tipo','Expedientes','Activos','Saldo $']];clienteNombres().forEach(n=>{const cs=causasDe(n);const d=clientes[n];filas.push([n,d?(d.tipo==='juridica'?'Juridica':'Fisica'):'',cs.length,cs.filter(x=>x.estado!=='finalizada').length,cs.reduce((a,c)=>a+repSaldoIus(c)*v,0)]);});}
+  else if(repSt.sec==='recibos'){nombre='apice-libro-recibos.csv';filas=[['Numero','Fecha','Cliente','Causa','IUS','Monto $','Emitio']];(__libro||[]).forEach(r=>filas.push([r.numero,r.fecha||'',r.cliente_nombre||'',r.caratula||'',r.ius||0,+r.monto||0,r.emisor||'']));}
   else{nombre='apice-expedientes.csv';filas=[['Caratula','Materia','Estado','Clasificacion','Ultima actuacion','Prox. vencimiento','Responsable']];causas.forEach(c=>{const pv=proxVenc(c);const ua=(c.bitacora||[])[0];filas.push([c.caratula,c.materia.join(' / '),ESTADOS[c.estado].l,clasifExp(c),ua?ua.fecha:'',pv?dmyCad(pv.d):'',responsable(c)]);});}
   descargarCSV(nombre,filas);
 }
@@ -3119,13 +3120,39 @@ function repHonorarios(){
   pagos.sort((a,b)=>((parseDMY(b.fecha)||0)-(parseDMY(a.fecha)||0)));
   const alertas=[];conHon.forEach(c=>{const salI=repSaldoIus(c);if(salI<=0)return;const pg=((c.honorarios&&c.honorarios.pagos)||[]).map(p=>parseDMY(p.fecha)).filter(Boolean).sort((a,b)=>b-a);const ref=pg[0]||parseDMY(((c.bitacora||[]).slice(-1)[0]||{}).fecha);const ds=diasDesde(ref);if(ds!=null&&ds>30)alertas.push({car:cShort(c.caratula),cli:c.cliente,sal:salI*v,ds});});
   alertas.sort((a,b)=>b.ds-a.ds);
+  // Período: cobrado este mes y este año.
+  const hoyD=new Date();const mesKey=hoyD.getFullYear()+'-'+String(hoyD.getMonth()+1).padStart(2,'0');const anioKey=String(hoyD.getFullYear());
+  let cobMes=0,cobAnio=0;pagos.forEach(p=>{const d=parseDMY(p.fecha);if(!d)return;const mk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');if(mk===mesKey)cobMes+=p.monto;if(String(d.getFullYear())===anioKey)cobAnio+=p.monto;});
+  // Morosidad detallada: quién debe, cuánto y desde cuándo.
+  const moros=[];conHon.forEach(c=>{const salI=repSaldoIus(c);if(salI<=0)return;const pg=((c.honorarios&&c.honorarios.pagos)||[]).map(p=>parseDMY(p.fecha)).filter(Boolean).sort((a,b)=>b-a);const ult=pg[0]||null;const ds=diasDesde(ult);moros.push({car:cShort(c.caratula),cli:c.cliente,sal:salI*v,ult:ult,ds:ds});});
+  moros.sort((a,b)=>(b.ds==null?1e9:b.ds)-(a.ds==null?1e9:a.ds));
   const sct=(l,val,cls)=>`<div class="rep-stat big ${cls||''}"><div class="rs-lab">${l}</div><div class="rs-val">${fmtPesos(val)}</div></div>`;
   return `<div class="rep-grid3">${sct('Por cobrar · total',h.tot)}${sct('Cobrado',h.pag,'ok')}${sct('Pendiente',h.sal,'rojo')}</div>
+  <div class="rep-grid3">${sct('Cobrado este mes',cobMes,'ok')}${sct('Cobrado este año',cobAnio,'ok')}${sct('Proyección por cobrar',h.sal,'rojo')}</div>
+  <div class="rep-block"><div class="rep-block-h"><h3>Morosidad — quién debe y desde cuándo</h3><span class="rep-block-sub">Saldos pendientes, ordenados por antigüedad del último pago</span></div>
+    <table class="rep-tabla"><thead><tr><th>Cliente / Expediente</th><th>Saldo</th><th>Último pago</th><th>Atraso</th></tr></thead><tbody>${moros.length?moros.map(m=>`<tr><td>${esc(m.cli)}<div class="td-sub">${esc(m.car)}</div></td><td class="rojo">${fmtPesos(m.sal)}</td><td>${m.ult?dmyCad(m.ult):'<span class="mut">sin pagos</span>'}</td><td>${m.ds==null?'<span class="mut">—</span>':(m.ds+' días'+(m.ds>=60?' ⚠':''))}</td></tr>`).join(''):'<tr><td colspan="4" class="vacio">Sin saldos pendientes. ¡Todo al día!</td></tr>'}</tbody></table></div>
   ${alertas.length?`<div class="rep-alertas"><div class="ra-h">⚠ Alertas de cobro</div>${alertas.slice(0,6).map(a=>`<div class="ra-it ${a.ds>60?'r60':'r30'}"><span class="ra-c">${esc(a.car)} — ${esc(a.cli)}</span><span class="ra-d">${a.ds>60?'+60 días sin pago':'+30 días sin pago'} · <b>${fmtPesos(a.sal)}</b></span></div>`).join('')}</div>`:''}
   <div class="rep-block"><div class="rep-block-h"><h3>Saldos por ${repSt.honGroup==='expediente'?'expediente':'cliente'}</h3><div class="rep-toggle"><button class="${repSt.honGroup!=='expediente'?'on':''}" onclick="repSetHon('cliente')">Por cliente</button><button class="${repSt.honGroup==='expediente'?'on':''}" onclick="repSetHon('expediente')">Por expediente</button></div></div>
     <table class="rep-tabla"><thead><tr><th>${repSt.honGroup==='expediente'?'Expediente':'Cliente'}</th><th>Total</th><th>Cobrado</th><th>Saldo</th></tr></thead><tbody>${filas.length?filas.map(f=>`<tr><td>${esc(f.nombre)}<div class="td-sub">${esc(f.sub)}</div></td><td>${fmtPesos(f.tot)}</td><td class="ok">${fmtPesos(f.pag)}</td><td class="${f.sal>0?'rojo':''}">${fmtPesos(f.sal)}</td></tr>`).join(''):'<tr><td colspan="4" class="vacio">Sin honorarios cargados.</td></tr>'}</tbody></table></div>
   <div class="rep-block"><div class="rep-block-h"><h3>Pagos recibidos</h3><span class="rep-block-sub">Qué cliente abonó y cuándo · ingresos del estudio</span></div>
     <table class="rep-tabla"><thead><tr><th>Fecha</th><th>Cliente</th><th>Expediente</th><th>Monto</th></tr></thead><tbody>${pagos.length?pagos.map(p=>`<tr><td>${esc(p.fecha)}</td><td>${esc(p.cli)}</td><td>${esc(p.car)}</td><td class="ok">${fmtPesos(p.monto)}</td></tr>`).join(''):'<tr><td colspan="4" class="vacio">Todavía no hay pagos registrados.</td></tr>'}</tbody></table></div>`;
+}
+/* --- Libro de Recibos (correlativo del estudio) --- */
+let __libro=[];
+function repRecibos(){
+  return `<div class="rep-block"><div class="rep-block-h"><h3>Libro de Recibos</h3><span class="rep-block-sub">Todos los recibos emitidos por el estudio, con número correlativo único. Exportable para el contador (botón Excel arriba).</span></div>
+    <div id="libroBox">Cargando recibos…</div></div>
+    <img src="/apice-trigger.gif" alt="" style="display:none" onerror="cargarLibroRecibos();this.remove()">`;
+}
+async function cargarLibroRecibos(){
+  const box=document.getElementById('libroBox');if(!box)return;
+  try{const r=await fetch('/api/recibos',{credentials:'same-origin'});const j=await r.json();__libro=(j&&j.data)||[];}
+  catch(e){box.innerHTML='<div class="vacio">No se pudieron cargar los recibos.</div>';return;}
+  if(!__libro.length){box.innerHTML='<div class="vacio">Todavía no emitiste recibos. Se numeran solos —empezando por el N° 0001— cuando emitís el primero desde la pestaña Honorarios de una causa.</div>';return;}
+  const fmtN=n=>String(n).padStart(4,'0');
+  box.innerHTML='<table class="rep-tabla"><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Causa</th><th>IUS</th><th>Monto $</th><th>Emitió</th></tr></thead><tbody>'
+    +__libro.map(r=>'<tr><td><b>'+fmtN(r.numero)+'</b></td><td>'+esc(r.fecha||'')+'</td><td>'+esc(r.cliente_nombre||'')+'</td><td>'+esc(r.caratula||'')+'</td><td>'+esc(r.ius||0)+'</td><td class="ok">'+fmtPesos(+r.monto||0)+'</td><td>'+esc(r.emisor||'')+'</td></tr>').join('')
+    +'</tbody></table>';
 }
 /* --- SEC 5: Clientes --- */
 function repClientes(){
@@ -3169,10 +3196,10 @@ function renderEstrategia(){
 }
 function renderReportes(){
   if(repSt.exp){renderRepActividad(repSt.exp);return;}
-  const subs=[['estudio','Mi Estudio'],['expedientes','Mis Expedientes'],['honorarios','Honorarios'],['clientes','Clientes'],['productividad','Productividad']];
-  const titulos={estudio:'Mi Estudio',expedientes:'Expedientes que requieren atención',honorarios:'Informe de Honorarios',clientes:'Reporte de Clientes',productividad:'Productividad'};
+  const subs=[['estudio','Mi Estudio'],['expedientes','Mis Expedientes'],['honorarios','Honorarios'],['recibos','Libro de Recibos'],['clientes','Clientes'],['productividad','Productividad']];
+  const titulos={estudio:'Mi Estudio',expedientes:'Expedientes que requieren atención',honorarios:'Informe de Honorarios',recibos:'Libro de Recibos',clientes:'Reporte de Clientes',productividad:'Productividad'};
   let body;
-  switch(repSt.sec){case 'expedientes':body=repExpedientes();break;case 'honorarios':body=repHonorarios();break;case 'clientes':body=repClientes();break;case 'productividad':body=repProductividad();break;default:body=repEstudio();}
+  switch(repSt.sec){case 'expedientes':body=repExpedientes();break;case 'honorarios':body=repHonorarios();break;case 'recibos':body=repRecibos();break;case 'clientes':body=repClientes();break;case 'productividad':body=repProductividad();break;default:body=repEstudio();}
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide" id="repWrap">
     <div class="main-head"><div><div class="eyebrow">Reportes</div><h1>${titulos[repSt.sec]||'Reportes'}</h1><div class="mh-sub">Calculado con tus datos cargados · ${hoyTxt()}</div></div>
       <div class="rep-exports"><button class="btn-sec" onclick="repExportPDF()">⭳ PDF</button><button class="btn-sec" onclick="repExportXLS()">⭳ Excel</button></div></div>
