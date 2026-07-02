@@ -3738,14 +3738,22 @@ function numLetras(n){n=Math.floor(Math.abs(+n||0));if(n===0)return 'cero';
   if(resto){s+=(s?' ':'')+miles(resto);}
   return s.trim();
 }
-function emitirRecibo(id,i){const c=get(id);if(!c||!c.honorarios||!c.honorarios.pagos[i])return;const p=c.honorarios.pagos[i];
+async function emitirRecibo(id,i){const c=get(id);if(!c||!c.honorarios||!c.honorarios.pagos[i])return;const p=c.honorarios.pagos[i];
   if(p.recibo){openModal({tipo:'recibo',id:id,i:i});return;}
   const vIus=+config.valorIUS||0;const pesos=Math.round((+p.ius||0)*vIus);
   const total=+c.honorarios.ius||0;const pagado=(c.honorarios.pagos||[]).reduce((a,x)=>a+(+x.ius||0),0);
   const saldoIus=Math.max(0,total-pagado);const saldoPesos=Math.round(saldoIus*vIus);
-  config.reciboSeq=(config.reciboSeq||1);const num=config.reciboSeq;config.reciboSeq=num+1;
+  // Número correlativo ÚNICO del estudio (lo asigna el servidor, sin repetidos).
+  let num=null;
+  try{
+    const body={causa_uuid:c.id,cliente_nombre:c.cliente,caratula:c.caratula,fecha:new Date().toISOString().slice(0,10),concepto:'Pago de honorarios',ius:(+p.ius||0),monto:pesos,monto_en_letras:(typeof numLetras==='function'?numLetras(pesos):'')};
+    const r=await fetch('/api/recibos',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json();
+    if(j&&j.ok&&j.data&&j.data.numero)num=j.data.numero;
+  }catch(e){}
+  if(num==null){config.reciboSeq=(config.reciboSeq||1);num=config.reciboSeq;config.reciboSeq=num+1;saveConfig();}
   p.recibo={num:num,fecha:hoy(),ius:(+p.ius||0),pesos:pesos,saldoIus:saldoIus,saldoPesos:saldoPesos};
-  saveConfig();persist();renderFicha();
+  persist();renderFicha();
   openModal({tipo:'recibo',id:id,i:i});
 }
 function inicialesDe(txt){const w=(txt||'').replace(/(Dra?\.|Dr\.|Estudio|Jur\u00eddico)/gi,' ').replace(/\s+/g,' ').trim().split(' ').filter(Boolean);if(!w.length)return 'EJ';const x=(w[0]||'')[0]||'';const y=w.length>1?((w[w.length-1]||'')[0]||''):'';return (x+y).toUpperCase();}
