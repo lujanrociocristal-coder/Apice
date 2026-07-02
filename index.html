@@ -1956,80 +1956,157 @@ function docHoy(){const d=new Date();return String(d.getDate()).padStart(2,'0')+
 function docHist(d,txt){if(!d.historial)d.historial=[];d.historial.unshift({fecha:docHoy(),txt});}
 function relevStars(r){const n=(RELEV[r]||RELEV.tramite).n;let s='';for(let i=1;i<=3;i++)s+=`<span class="rstar ${i<=n?'on':''}">★</span>`;return s;}
 
+const DOC_CARPS=['escritos','prueba','actuaciones','resoluciones','sentencias'];
 function panelDocs(c){
-  const docs=c.documentos||[];
-  const counts={};CARP_ORDEN.forEach(k=>counts[k]=0);docs.forEach(d=>{if(counts[d.carpeta]!=null)counts[d.carpeta]++;});
-  const folderRail=`<div class="doc-rail">
-    <div class="doc-rail-h">Carpetas</div>
-    <button class="folder ${docSt.carpeta===null?'on':''}" onclick="setDocFolder(null)"><span class="fdot all"></span>Todas<span class="fcount">${docs.length}</span></button>
-    ${CARP_ORDEN.map(k=>`<button class="folder ${docSt.carpeta===k?'on':''}" onclick="setDocFolder('${k}')"><span class="fdot" style="background:${CARPETAS[k].c}"></span>${CARPETAS[k].l}<span class="fcount">${counts[k]}</span></button>`).join('')}
-    <div class="doc-guia"><div class="doc-guia-h">Guía de carpetas</div>${CARP_ORDEN.map(k=>`<div class="dg-it"><span class="fdot" style="background:${CARPETAS[k].c}"></span><div><b>${CARPETAS[k].l}</b><div class="dg-d">${esc(CARPETAS[k].desc)}</div></div></div>`).join('')}</div>
-  </div>`;
-  const tipos=[...new Set(docs.map(d=>d.tipo).filter(Boolean))];
-  const filtros=`<div class="doc-filtros">
-    <select onchange="setDocFilter('fTipo',this.value)"><option value="">Todos los tipos</option>${tipos.map(t=>`<option value="${t}" ${docSt.fTipo===t?'selected':''}>.${t}</option>`).join('')}</select>
-    <select onchange="setDocFilter('fRelev',this.value)"><option value="">Todas las relevancias</option>${RELEV_ORDEN.map(r=>`<option value="${r}" ${docSt.fRelev===r?'selected':''}>${RELEV[r].l}</option>`).join('')}</select>
-    <select onchange="setDocFilter('fVis',this.value)"><option value="">Visibilidad: todas</option><option value="si" ${docSt.fVis==='si'?'selected':''}>Visible</option><option value="no" ${docSt.fVis==='no'?'selected':''}>No visible</option></select>
-    <input type="text" id="docq" placeholder="Buscar documento…" value="${attr(docSt.q)}" oninput="docSearch(this.value)">
-  </div>`;
-  const list=docFiltered(c);
-  const rows=list.length?list.map(o=>docRow(c,o.d,o.i)).join(''):`<div class="vacio">No hay documentos que coincidan con el filtro.</div>`;
-  return `<div class="archivos-card" style="background:#fff;border:1px solid var(--linea);border-radius:12px;padding:16px 18px;margin-bottom:16px">
+  return `<div class="archivos-card" style="background:#fff;border:1px solid var(--linea);border-radius:12px;padding:16px 18px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-        <div><b style="font-size:15px">📎 Archivos adjuntos</b><div style="font-size:12px;color:var(--mut)">Subí PDF, Word o imágenes (hasta 20 MB). Se guardan seguros en el servidor.</div></div>
-        <label class="btn-add" style="cursor:pointer;display:inline-flex;align-items:center">+ Subir archivo<input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,image/*" style="display:none" onchange="subirArchivo('${c.id}',this)"></label>
+        <div><b style="font-size:15px">Documentos</b><div style="font-size:12px;color:var(--mut)">Subí PDF, Word o imágenes (hasta 20 MB), o sacá una foto. Elegí la carpeta y si el cliente puede verlo.</div></div>
+        <button class="btn-add" onclick="agregarDocOverlay('${c.id}')">+ Agregar documento</button>
       </div>
-      <div id="archivosLista" style="margin-top:12px;font-size:13px;color:var(--mut)">Cargando archivos…</div>
+      <div id="docChips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
+        <select onchange="docFiltVis(this.value)" style="padding:8px 10px;border:1px solid var(--linea);border-radius:8px;font-size:13px;background:#fff">
+          <option value="">Todos</option>
+          <option value="si" ${docSt.fVis==='si'?'selected':''}>Visible al cliente</option>
+          <option value="no" ${docSt.fVis==='no'?'selected':''}>Solo interno</option>
+        </select>
+        <input type="text" id="docq" placeholder="Buscar por nombre…" value="${attr(docSt.q)}" oninput="docBuscar(this.value)" style="flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--linea);border-radius:8px;font-size:13px">
+      </div>
+      <div id="archivosLista" style="margin-top:14px;font-size:13px;color:var(--mut)">Cargando documentos…</div>
     </div>
-    <img src="/apice-trigger.gif" alt="" style="display:none" onerror="cargarArchivos('${c.id}');this.remove()">
-    <div class="docs-head"><div><div class="docs-tit">Documentos (fichas)</div><div class="docs-sub">${docs.length} en total · la visibilidad para el cliente se controla con el interruptor de cada fila</div></div>
-      <button class="btn-add" onclick="openModal({tipo:'subirdoc',id:'${c.id}'})">+ Ficha de documento</button></div>
-    ${filtros}
-    <div class="docs-wrap">${folderRail}<div class="doc-main">${rows}</div></div>
-    <div class="doc-leg"><div class="dl-col"><div class="dl-h">Relevancia procesal</div>
-        <div class="dl-row"><span class="rstars rel-critica">${relevStars('critica')}</span> <b>Crítica</b> — indispensable para la estrategia o resolución.</div>
-        <div class="dl-row"><span class="rstars">${relevStars('relevante')}</span> <b>Relevante</b> — jurídicamente importante.</div>
-        <div class="dl-row"><span class="rstars">${relevStars('tramite')}</span> <b>Trámite</b> — administrativo o de gestión.</div></div>
-      <div class="dl-col"><div class="dl-h">Visibilidad para el cliente</div>
-        <div class="dl-row"><span class="vsw on"><span class="vk"></span></span> <b>Visible</b> — el cliente puede verlo y descargarlo.</div>
-        <div class="dl-row"><span class="vsw"><span class="vk"></span></span> <b>No visible</b> — el cliente no tiene acceso.</div></div></div>`;
+    <img src="/apice-trigger.gif" alt="" style="display:none" onerror="cargarArchivos('${c.id}');this.remove()">`;
 }
-/* ===== ARCHIVOS ADJUNTOS REALES (subidos al servidor, seguros) ===== */
+/* ===== DOCUMENTOS REALES (subidos al servidor, seguros, con carpeta) ===== */
 function fmtTam(n){n=+n||0;if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(0)+' KB';return (n/1048576).toFixed(1)+' MB';}
+let __archCache={cid:null,items:[]};
 async function cargarArchivos(causaId){
-  const cont=document.getElementById('archivosLista');if(!cont)return;
+  __archCache={cid:causaId,items:[]};
+  const cont=document.getElementById('archivosLista');
   try{
     const r=await fetch('/api/archivos?causa='+encodeURIComponent(causaId),{credentials:'same-origin'});
     const j=await r.json();
     if(!j||j.ok===false)throw new Error((j&&j.error)||'Error');
-    const arr=j.data||[];
-    if(!arr.length){cont.innerHTML='<div style="color:var(--mut);font-style:italic">Todavía no hay archivos subidos.</div>';return;}
-    cont.innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'+arr.map(a=>{
-      const icon=a.tipo==='pdf'?'📄':((['jpg','jpeg','png'].indexOf(a.tipo)>=0)?'🖼':'📝');
-      const vis=Number(a.visible_cliente)?'👁 visible al cliente':'🔒 solo interno';
-      const nomJs=esc(a.nombre).replace(/'/g,'');
-      return '<div style="display:flex;align-items:center;gap:10px;border:1px solid var(--linea);border-radius:9px;padding:8px 10px;flex-wrap:wrap">'
-        +'<span style="font-size:18px">'+icon+'</span>'
-        +'<a href="/api/archivos/'+a.id+'/descargar" target="_blank" rel="noopener" style="font-weight:600;color:var(--tinta);text-decoration:none;flex:1;min-width:140px">'+esc(a.nombre)+'</a>'
-        +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'
-        +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+causaId+'\')">'+vis+'</button>'
-        +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+causaId+'\',\''+nomJs+'\')">Renombrar</button>'
-        +'<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarArchivo('+a.id+',\''+causaId+'\')">Eliminar</button>'
-        +'</div>';
-    }).join('')+'</div>';
-  }catch(e){cont.innerHTML='<div style="color:#B42318">No se pudieron cargar los archivos: '+esc(e.message)+'</div>';}
+    __archCache={cid:causaId,items:j.data||[]};
+  }catch(e){
+    if(cont)cont.innerHTML='<div style="color:#B42318">No se pudieron cargar los documentos: '+esc(e.message)+'</div>';
+    return;
+  }
+  renderDocLista();
 }
-async function subirArchivo(causaId,input){
-  const file=input&&input.files&&input.files[0];if(!file)return;
-  if(file.size>20*1024*1024){alert('El archivo supera los 20 MB.');input.value='';return;}
-  const cont=document.getElementById('archivosLista');if(cont)cont.innerHTML='Subiendo "'+esc(file.name)+'"…';
-  const fd=new FormData();fd.append('file',file);fd.append('causa_id',causaId);
-  try{
-    const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});
-    const j=await r.json();
-    if(!j||j.ok===false)throw new Error((j&&j.error)||'Error al subir');
-    input.value='';cargarArchivos(causaId);
-  }catch(e){alert('No se pudo subir: '+e.message);cargarArchivos(causaId);}
+function docFiltrados(){
+  let arr=__archCache.items.slice();
+  if(docSt.carpeta)arr=arr.filter(a=>(a.carpeta||'actuaciones')===docSt.carpeta);
+  if(docSt.fVis==='si')arr=arr.filter(a=>Number(a.visible_cliente)===1);
+  if(docSt.fVis==='no')arr=arr.filter(a=>Number(a.visible_cliente)!==1);
+  if(docSt.q){const q=docSt.q.toLowerCase();arr=arr.filter(a=>(a.nombre||'').toLowerCase().indexOf(q)>=0);}
+  return arr;
+}
+function renderDocLista(){
+  const cid=__archCache.cid;
+  const chips=document.getElementById('docChips');
+  if(chips){
+    const counts={};DOC_CARPS.forEach(k=>counts[k]=0);
+    __archCache.items.forEach(a=>{const k=a.carpeta||'actuaciones';if(counts[k]!=null)counts[k]++;});
+    const chipCss='border:1px solid var(--linea);background:#fff;border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px';
+    const onCss='background:#1C2433;color:#fff;border-color:#1C2433';
+    chips.innerHTML='<button style="'+chipCss+(!docSt.carpeta?';'+onCss:'')+'" onclick="docSetCarp(null)">Todas ('+__archCache.items.length+')</button>'
+      +DOC_CARPS.map(k=>'<button style="'+chipCss+(docSt.carpeta===k?';'+onCss:'')+'" onclick="docSetCarp(\''+k+'\')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+CARPETAS[k].c+'"></span>'+CARPETAS[k].l+' ('+counts[k]+')</button>').join('');
+  }
+  const cont=document.getElementById('archivosLista');if(!cont)return;
+  if(!__archCache.items.length){cont.innerHTML='<div style="color:var(--mut);font-style:italic">Todavía no hay documentos. Tocá "+ Agregar documento" para subir el primero.</div>';return;}
+  const arr=docFiltrados();
+  if(!arr.length){cont.innerHTML='<div style="color:var(--mut);font-style:italic">No hay documentos que coincidan con el filtro.</div>';return;}
+  cont.innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'+arr.map(a=>archRow(cid,a)).join('')+'</div>';
+}
+function archRow(cid,a){
+  const icon=a.tipo==='pdf'?'📄':((['jpg','jpeg','png'].indexOf(a.tipo)>=0)?'🖼':'📝');
+  const car=CARPETAS[a.carpeta]||CARPETAS.actuaciones;
+  const vis=Number(a.visible_cliente)?'👁 visible al cliente':'🔒 solo interno';
+  const nomJs=esc(a.nombre).replace(/'/g,'');
+  return '<div style="display:flex;align-items:center;gap:10px;border:1px solid var(--linea);border-radius:9px;padding:8px 10px;flex-wrap:wrap">'
+    +'<span style="font-size:18px">'+icon+'</span>'
+    +'<a href="/api/archivos/'+a.id+'/descargar" target="_blank" rel="noopener" style="font-weight:600;color:var(--tinta);text-decoration:none;flex:1;min-width:140px">'+esc(a.nombre)+'</a>'
+    +'<span style="font-size:11px;font-weight:600;color:'+car.c+';background:'+car.c+'18;padding:3px 9px;border-radius:20px">'+car.l+'</span>'
+    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'
+    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
+    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
+    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+cid+'\',\''+nomJs+'\')">Renombrar</button>'
+    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarArchivo('+a.id+',\''+cid+'\')">Eliminar</button>'
+    +'</div>';
+}
+function docSetCarp(k){docSt.carpeta=k;renderDocLista();}
+function docFiltVis(v){docSt.fVis=v;renderDocLista();}
+function docBuscar(v){docSt.q=v;renderDocLista();}
+function agregarDocOverlay(causaId){
+  let selFile=null;
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+  const carpOpts=DOC_CARPS.map(k=>'<option value="'+k+'">'+CARPETAS[k].l+'</option>').join('');
+  ov.innerHTML=
+    '<div style="background:#fff;border-radius:14px;max-width:440px;width:100%;padding:24px;font-family:system-ui,sans-serif;color:#1C2433;max-height:92vh;overflow:auto">'
+    +'<h2 style="font-size:18px;margin:0 0 4px">Agregar documento</h2>'
+    +'<p style="font-size:13px;color:#6B7280;margin:0 0 16px">Eleg&iacute; un archivo o sac&aacute; una foto. M&aacute;ximo 20 MB. Formatos: PDF, Word, JPG o PNG.</p>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+      +'<label style="flex:1;min-width:130px;cursor:pointer;text-align:center;border:1px solid #D3D7DE;border-radius:10px;padding:14px 10px;font-size:14px;font-weight:600">📷 Sacar foto<input id="docCam" type="file" accept="image/*" capture="environment" style="display:none"></label>'
+      +'<label style="flex:1;min-width:130px;cursor:pointer;text-align:center;border:1px solid #D3D7DE;border-radius:10px;padding:14px 10px;font-size:14px;font-weight:600">📎 Elegir archivo<input id="docFile" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,image/*" style="display:none"></label>'
+    +'</div>'
+    +'<div id="docSel" style="font-size:13px;color:#2F7D55;margin:10px 0 0;min-height:18px"></div>'
+    +'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Nombre del documento</label>'
+    +'<input id="docNombre" type="text" placeholder="Ej: Demanda inicial" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
+    +'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Carpeta</label>'
+    +'<select id="docCarp" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box;background:#fff">'+carpOpts+'</select>'
+    +'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docVis" type="checkbox"> Visible para el cliente</label>'
+    +'<div id="docMsg" style="color:#8a2828;font-size:12px;margin-top:10px"></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
+      +'<button id="docCancel" style="background:#EEF0F3;border:0;padding:11px 16px;border-radius:9px;font-size:14px;cursor:pointer">Cancelar</button>'
+      +'<button id="docGuardar" disabled style="background:#1C2433;color:#fff;border:0;padding:11px 18px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;opacity:.5">Guardar</button>'
+    +'</div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  const selEl=ov.querySelector('#docSel'),nomEl=ov.querySelector('#docNombre');
+  const guardarBtn=ov.querySelector('#docGuardar'),msgEl=ov.querySelector('#docMsg');
+  function onPick(inp){
+    const f=inp.files&&inp.files[0];if(!f)return;
+    if(f.size>20*1024*1024){msgEl.textContent='El archivo supera los 20 MB.';return;}
+    selFile=f;msgEl.textContent='';
+    selEl.textContent='✓ '+f.name+' ('+fmtTam(f.size)+')';
+    if(!nomEl.value)nomEl.value=f.name.replace(/\.[^.]+$/,'');
+    guardarBtn.disabled=false;guardarBtn.style.opacity='1';
+  }
+  ov.querySelector('#docCam').addEventListener('change',function(){onPick(this);});
+  ov.querySelector('#docFile').addEventListener('change',function(){onPick(this);});
+  ov.querySelector('#docCancel').addEventListener('click',function(){document.body.removeChild(ov);});
+  guardarBtn.addEventListener('click',async function(){
+    if(!selFile){msgEl.textContent='Primero eleg&iacute; un archivo o sac&aacute; una foto.';return;}
+    guardarBtn.disabled=true;guardarBtn.textContent='Subiendo…';
+    const fd=new FormData();
+    fd.append('file',selFile);fd.append('causa_id',causaId);
+    fd.append('nombre',(nomEl.value.trim()||selFile.name));
+    fd.append('carpeta',ov.querySelector('#docCarp').value);
+    if(ov.querySelector('#docVis').checked)fd.append('visible_cliente','1');
+    try{
+      const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});
+      const j=await r.json();
+      if(!j||j.ok===false)throw new Error((j&&j.error)||'Error al subir');
+      document.body.removeChild(ov);cargarArchivos(causaId);
+    }catch(e){msgEl.textContent='No se pudo subir: '+e.message;guardarBtn.disabled=false;guardarBtn.textContent='Guardar';}
+  });
+}
+function moverArchivo(id,cid){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:340px;width:100%;padding:22px;font-family:system-ui,sans-serif;color:#1C2433">'
+    +'<h2 style="font-size:17px;margin:0 0 12px">Mover a carpeta</h2>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'
+    +DOC_CARPS.map(k=>'<button data-k="'+k+'" style="text-align:left;border:1px solid #D3D7DE;background:#fff;border-radius:9px;padding:11px 12px;font-size:14px;cursor:pointer"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+CARPETAS[k].c+';margin-right:8px"></span>'+CARPETAS[k].l+'</button>').join('')
+    +'</div>'
+    +'<div style="text-align:right;margin-top:14px"><button id="mvCancel" style="background:#EEF0F3;border:0;padding:9px 14px;border-radius:9px;font-size:14px;cursor:pointer">Cancelar</button></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#mvCancel').addEventListener('click',function(){document.body.removeChild(ov);});
+  ov.querySelectorAll('button[data-k]').forEach(function(b){b.addEventListener('click',async function(){
+    try{await archivoAccion(id,'PUT',{carpeta:this.getAttribute('data-k')});document.body.removeChild(ov);cargarArchivos(cid);}catch(e){alert(e.message);}
+  });});
 }
 async function archivoAccion(id,method,body){
   const opt={method:method,credentials:'same-origin'};
@@ -2038,7 +2115,7 @@ async function archivoAccion(id,method,body){
   if(!j||j.ok===false)throw new Error((j&&j.error)||'Error');return j.data;
 }
 async function renombrarArchivo(id,causaId,actual){
-  const nuevo=prompt('Nuevo nombre del archivo:',actual);if(nuevo===null)return;
+  const nuevo=prompt('Nuevo nombre del documento:',actual);if(nuevo===null)return;
   const n=nuevo.trim();if(!n){alert('El nombre no puede quedar vacío.');return;}
   try{await archivoAccion(id,'PUT',{nombre:n});cargarArchivos(causaId);}catch(e){alert(e.message);}
 }
@@ -2046,7 +2123,7 @@ async function toggleVisibleArchivo(id,valor,causaId){
   try{await archivoAccion(id,'PUT',{visible_cliente:valor});cargarArchivos(causaId);}catch(e){alert(e.message);}
 }
 async function eliminarArchivo(id,causaId){
-  if(!confirm('¿Eliminar este archivo definitivamente? No se puede deshacer.'))return;
+  if(!confirm('¿Eliminar este documento definitivamente? No se puede deshacer.'))return;
   try{await archivoAccion(id,'DELETE');cargarArchivos(causaId);}catch(e){alert(e.message);}
 }
 function docRow(c,d,i){
@@ -3978,7 +4055,7 @@ function render(){
   const o=document.getElementById("ov");if(o)o.remove();
   if(st.modal)document.body.insertAdjacentHTML("beforeend",`<div id="ov"><div class="overlay" onclick="if(event.target===this)closeModal()">${modalContent()}</div></div>`);
 }
-async function init(){const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg.valorIUS==='number')config=savedCfg;const saved=await loadState();if(saved&&Array.isArray(saved)&&saved.length){causas=saved;normalize();}else{seedCausas();}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
+async function init(){const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)&&saved.length){causas=saved;normalize();}else{seedCausas();}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 </script>
 </body>
