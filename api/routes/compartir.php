@@ -39,6 +39,7 @@ function handle_compartir($method, $resto) {
 
   if ($method === 'POST' && $a === '')        return compartir_causa();
   if ($method === 'GET'  && $a === 'conmigo') return compartidas_conmigo();
+  if ($method === 'GET'  && $a === 'mias')    return compartidas_por_mi();
   if ($method === 'GET'  && $a === '')        return compartida_quien();
   if ($method === 'PUT'  && $a === 'causa')   return compartida_guardar($resto[1] ?? '');
   if ($method === 'DELETE' && $a !== '')      return compartir_revocar((int)$a);
@@ -105,6 +106,15 @@ function compartir_revocar($id) {
   if ((int)$sh['estudio_origen_id'] !== (int)$u['estudio_id']) json_error('No podés revocar este acceso.', 403);
   db()->prepare('DELETE FROM causa_compartida WHERE id = ?')->execute([$id]);
   json_ok(['revocado' => true]);
+}
+
+/* Causas que YO (mi estudio) compartí con externos: uuid -> cantidad. */
+function compartidas_por_mi() {
+  $u = require_profesional();
+  $st = db()->prepare('SELECT causa_uuid, COUNT(*) AS n FROM causa_compartida
+                       WHERE estudio_origen_id = ? GROUP BY causa_uuid');
+  $st->execute([(int)$u['estudio_id']]);
+  json_ok($st->fetchAll());
 }
 
 /* Causas que OTROS estudios me compartieron a MÍ. */
