@@ -2420,7 +2420,11 @@ async function informarPagoCliente(causaId){
     alert('¡Listo! Informaste tu pago. El estudio lo va a revisar y confirmar.');location.reload();
   }catch(e){alert('No se pudo informar el pago: '+e.message);}
 }
-async function delPago(id,i){const c=get(id);const p=c.honorarios.pagos[i];if(!confirm('¿Eliminar este pago? Si tiene un recibo emitido, también se quita del Libro de Recibos.'))return;if(p&&p.recibo&&p.recibo.serverId){try{await fetch('/api/recibos/'+p.recibo.serverId,{method:'DELETE',credentials:'same-origin'});}catch(e){}}c.honorarios.pagos.splice(i,1);persist();renderFicha();}
+async function delPago(id,i){const c=get(id);const p=c.honorarios.pagos[i];if(!p)return;
+  const msg=p.recibo?('⚠️ Este pago tiene el RECIBO N° '+String(p.recibo.num).padStart(4,'0')+' emitido.\n\nAl eliminarlo se ANULA el recibo y se quita del Libro de Recibos. Esta acción no se puede deshacer.\n\n¿Continuar?'):'¿Eliminar este pago? Esta acción no se puede deshacer.';
+  if(!confirm(msg))return;
+  if(p.recibo&&p.recibo.serverId){try{await fetch('/api/recibos/'+p.recibo.serverId,{method:'DELETE',credentials:'same-origin'});}catch(e){}}
+  c.honorarios.pagos.splice(i,1);persist();renderFicha();}
 function addGasto(id){const c=get(id);const concepto=document.getElementById('gs_concepto').value.trim();const moneda=document.getElementById('gs_moneda').value;const monto=+document.getElementById('gs_monto').value;const comp=document.getElementById('gs_comp').value.trim();if(!concepto||!monto){return;}c.honorarios.gastos.push({concepto,moneda,monto,comp,pagado:false});persist();renderFicha();}
 function delGasto(id,i){const c=get(id);c.honorarios.gastos.splice(i,1);persist();renderFicha();}
 function toggleGasto(id,i){const c=get(id);c.honorarios.gastos[i].pagado=!c.honorarios.gastos[i].pagado;persist();renderFicha();}
@@ -2785,7 +2789,9 @@ function agendarEnDia(key){if(!sideSt.af)sideSt.af={tipo:'juzgado',fecha:'',hora
 function hoyKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function notifs(){const hk=hoyKey();return audiencias.filter(a=>a.cliAsiste&&a.fecha&&a.fecha>=hk).sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')));}
 function citasProx(){const hk=hoyKey();return audiencias.filter(a=>a.tipo==='cita'&&a.fecha&&a.fecha>=hk).sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')));}
-function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas();b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
+function pagosInformados(){const out=[];causas.forEach(c=>{((c.honorarios&&c.honorarios.pagos)||[]).forEach((p,i)=>{if(p.confirmado===false)out.push({cid:c.id,cliente:c.cliente,caratula:cShort(c.caratula),ius:+p.ius||0,fecha:p.fecha,i:i,compArch:p.compArch});});});return out;}
+function irAHonorarios(cid){st.actual=cid;st.vista='ficha';st.tab='honorarios';st.cliente=false;window.scrollTo(0,0);render();}
+function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas()+pagosInformados().length;b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
 function renderAvisos(){
   const list=notifs();const hk=hoyKey();
   const cards=list.map(a=>{
@@ -2808,9 +2814,15 @@ function renderAvisos(){
   
   const avSec=`<div class="avi-sec"><div class="avi-sec-h">Movimientos nuevos <span class="avi-n">${nuevos}</span></div><div class="avi-row"><span>${nuevos?('Tenés '+nuevos+' causa(s) con movimientos sin leer.'):'Sin movimientos nuevos.'}</span><button class="btn-sec" onclick="openModal({tipo:'avances'})">Ver avances</button></div></div>`;
   const verSec=`<div class="avi-sec"><div class="avi-sec-h">A verificar <span class="avi-n">${alertas}</span></div><div class="avi-row"><span>${alertas?('Hay '+alertas+' advertencia(s) por revisar.'):'Sin advertencias pendientes.'}</span><button class="btn-sec" onclick="openModal({tipo:'verificar'})">Ver / resolver</button></div></div>`;
+  const infos=pagosInformados();const vI=+config.valorIUS||0;
+  const infoCards=infos.map(x=>{const pesos=x.ius*vI;return `<div class="avi-card"><div class="avi-ic">💰</div><div class="avi-body"><div class="avi-top"><b>${esc(x.cliente||'Un cliente')}</b> informó un pago de <b>${x.ius} IUS</b>${pesos?(' · '+fmtPesos(pesos)):''}.<span class="avi-tag hoy">A CONFIRMAR</span></div>
+      <div class="avi-meta">${esc(x.caratula)}${x.compArch?' · 📎 con comprobante':' · sin comprobante'}</div>
+      <div class="avi-when">📅 ${esc(x.fecha||'')}</div></div>
+      <button class="btn-sec" onclick="irAHonorarios('${x.cid}')">Ver / confirmar</button></div>`;}).join('');
+  const infoSec=`<div class="avi-sec"><div class="avi-sec-h">Pagos informados por clientes <span class="avi-n">${infos.length}</span></div>${infos.length?`<div class="avi-list">${infoCards}</div>`:`<div class="avi-empty">Sin pagos informados pendientes de confirmar.</div>`}</div>`;
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
     <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Todo lo que requiere tu atención, reunido en un solo lugar.</div></div></div>
-    ${audSec}${citaSec}${avSec}${verSec}</div>`;
+    ${infoSec}${audSec}${citaSec}${avSec}${verSec}</div>`;
 }
 function verEnCalendario(key){sideSt.sec='calendario';sideSt.calSel=key;const dt=new Date(key+'T00:00:00');sideSt.calY=dt.getFullYear();sideSt.calM=dt.getMonth();st.nav='calendario';window.scrollTo(0,0);render();}
 
