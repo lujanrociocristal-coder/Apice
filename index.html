@@ -1545,11 +1545,30 @@ async function loadState(){
   return null;
 }
 async function saveState(){
-  const data=JSON.stringify(causas);
-  try{if(window.storage){await window.storage.set(STORE,data);return;}}catch(e){}
+  // Separar causas PROPIAS (van al bloque del estudio) de las COMPARTIDAS por
+  // otro estudio (se guardan en su causa de origen, sin tocar mi estudio).
+  const propias=causas.filter(c=>!c._compartida);
+  const data=JSON.stringify(propias);
+  try{if(window.storage){await window.storage.set(STORE,data);}}catch(e){}
   try{if(typeof localStorage!=='undefined')localStorage.setItem(STORE,data);}catch(e){}
+  const comp=causas.filter(c=>c._compartida&&c._permiso==='edicion');
+  for(const c of comp){
+    try{await fetch('/api/compartir/causa/'+encodeURIComponent(c.id),{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({causa:c})});}catch(e){}
+  }
 }
 function persist(){saveState();}
+/* Trae las causas que OTROS estudios me compartieron y las agrega (etiquetadas). */
+async function cargarCompartidas(){
+  try{
+    const r=await fetch('/api/compartir/conmigo',{credentials:'same-origin'});
+    const j=await r.json();
+    if(j&&j.ok&&Array.isArray(j.data)&&j.data.length){
+      const ids=new Set(causas.map(c=>c.id));
+      j.data.forEach(c=>{c._compartida=true;if(!ids.has(c.id))causas.push(c);});
+      normalize();
+    }
+  }catch(e){}
+}
 const CFG='gestor_cfg_v9';
 const APICE_LOGO=`<svg viewBox="0 0 232 60" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ÁPICE — Gestión Jurídica Inteligente"><defs><linearGradient id="apg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3FC8BD"/><stop offset="1" stop-color="#356E94"/></linearGradient></defs><path d="M27 6 L51 50 L3 50 Z" fill="url(#apg)"/><path d="M27 24 L43 50 L11 50 Z" fill="#23436E"/><path d="M27 6 L30 23 L18 50 L3 50 Z" fill="#46D2C6" opacity="0.85"/><text x="64" y="33" font-family="Inter,system-ui,sans-serif" font-size="27" font-weight="700" letter-spacing="2.5" fill="#ECF2F5">ÁPICE</text><line x1="65" y1="41" x2="206" y2="41" stroke="#33586C" stroke-width="1"/><text x="65" y="52" font-family="Inter,system-ui,sans-serif" font-size="7.3" letter-spacing="2.1" fill="#79AAB4">GESTIÓN JURÍDICA INTELIGENTE</text></svg>`;
 let config={valorIUS:35000,avatar:null};
@@ -1875,12 +1894,14 @@ function renderFicha(){
     <div class="ficha-top"><div class="spine ${k}"></div>
       <button class="volver" onclick="cerrarFicha()">‹ Volver al panel</button>
       <h2>${esc(c.caratula)}</h2><div class="badges">${badges}</div>
+      ${c._compartida?`<div style="background:#EEF4FF;border:1px solid #C7D7FE;color:#1E40AF;border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13px">🔗 Causa compartida por <b>${esc(c._origen||'otro estudio')}</b> · ${c._permiso==='edicion'?'podés verla y editarla':'solo lectura'}</div>`:''}
       <div class="ficha-acciones">
         <button class="btn-sec" onclick="openModal({tipo:'editar',id:'${c.id}'})">✎ Editar datos</button>
         <button class="btn-sec" onclick="openModal({tipo:'estado',id:'${c.id}'})">↻ Cambiar estado</button>
         <button class="btn-sec" onclick="toggleCliente(true)">👁 Vista de cliente</button>
+        ${!c._compartida?`<button class="btn-sec" onclick="compartirCausaOverlay('${c.id}')">🔗 Compartir con externo</button>`:''}
         <a class="btn-sec" href="${D}${c.ficha}/edit" target="_blank" rel="noopener">↗ Abrir ficha en Drive</a>
-        <button class="btn-sec danger" onclick="delCausa('${c.id}')">🗑 Eliminar causa</button>
+        ${!c._compartida?`<button class="btn-sec danger" onclick="delCausa('${c.id}')">🗑 Eliminar causa</button>`:''}
       </div></div>
     <div class="tabs">${tabBtn("datos","Datos de la causa")}${tabBtn("avance","Avance progresivo")}${tabBtn("docs","Documentación")}${tabBtn("pend","Pendientes")}${tabBtn("honorarios","Honorarios")}</div>
     <div class="panel">${panel}</div></div>
@@ -2125,6 +2146,51 @@ async function toggleVisibleArchivo(id,valor,causaId){
 async function eliminarArchivo(id,causaId){
   if(!confirm('¿Eliminar este documento definitivamente? No se puede deshacer.'))return;
   try{await archivoAccion(id,'DELETE');cargarArchivos(causaId);}catch(e){alert(e.message);}
+}
+/* ===== COMPARTIR UNA CAUSA CON UN ABOGADO EXTERNO ===== */
+function compartirCausaOverlay(uuid){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:440px;width:100%;padding:24px;font-family:system-ui,sans-serif;color:#1C2433;max-height:92vh;overflow:auto">'
+    +'<h2 style="font-size:18px;margin:0 0 4px">Compartir con colega externo</h2>'
+    +'<p style="font-size:13px;color:#6B7280;margin:0 0 14px">El colega ver&aacute; <b>solo esta causa</b>, no el resto de tus casos. Deb&eacute; tener un usuario en &Aacute;PICE.</p>'
+    +'<label style="display:block;font-size:12px;color:#6B7280">Correo del abogado</label>'
+    +'<input id="shEmail" type="email" placeholder="colega@correo.com" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
+    +'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Permiso</label>'
+    +'<select id="shPerm" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box;background:#fff"><option value="lectura">Solo ver (lectura)</option><option value="edicion">Ver y editar</option></select>'
+    +'<div id="shMsg" style="font-size:12px;margin-top:10px"></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px"><button id="shCancel" style="background:#EEF0F3;border:0;padding:11px 16px;border-radius:9px;font-size:14px;cursor:pointer">Cerrar</button><button id="shGo" style="background:#1C2433;color:#fff;border:0;padding:11px 18px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">Compartir</button></div>'
+    +'<div style="margin-top:16px;border-top:1px solid #EEF0F3;padding-top:12px"><div style="font-size:12px;color:#6B7280;margin-bottom:6px">Compartida actualmente con:</div><div id="shList" style="font-size:13px;color:#6B7280">Cargando…</div></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  const msg=ov.querySelector('#shMsg');
+  async function lista(){
+    try{
+      const r=await fetch('/api/compartir?causa='+encodeURIComponent(uuid),{credentials:'same-origin'});
+      const j=await r.json();const arr=(j&&j.data)||[];
+      const box=ov.querySelector('#shList');
+      if(!arr.length){box.innerHTML='<i>Todavía no la compartiste con nadie.</i>';return;}
+      box.innerHTML=arr.map(s=>'<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;padding:5px 0"><span>'+esc(s.nombre||s.email)+' · '+(s.permiso==='edicion'?'ver y editar':'solo ver')+'</span><button style="background:#fff;border:1px solid #FDA29B;color:#B42318;border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer" onclick="revocarCompartir('+s.id+',this)">Quitar</button></div>').join('');
+    }catch(e){}
+  }
+  ov.querySelector('#shCancel').addEventListener('click',function(){document.body.removeChild(ov);});
+  ov.querySelector('#shGo').addEventListener('click',async function(){
+    const email=ov.querySelector('#shEmail').value.trim();const permiso=ov.querySelector('#shPerm').value;
+    if(!email){msg.style.color='#B42318';msg.textContent='Escribí el correo del colega.';return;}
+    msg.style.color='#6B7280';msg.textContent='Compartiendo…';
+    try{
+      const r=await fetch('/api/compartir',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({causa_uuid:uuid,email:email,permiso:permiso})});
+      const j=await r.json();
+      if(!j||j.ok===false)throw new Error((j&&j.error)||'Error');
+      msg.style.color='#2F7D55';msg.textContent='✓ Compartida con '+((j.data&&j.data.colaborador)||email)+'.';
+      ov.querySelector('#shEmail').value='';lista();
+    }catch(e){msg.style.color='#B42318';msg.textContent=e.message;}
+  });
+  lista();
+}
+async function revocarCompartir(id,btn){
+  if(!confirm('¿Quitar el acceso de este colega a la causa?'))return;
+  try{await fetch('/api/compartir/'+id,{method:'DELETE',credentials:'same-origin'});if(btn&&btn.closest)btn.closest('div').remove();}catch(e){alert('No se pudo quitar.');}
 }
 function docRow(c,d,i){
   const cp=CARPETAS[d.carpeta]||CARPETAS.actuaciones;
@@ -4055,7 +4121,7 @@ function render(){
   const o=document.getElementById("ov");if(o)o.remove();
   if(st.modal)document.body.insertAdjacentHTML("beforeend",`<div id="ov"><div class="overlay" onclick="if(event.target===this)closeModal()">${modalContent()}</div></div>`);
 }
-async function init(){const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)&&saved.length){causas=saved;normalize();}else{seedCausas();}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
+async function init(){const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)&&saved.length){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 </script>
 </body>
