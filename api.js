@@ -141,14 +141,8 @@
       var state = (typeof onbState !== 'undefined') ? onbState : {};
       var perfil = state.profile || 'abogado';
 
-      // En esta etapa el portal de clientes todavia no se habilita (secreto
-      // profesional: requiere el aislamiento fino por cliente de la etapa
-      // relacional). Solo ingresan profesionales.
-      if (perfil === 'cliente') {
-        alert('El portal para clientes se habilita en la proxima etapa. Por ahora el ingreso es para profesionales del estudio.');
-        return;
-      }
-
+      // Clientes y profesionales ingresan con email + contraseña. El rol lo
+      // determina el servidor; si es cliente, la app abre el Portal del cliente.
       var modo = state.mode || 'login';
       var sesion = null;
       try {

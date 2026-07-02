@@ -1332,6 +1332,7 @@ async function cargarCompartidas(){
 const CFG='gestor_cfg_v9';
 const APICE_LOGO=`<svg viewBox="0 0 232 60" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ÁPICE — Gestión Jurídica Inteligente"><defs><linearGradient id="apg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3FC8BD"/><stop offset="1" stop-color="#356E94"/></linearGradient></defs><path d="M27 6 L51 50 L3 50 Z" fill="url(#apg)"/><path d="M27 24 L43 50 L11 50 Z" fill="#23436E"/><path d="M27 6 L30 23 L18 50 L3 50 Z" fill="#46D2C6" opacity="0.85"/><text x="64" y="33" font-family="Inter,system-ui,sans-serif" font-size="27" font-weight="700" letter-spacing="2.5" fill="#ECF2F5">ÁPICE</text><line x1="65" y1="41" x2="206" y2="41" stroke="#33586C" stroke-width="1"/><text x="65" y="52" font-family="Inter,system-ui,sans-serif" font-size="7.3" letter-spacing="2.1" fill="#79AAB4">GESTIÓN JURÍDICA INTELIGENTE</text></svg>`;
 let config={valorIUS:35000,avatar:null};
+let MODO_CLIENTE=false; let __cliNombre='';
 async function loadConfig(){try{if(window.storage){const r=await window.storage.get(CFG);if(r&&r.value)return JSON.parse(r.value);}}catch(e){}try{if(typeof localStorage!=='undefined'){const v=localStorage.getItem(CFG);if(v)return JSON.parse(v);}}catch(e){}return null;}
 async function saveConfig(){const d=JSON.stringify(config);try{if(window.storage){await window.storage.set(CFG,d);return;}}catch(e){}try{if(typeof localStorage!=='undefined')localStorage.setItem(CFG,d);}catch(e){}}
 async function resetData(){
@@ -1660,6 +1661,7 @@ function renderFicha(){
         <button class="btn-sec" onclick="openModal({tipo:'editar',id:'${c.id}'})">✎ Editar datos</button>
         <button class="btn-sec" onclick="openModal({tipo:'estado',id:'${c.id}'})">↻ Cambiar estado</button>
         <button class="btn-sec" onclick="toggleCliente(true)">👁 Vista de cliente</button>
+        ${!c._compartida?`<button class="btn-sec" onclick="accesoClienteOverlay('${c.id}')">👤 Acceso del cliente</button>`:''}
         ${!c._compartida?`<button class="btn-sec" onclick="compartirCausaOverlay('${c.id}')">🔗 Compartir con externo</button>`:''}
         <a class="btn-sec" href="${D}${c.ficha}/edit" target="_blank" rel="noopener">↗ Abrir ficha en Drive</a>
         ${!c._compartida?`<button class="btn-sec danger" onclick="delCausa('${c.id}')">🗑 Eliminar causa</button>`:''}
@@ -1953,6 +1955,50 @@ async function revocarCompartir(id,btn){
   if(!confirm('¿Quitar el acceso de este colega a la causa?'))return;
   try{await fetch('/api/compartir/'+id,{method:'DELETE',credentials:'same-origin'});if(btn&&btn.closest)btn.closest('div').remove();}catch(e){alert('No se pudo quitar.');}
 }
+/* ===== ACCESO DEL CLIENTE (portal) ===== */
+function accesoClienteOverlay(uuid){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:460px;width:100%;padding:24px;font-family:system-ui,sans-serif;color:#1C2433;max-height:92vh;overflow:auto">'
+    +'<h2 style="font-size:18px;margin:0 0 4px">Acceso del cliente</h2>'
+    +'<p style="font-size:13px;color:#6B7280;margin:0 0 14px">Dale acceso a tu cliente por correo. Ver&aacute; <b>solo esta causa</b> (y las que le habilites), en modo lectura. Deber&aacute; cambiar la clave temporal en su primer ingreso.</p>'
+    +'<label style="display:block;font-size:12px;color:#6B7280">Correo del cliente</label>'
+    +'<input id="acEmail" type="email" placeholder="cliente@correo.com" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
+    +'<div id="acMsg" style="font-size:13px;margin-top:10px"></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px"><button id="acCancel" style="background:#EEF0F3;border:0;padding:11px 16px;border-radius:9px;font-size:14px;cursor:pointer">Cerrar</button><button id="acGo" style="background:#1C2433;color:#fff;border:0;padding:11px 18px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">Activar acceso</button></div>'
+    +'<div style="margin-top:16px;border-top:1px solid #EEF0F3;padding-top:12px"><div style="font-size:12px;color:#6B7280;margin-bottom:6px">Clientes con acceso a esta causa:</div><div id="acList" style="font-size:13px;color:#6B7280">Cargando…</div></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  const msg=ov.querySelector('#acMsg');
+  async function lista(){
+    try{const r=await fetch('/api/acceso?causa='+encodeURIComponent(uuid),{credentials:'same-origin'});const j=await r.json();const arr=(j&&j.data)||[];const box=ov.querySelector('#acList');
+      if(!arr.length){box.innerHTML='<i>Nadie todavía.</i>';return;}
+      box.innerHTML=arr.map(s=>'<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid #F1F2F4"><span>'+esc(s.nombre||s.email)+' <span style="color:#9AA1AC;font-size:11px">'+esc(s.email)+'</span>'+(Number(s.debe_cambiar_clave)?' <span style="color:#B54708;font-size:11px">(no ingresó aún)</span>':'')+'</span><span style="display:flex;gap:6px"><button style="background:#fff;border:1px solid #D3D7DE;border-radius:7px;padding:4px 8px;font-size:11px;cursor:pointer" onclick="blanquearCliente('+s.usuario_id+')">Blanquear clave</button><button style="background:#fff;border:1px solid #FDA29B;color:#B42318;border-radius:7px;padding:4px 8px;font-size:11px;cursor:pointer" onclick="revocarAcceso('+s.id+',this)">Quitar</button></span></div>').join('');
+    }catch(e){}
+  }
+  ov.querySelector('#acCancel').addEventListener('click',function(){document.body.removeChild(ov);});
+  ov.querySelector('#acGo').addEventListener('click',async function(){
+    const email=ov.querySelector('#acEmail').value.trim();
+    if(!email){msg.style.color='#B42318';msg.textContent='Escribí el correo del cliente.';return;}
+    msg.style.color='#6B7280';msg.textContent='Activando…';
+    try{const r=await fetch('/api/acceso',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({causa_uuid:uuid,email:email})});const j=await r.json();if(!j||j.ok===false)throw new Error((j&&j.error)||'Error');
+      if(j.data&&j.data.clave_temporal){msg.style.color='#067647';msg.innerHTML='✓ Cuenta creada. <b>Clave temporal: '+esc(j.data.clave_temporal)+'</b><br>Pasásela al cliente; la cambia en su primer ingreso.';}
+      else{msg.style.color='#067647';msg.textContent='✓ El cliente ya tenía cuenta; se le sumó esta causa.';}
+      ov.querySelector('#acEmail').value='';lista();
+    }catch(e){msg.style.color='#B42318';msg.textContent=e.message;}
+  });
+  lista();
+}
+async function blanquearCliente(uid){
+  if(!confirm('¿Generar una nueva clave temporal para este cliente?'))return;
+  try{const r=await fetch('/api/acceso/blanquear',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario_id:uid})});const j=await r.json();if(!j||j.ok===false)throw new Error((j&&j.error)||'Error');
+    alert('Nueva clave temporal: '+j.data.clave_temporal+'\n\nPasásela al cliente. Deberá cambiarla al ingresar.');
+  }catch(e){alert(e.message);}
+}
+async function revocarAcceso(id,btn){
+  if(!confirm('¿Quitar el acceso de este cliente a la causa?'))return;
+  try{await fetch('/api/acceso/'+id,{method:'DELETE',credentials:'same-origin'});if(btn&&btn.closest)btn.closest('div').remove();}catch(e){alert('No se pudo quitar.');}
+}
 function docRow(c,d,i){
   const cp=CARPETAS[d.carpeta]||CARPETAS.actuaciones;
   const open=docSt.menu&&docSt.menu.id===c.id&&docSt.menu.i===i;
@@ -2059,20 +2105,20 @@ function panelPend(c){
   <div class="padd"><input id="np" placeholder="Escribir un nuevo pendiente y Enter…" onkeydown="if(event.key==='Enter')addPend('${c.id}')"><input type="date" id="npf" class="pfecha" title="Fecha (opcional)"><button onclick="addPend('${c.id}')">Agregar</button></div>`;
 }
 function renderCliente(c){
-  const nombre=c.cliente;
-  const hermanas=causas.filter(x=>x.cliente===nombre);
+  const nombre=MODO_CLIENTE?(__cliNombre||c.cliente):c.cliente;
+  const hermanas=MODO_CLIENTE?causas.slice():causas.filter(x=>x.cliente===nombre);
   let sel=st.cliCausa?get(st.cliCausa):null;
   if(!sel)sel=hermanas.length===1?hermanas[0]:null;
   const header=`<div class="ficha-top cli-top">
-    <button class="volver" onclick="toggleCliente(false)">‹ Volver a la vista del estudio</button>
+    <button class="volver" onclick="${MODO_CLIENTE?'cerrarSesion()':'toggleCliente(false)'}">${MODO_CLIENTE?'Cerrar sesión':'‹ Volver a la vista del estudio'}</button>
     <div class="cli-portal-h"><div class="cli-brand"><img class="logo" src="${LOGO}" alt="Luján Rocío · Abogada"><div><div class="clab">Portal del cliente</div><h2 style="padding-left:0">${esc(nombre)}</h2></div></div>
-    <span class="cli-sim">${iWarn} Vista simulada</span></div>
+    ${MODO_CLIENTE?'':`<span class="cli-sim">${iWarn} Vista simulada</span>`}</div>
     ${hermanas.length>1&&sel?`<button class="btn-sec" style="margin-top:12px" onclick="cliVerCausas()">‹ Mis causas (${hermanas.length})</button>`:''}</div>`;
   if(!sel){
     const cards=hermanas.map(x=>{const kk=cc(x.estado);return `<button class="cli-causa-card" onclick="cliAbrir('${x.id}')"><div class="spine ${kk}"></div><span class="mat ${kk}">${esc(x.materia[0])}</span><h3>${esc(x.caratula)}</h3><div class="cli-estado ${kk}" style="margin:8px 0 0"><span class="dot ${kk}"></span>${ESTADOS[x.estado].l}</div></button>`;}).join("");
     document.getElementById("app").innerHTML=`<div class="ficha">${header}
       <div class="panel">
-        <div class="cliente-aviso">${iWarn}<div>Simulación de la Capa 4. ${esc(nombre)} tiene <b>${hermanas.length} causas</b> en el estudio. En el prototipo B entra con su usuario y ve directamente esta pantalla para elegir cuál mirar.</div></div>
+        ${MODO_CLIENTE?`<div class="cliente-aviso">${iWarn}<div>Hola, ${esc(nombre)}. Tenés <b>${hermanas.length} causas</b> en el estudio. Tocá una para ver su estado, documentos, honorarios y agenda.</div></div>`:`<div class="cliente-aviso">${iWarn}<div>Simulación de la Capa 4. ${esc(nombre)} tiene <b>${hermanas.length} causas</b> en el estudio. En el prototipo B entra con su usuario y ve directamente esta pantalla para elegir cuál mirar.</div></div>`}
         <div class="bloque-titulo">Elegí la causa que querés ver</div>
         <div class="cli-causas">${cards}</div>
       </div></div>`;
@@ -2085,9 +2131,12 @@ function renderCliente(c){
   let panel;
   if(tab==="docs"){
     const docs=sel.documentos.filter(d=>d.visible);
+    const arch=sel.archivos||[];
+    const archHtml=arch.length?arch.map(a=>{const icon=a.tipo==='pdf'?'📄':((['jpg','jpeg','png'].indexOf(a.tipo)>=0)?'🖼':'📝');return `<a class="doc" href="/api/archivos/${a.id}/descargar" target="_blank" rel="noopener">${icon} <span class="dn">${esc(a.nombre)}</span>${a.tipo?`<span class="dext">${esc(a.tipo)}</span>`:''}<span class="vtag cli" style="cursor:default">Descargar</span></a>`;}).join(""):'';
+    const nada=(!docs.length&&!arch.length);
     panel=`<div class="bloque-titulo">Documentos de su causa</div>
-      <div class="doclist">${docs.length?docs.map(d=>{const ext=d.tipo||(d.n.match(/\.(\w+)$/)||[,""])[1];const url=d.u||(F+sel.folder);return `<a class="doc" href="${url}" target="_blank" rel="noopener">${iDoc}<span class="dn">${esc(d.n.replace(/\.\w+$/,''))}</span>${ext?`<span class="dext">${ext}</span>`:''}<span class="vtag cli" style="cursor:default">Descargar</span></a>`;}).join(""):`<div class="vacio">Todavía no hay documentos compartidos para esta causa.</div>`}</div>
-      <div class="nota-doc">Acá puede abrir y descargar la demanda, la contestación, las sentencias interlocutorias y definitivas, y demás documentos que el estudio comparta en su carpeta.</div>`;
+      <div class="doclist">${archHtml}${docs.map(d=>{const ext=d.tipo||(d.n.match(/\.(\w+)$/)||[,""])[1];const url=d.u||(F+sel.folder);return `<a class="doc" href="${url}" target="_blank" rel="noopener">${iDoc}<span class="dn">${esc(d.n.replace(/\.\w+$/,''))}</span>${ext?`<span class="dext">${ext}</span>`:''}<span class="vtag cli" style="cursor:default">Descargar</span></a>`;}).join("")}${nada?`<div class="vacio">Todavía no hay documentos compartidos para esta causa.</div>`:''}</div>
+      <div class="nota-doc">Acá puede abrir y descargar la demanda, la contestación, las sentencias interlocutorias y definitivas, y demás documentos que el estudio comparta.</div>`;
   }else if(tab==="hon"){
     const h=sel.honorarios||{ius:0,gastos:[],pagos:[]};const vIus=+config.valorIUS||0;
     const tot=+h.ius||0;const pag=(h.pagos||[]).reduce((a,p)=>a+(+p.ius||0),0);const sal=Math.max(0,tot-pag);const pct=tot>0?Math.min(100,Math.round(pag/tot*100)):0;
@@ -2105,12 +2154,12 @@ function renderCliente(c){
       <div class="gasto-tot">Total de gastos: <b>${fmtPesos(gastosPesos)}</b></div>`:`<div class="vacio">El estudio todavía no cargó los honorarios de esta causa.</div>`);
   }else if(tab==="agenda"){
     const hk=hoyKey();
-    const citas=audiencias.filter(a=>a.tipo==='cita'&&a.cliente===nombre).sort((x,y)=>((x.fecha||'')+(x.hora||'')).localeCompare((y.fecha||'')+(y.hora||'')));
-    const auds=audiencias.filter(a=>a.cliAsiste&&a.tipo!=='cita'&&a.cliente===nombre).sort((x,y)=>((x.fecha||'')+(x.hora||'')).localeCompare((y.fecha||'')+(y.hora||'')));
+    const citas=audiencias.filter(a=>a.tipo==='cita'&&(MODO_CLIENTE||a.cliente===nombre)).sort((x,y)=>((x.fecha||'')+(x.hora||'')).localeCompare((y.fecha||'')+(y.hora||'')));
+    const auds=audiencias.filter(a=>a.cliAsiste&&a.tipo!=='cita'&&(MODO_CLIENTE||a.cliente===nombre)).sort((x,y)=>((x.fecha||'')+(x.hora||'')).localeCompare((y.fecha||'')+(y.hora||'')));
     const citaCard=a=>{const virt=a.modalidad==='virtual';const pasada=a.fecha<hk;return `<div class="cli-cita ${pasada?'pasada':''}"><div class="cli-cita-top"><span class="cli-cita-day">📅 ${audFechaDMY(a.fecha)}</span>${a.hora?`<span class="cli-cita-h">🕐 ${esc(a.hora)} hs</span>`:''}</div><div class="cli-cita-mod ${virt?'virt':'pres'}">${virt?'💻 Cita virtual':'📍 Cita presencial'}</div>${a.detalle?`<div class="cli-cita-nota">${esc(a.detalle)}</div>`:''}${virt?(a.link?`<a class="cli-cita-link" href="${attr(a.link)}" target="_blank" rel="noopener">Unirse a la videollamada</a>`:'<div class="cli-cita-pend">El estudio le enviará el enlace.</div>'):(a.lugar?`<div class="cli-cita-lugar">${esc(a.lugar)}</div>`:'')}</div>`;};
     const audCard=a=>`<div class="cli-cita aud"><div class="cli-cita-top"><span class="cli-cita-day">📅 ${audFechaDMY(a.fecha)}</span>${a.hora?`<span class="cli-cita-h">🕐 ${esc(a.hora)} hs</span>`:''}</div><div class="cli-cita-mod audi">⚖️ Audiencia ${a.tipo==='mediacion'?'de mediación':'en el juzgado'}</div><div class="cli-cita-nota">Debe asistir.</div></div>`;
     panel=`<div class="bloque-titulo">Sus próximas citas y audiencias</div>
-      <div class="cliente-aviso">${iWarn}<div>Acá ve las reuniones que el estudio agenda con usted. En el prototipo B, además, le llegarán a su propio calendario y por aviso.</div></div>
+      <div class="cliente-aviso">${iWarn}<div>Acá ve las reuniones y audiencias que el estudio agenda con usted.</div></div>
       ${(citas.length||auds.length)?`<div class="cli-citas">${citas.map(citaCard).join('')}${auds.map(audCard).join('')}</div>`:`<div class="vacio">Todavía no hay citas ni audiencias agendadas para usted.</div>`}`;
   }else{
     panel=`<div class="cli-estado ${k}"><span class="dot ${k}"></span>${etapa}</div>
@@ -2127,7 +2176,7 @@ function renderCliente(c){
     <div class="cli-causa-tit"><div class="spine ${k}"></div>${esc(sel.caratula)}</div>
     <div class="tabs">${cliTabBtn("datos","Mi causa")}${cliTabBtn("docs","Documentos")}${cliTabBtn("hon","Honorarios")}${cliTabBtn("agenda","Mi agenda")}</div>
     <div class="panel">
-      <div class="cliente-aviso">${iWarn}<div>Vista simulada del cliente. Ve solo lo suyo, en lenguaje simple, sin estrategia ni notas internas.</div></div>
+      ${MODO_CLIENTE?'':`<div class="cliente-aviso">${iWarn}<div>Vista simulada del cliente. Ve solo lo suyo, en lenguaje simple, sin estrategia ni notas internas.</div></div>`}
       ${panel}</div></div>`;
 }
 function modalContent(){
@@ -3861,6 +3910,7 @@ function renderTutorial(){const el=document.getElementById('tut');if(!el)return;
   </div>`;
 }
 function render(){
+  if(MODO_CLIENTE){if(causas.length&&st.actual)renderFicha();return;}
   renderSidebar();
   var _mn=document.querySelector('.main');if(_mn)_mn.style.background='';
   if(st.vista==='ficha'){renderFicha();}
@@ -3882,7 +3932,20 @@ function render(){
   const o=document.getElementById("ov");if(o)o.remove();
   if(st.modal)document.body.insertAdjacentHTML("beforeend",`<div id="ov"><div class="overlay" onclick="if(event.target===this)closeModal()">${modalContent()}</div></div>`);
 }
-async function init(){const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
+async function initCliente(me){
+  MODO_CLIENTE=true;__cliNombre=(me&&me.nombre)||'';
+  const stl=document.createElement('style');stl.textContent='#sidebar{display:none!important}.main{margin-left:0!important}.sb-toggle{display:none!important}';document.head.appendChild(stl);
+  let d=null;
+  try{const r=await fetch('/api/acceso/portal',{credentials:'same-origin'});const j=await r.json();if(j&&j.ok)d=j.data;}catch(e){}
+  causas=(d&&d.causas)||[];
+  audiencias=(d&&d.audiencias)||[];
+  if(d&&typeof d.valorIUS==='number'&&d.valorIUS>0)config.valorIUS=d.valorIUS;
+  if(d&&d.nombre)__cliNombre=d.nombre;
+  st.cliente=true;st.cliCausa=null;st.cliTab='datos';
+  if(causas.length){st.actual=causas[0].id;st.vista='ficha';renderCliente(causas[0]);}
+  else{document.getElementById('app').innerHTML='<div class="ficha"><div class="ficha-top cli-top"><button class="volver" onclick="cerrarSesion()">Cerrar sesión</button><div class="cli-portal-h"><div class="cli-brand"><img class="logo" src="'+LOGO+'"><div><div class="clab">Portal del cliente</div><h2 style="padding-left:0">'+esc(__cliNombre)+'</h2></div></div></div></div><div class="panel"><div class="vacio">Todavía no tenés causas habilitadas. El estudio te dará acceso cuando corresponda.</div></div></div>';}
+}
+async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 </script>
 </body>
