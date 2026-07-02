@@ -17,11 +17,22 @@ self.addEventListener('notificationclick', function (e) {
   );
 });
 
-/* Notificación enviada por el servidor (para la etapa de push real). */
+/* Notificación enviada por el servidor. Al llegar, consultamos qué mostrar. */
 self.addEventListener('push', function (e) {
-  var d = { title: 'ÁPICE', body: '' };
-  try { d = e.data.json(); } catch (err) { if (e.data) d.body = e.data.text(); }
-  e.waitUntil(self.registration.showNotification(d.title || 'ÁPICE', {
-    body: d.body || '', icon: '/icon-192.png', badge: '/icon-192.png', data: d.url || '/'
-  }));
+  e.waitUntil(
+    fetch('/api/push/pendiente', { credentials: 'include' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var d = (j && j.data) || {};
+        return self.registration.showNotification(d.title || 'ÁPICE', {
+          body: d.body || 'Tenés novedades en tu estudio.',
+          icon: '/icon-192.png', badge: '/icon-192.png', data: '/'
+        });
+      })
+      .catch(function () {
+        return self.registration.showNotification('ÁPICE', {
+          body: 'Tenés novedades en tu estudio.', icon: '/icon-192.png', badge: '/icon-192.png'
+        });
+      })
+  );
 });

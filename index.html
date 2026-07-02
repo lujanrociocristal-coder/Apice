@@ -2846,10 +2846,25 @@ async function cargarAvisosAuto(){
     updateNotifBell();
   }catch(e){}
 }
+function urlB64ToUint8(base64){const pad='='.repeat((4-base64.length%4)%4);const b64=(base64+pad).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(b64);const arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);return arr;}
+async function suscribirPush(){
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window))return false;
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      const r=await fetch('/api/push/clave',{credentials:'same-origin'});const j=await r.json();
+      const clave=j&&j.data&&j.data.clave;if(!clave)return false;
+      sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(clave)});
+    }
+    const r2=await fetch('/api/push/subscribe',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint})});
+    const j2=await r2.json();return !!(j2&&j2.ok);
+  }catch(e){return false;}
+}
 async function activarNotificaciones(){
   if(!('Notification' in window)||!('serviceWorker' in navigator)){alert('Este dispositivo o navegador no permite notificaciones. En iPhone, primero instalá ÁPICE en la pantalla de inicio desde Safari.');return;}
   let p;try{p=await Notification.requestPermission();}catch(e){p=Notification.permission;}
-  if(p==='granted'){notificarUrgentes();alert('¡Listo! Vas a recibir los avisos urgentes (vencimientos y audiencias de hoy/mañana) como notificación en este dispositivo.');render();}
+  if(p==='granted'){const ok=await suscribirPush();notificarUrgentes();alert(ok?'¡Listo! Vas a recibir los avisos en este dispositivo, incluso con la app cerrada.':'Notificaciones activadas. Para que lleguen con la app cerrada en iPhone, instalá ÁPICE en la pantalla de inicio desde Safari.');render();}
   else alert('No se activaron las notificaciones. Podés habilitarlas desde los ajustes del navegador/celular.');
 }
 async function notificarUrgentes(){
