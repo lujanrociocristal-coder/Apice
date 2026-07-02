@@ -1557,16 +1557,29 @@ async function saveState(){
   }
 }
 function persist(){saveState();}
+let misCompartidas={}; // uuid -> cantidad de externos con acceso (causas que YO compartí)
 /* Trae las causas que OTROS estudios me compartieron y las agrega (etiquetadas). */
 async function cargarCompartidas(){
   try{
     const r=await fetch('/api/compartir/conmigo',{credentials:'same-origin'});
     const j=await r.json();
     if(j&&j.ok&&Array.isArray(j.data)&&j.data.length){
-      const ids=new Set(causas.map(c=>c.id));
-      j.data.forEach(c=>{c._compartida=true;if(!ids.has(c.id))causas.push(c);});
+      j.data.forEach(sc=>{
+        sc._compartida=true;
+        // Si hay una causa local con el mismo id (p.ej. dato de ejemplo), la
+        // reemplaza por la compartida real; si no, la agrega.
+        const i=causas.findIndex(c=>c.id===sc.id);
+        if(i>=0)causas.splice(i,1,sc); else causas.push(sc);
+      });
       normalize();
     }
+  }catch(e){}
+  // Marcar cuáles de MIS causas están compartidas con externos (para el cartel).
+  try{
+    const r2=await fetch('/api/compartir/mias',{credentials:'same-origin'});
+    const j2=await r2.json();
+    misCompartidas={};
+    if(j2&&j2.ok&&Array.isArray(j2.data))j2.data.forEach(x=>{misCompartidas[x.causa_uuid]=+x.n||1;});
   }catch(e){}
 }
 const CFG='gestor_cfg_v9';
@@ -1895,6 +1908,7 @@ function renderFicha(){
       <button class="volver" onclick="cerrarFicha()">‹ Volver al panel</button>
       <h2>${esc(c.caratula)}</h2><div class="badges">${badges}</div>
       ${c._compartida?`<div style="background:#EEF4FF;border:1px solid #C7D7FE;color:#1E40AF;border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13px">🔗 Causa compartida por <b>${esc(c._origen||'otro estudio')}</b> · ${c._permiso==='edicion'?'podés verla y editarla':'solo lectura'}</div>`:''}
+      ${(!c._compartida&&misCompartidas[c.id])?`<div style="background:#ECFDF3;border:1px solid #A6F4C5;color:#067647;border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13px">🔗 Compartís esta causa con ${misCompartidas[c.id]} colega(s) externo(s). Tocá "Compartir con externo" para ver o quitar.</div>`:''}
       <div class="ficha-acciones">
         <button class="btn-sec" onclick="openModal({tipo:'editar',id:'${c.id}'})">✎ Editar datos</button>
         <button class="btn-sec" onclick="openModal({tipo:'estado',id:'${c.id}'})">↻ Cambiar estado</button>
