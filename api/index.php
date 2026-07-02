@@ -46,6 +46,7 @@ $rutas = [
   'compartir'   => 'compartir.php',// compartir una causa con un abogado externo
   'acceso'      => 'acceso.php',  // portal de clientes (acceso por causa)
   'avisos'      => 'avisos.php',  // novedades automáticas (docs nuevos, primer ingreso)
+  'push'        => 'push.php',    // notificaciones al celular (Web Push / VAPID)
   'ia'          => 'ia.php',      // etapa 2 (preparado)
 ];
 
