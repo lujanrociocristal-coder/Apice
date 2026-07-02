@@ -14,6 +14,8 @@
 
 function handle_estado($method, $resto) {
   $u   = require_login();
+  // Los CLIENTES no acceden al estado del estudio: usan solo /api/acceso/portal.
+  if ($u['rol'] === 'cliente') json_error('Sin permiso.', 403);
   $clave = $resto[0] ?? '';
   if ($clave === '') json_error('Falta la clave del bloque.');
   if (!preg_match('/^[A-Za-z0-9_.\-]{1,80}$/', $clave)) json_error('Clave no válida.');

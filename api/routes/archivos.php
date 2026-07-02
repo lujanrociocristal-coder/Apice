@@ -163,7 +163,13 @@ function archivos_listar() {
 function archivo_descargar($id) {
   $u = require_login();
   $a = archivo_del_estudio($id, $u);
-  if ($u['rol'] === 'cliente' && (int)$a['visible_cliente'] !== 1) json_error('No tenés acceso a este archivo.', 403);
+  if ($u['rol'] === 'cliente') {
+    if ((int)$a['visible_cliente'] !== 1) json_error('No tenés acceso a este archivo.', 403);
+    // El cliente solo accede a archivos de causas que le habilitaron.
+    $lk = db()->prepare('SELECT 1 FROM acceso_cliente WHERE cliente_usuario_id = ? AND causa_uuid = ? LIMIT 1');
+    $lk->execute([(int)$u['id'], (string)$a['causa_id']]);
+    if (!$lk->fetch()) json_error('No tenés acceso a este archivo.', 403);
+  }
 
   $path = archivos_base() . '/' . (int)$a['estudio_id'] . '/' . archivos_causa_safe($a['causa_id']) . '/' . $a['archivo'];
   if (!is_file($path)) json_error('El archivo ya no está en el servidor.', 404);
