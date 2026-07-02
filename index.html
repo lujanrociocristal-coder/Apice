@@ -2846,6 +2846,25 @@ async function cargarAvisosAuto(){
     updateNotifBell();
   }catch(e){}
 }
+async function activarNotificaciones(){
+  if(!('Notification' in window)||!('serviceWorker' in navigator)){alert('Este dispositivo o navegador no permite notificaciones. En iPhone, primero instalá ÁPICE en la pantalla de inicio desde Safari.');return;}
+  let p;try{p=await Notification.requestPermission();}catch(e){p=Notification.permission;}
+  if(p==='granted'){notificarUrgentes();alert('¡Listo! Vas a recibir los avisos urgentes (vencimientos y audiencias de hoy/mañana) como notificación en este dispositivo.');render();}
+  else alert('No se activaron las notificaciones. Podés habilitarlas desde los ajustes del navegador/celular.');
+}
+async function notificarUrgentes(){
+  try{
+    if(!('Notification' in window)||Notification.permission!=='granted'||!('serviceWorker' in navigator))return;
+    const reg=await navigator.serviceWorker.ready;const hoy=hoyKey();
+    let vistos={};try{vistos=JSON.parse(localStorage.getItem('apice_notif_vistos')||'{}');}catch(e){}
+    Object.keys(vistos).forEach(k=>{if(vistos[k]!==hoy)delete vistos[k];});
+    const items=[];
+    caducidadesProximas().filter(x=>x.nivel==='venc'||x.nivel==='rojo').forEach(x=>{items.push({key:'cad_'+x.cid,title:'⏰ Vencimiento de plazo',body:(x.dias<0?'Caducidad vencida':'Caducidad en '+x.dias+' días')+': '+x.caratula});});
+    urgentesHoyManana().forEach(a=>{const esHoy=a.fecha===hoy;items.push({key:'aud_'+a.fecha+(a.hora||'')+(a.cliente||''),title:esHoy?'📅 Audiencia/cita HOY':'📅 Audiencia/cita mañana',body:(a.tipo==='cita'?('Cita con '+(a.cliente||'el cliente')):'Audiencia')+(a.hora?(' · '+a.hora+' hs'):'')});});
+    for(const it of items){if(vistos[it.key]===hoy)continue;vistos[it.key]=hoy;try{await reg.showNotification(it.title,{body:it.body,icon:'/icon-192.png',badge:'/icon-192.png',tag:it.key,requireInteraction:false});}catch(e){}}
+    try{localStorage.setItem('apice_notif_vistos',JSON.stringify(vistos));}catch(e){}
+  }catch(e){}
+}
 function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas()+pagosInformados().length+caducidadesProximas().length+morosos().length+compartidasConmigo().length+(iusDesactualizado()?1:0)+__avAuto.docs+__avAuto.clis;b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
 function renderAvisos(){
   const list=notifs();const hk=hoyKey();
@@ -2901,6 +2920,7 @@ function renderAvisos(){
   const iusSec=iusDesactualizado()?`<div class="avi-sec"><div class="avi-sec-h">Valor del IUS</div><div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div></div>`:'';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
     <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Todo lo que requiere tu atención, reunido en un solo lugar.</div></div></div>
+    ${(('Notification' in window)&&Notification.permission!=='granted')?`<div class="avi-sec"><div class="avi-row"><span>📱 Activá las notificaciones en este dispositivo para recibir en el celular los avisos urgentes —vencimientos de plazos y audiencias de hoy/mañana— con el logo de ÁPICE.</span><button class="btn-sec" onclick="activarNotificaciones()">🔔 Activar avisos en el celular</button></div></div>`:''}
     ${urgSec}${cadSec}${infoSec}<div id="avAutoDocs"></div><div id="avAutoClis"></div>${morSec}${compSec}${iusSec}${audSec}${citaSec}${avSec}${verSec}
     <img src="/apice-trigger.gif" alt="" style="display:none" onerror="cargarAvisosAuto();this.remove()"></div>`;
 }
@@ -4083,7 +4103,7 @@ async function initCliente(me){
   if(causas.length){st.actual=causas[0].id;st.vista='ficha';renderCliente(causas[0]);}
   else{document.getElementById('app').innerHTML='<div class="ficha"><div class="ficha-top cli-top"><button class="volver" onclick="cerrarSesion()">Cerrar sesión</button><div class="cli-portal-h"><div class="cli-brand"><img class="logo" src="'+LOGO+'"><div><div class="clab">Portal del cliente</div><h2 style="padding-left:0">'+esc(__cliNombre)+'</h2></div></div></div></div><div class="panel"><div class="vacio">Todavía no tenés causas habilitadas. El estudio te dará acceso cuando corresponda.</div></div></div>';}
 }
-async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();try{cargarAvisosAuto();}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
+async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted')setTimeout(notificarUrgentes,1500);}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 </script>
 </body>
