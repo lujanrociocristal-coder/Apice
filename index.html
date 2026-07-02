@@ -1455,7 +1455,7 @@ function inicioStats(){
   const audHoy=audiencias.filter(a=>a.fecha===tISO).length;
   const vencPlazo=causas.filter(c=>{const r=calcCaducidad(c);return !r.nocaduca&&!r.pausa&&r.diasRest!=null&&r.diasRest<=45;}).length;
   const escritos=causas.reduce((s,c)=>s+c.pendientes.filter(p=>!p.done).length,0);
-  let honPesos=0;causas.forEach(c=>{const hh=c.honorarios||{};const pag=(hh.pagos||[]).reduce((s,p)=>s+(+p.ius||0),0);const saldo=(+hh.ius||0)-pag;if(saldo>0)honPesos+=saldo*(+config.valorIUS||0);});
+  let honPesos=0;causas.forEach(c=>{const hh=c.honorarios||{};const pag=(hh.pagos||[]).filter(p=>p.confirmado!==false).reduce((s,p)=>s+(+p.ius||0),0);const saldo=(+hh.ius||0)-pag;if(saldo>0)honPesos+=saldo*(+config.valorIUS||0);});
   return {tot,ct,cp,cs,cf,audHoy,vencPlazo,escritos,honPesos};
 }
 const DIAS_SEM=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
@@ -2139,7 +2139,7 @@ function renderCliente(c){
       <div class="nota-doc">Acá puede abrir y descargar la demanda, la contestación, las sentencias interlocutorias y definitivas, y demás documentos que el estudio comparta.</div>`;
   }else if(tab==="hon"){
     const h=sel.honorarios||{ius:0,gastos:[],pagos:[]};const vIus=+config.valorIUS||0;
-    const tot=+h.ius||0;const pag=(h.pagos||[]).reduce((a,p)=>a+(+p.ius||0),0);const sal=Math.max(0,tot-pag);const pct=tot>0?Math.min(100,Math.round(pag/tot*100)):0;
+    const tot=+h.ius||0;const pag=(h.pagos||[]).filter(p=>p.confirmado!==false).reduce((a,p)=>a+(+p.ius||0),0);const sal=Math.max(0,tot-pag);const pct=tot>0?Math.min(100,Math.round(pag/tot*100)):0;
     const gastosPesos=(h.gastos||[]).reduce((a,g)=>a+(g.moneda==='ius'?(+g.monto*vIus):(+g.monto||0)),0);
     panel=`<div class="bloque-titulo">Honorarios de su proceso</div>`+(tot>0?`<div class="hon-saldo">
         <div class="hon-s"><span class="hl">Total</span><span class="hv">${tot} IUS</span><span class="hp">${fmtPesos(tot*vIus)}</span></div>
@@ -2147,8 +2147,9 @@ function renderCliente(c){
         <div class="hon-s sal"><span class="hl">Saldo</span><span class="hv">${sal} IUS</span><span class="hp">${fmtPesos(sal*vIus)}</span></div></div>
       <div class="hon-bar"><div class="hon-fill" style="width:${pct}%"></div></div>
       <div class="hon-pct">${pct}% cubierto · puede abonar en pagos parciales (ej. 1 IUS por mes)</div>
+      ${MODO_CLIENTE?`<div class="pago-add" style="margin-top:6px"><input type="number" id="cli_pg_ius" placeholder="IUS que transferiste" min="0" step="0.5"><input type="file" id="cli_pg_file" accept=".pdf,.jpg,.jpeg,.png"><button onclick="informarPagoCliente('${sel.id}')">Informar un pago</button></div><div style="font-size:12px;color:var(--mut);margin-bottom:8px">Cargá el monto y el comprobante de tu transferencia. Queda como <b>informado</b> hasta que el estudio lo confirme.</div>`:''}
       <div class="bloque-titulo">Sus pagos registrados</div>
-      <div class="pago-list">${(h.pagos||[]).length?(h.pagos||[]).map((p,i)=>`<div class="pago-it"><span class="pf">${esc(p.fecha)}</span><span class="pi">${esc(p.ius)} IUS</span><span class="pe">${fmtPesos((+p.ius||0)*vIus)}</span>${p.comp?`<a class="vtag cli" href="${attr(p.comp)}" target="_blank" rel="noopener">comprobante</a>`:''}<span class="pn">${esc(p.nota||'')}</span>${p.recibo?`<button class="rec-btn done" onclick="openModal({tipo:'recibo',id:'${sel.id}',i:${i}})">📄 Recibo N° ${String(p.recibo.num).padStart(4,'0')}</button>`:''}</div>`).join(""):`<div class="vacio">Todavía no hay pagos registrados.</div>`}</div>
+      <div class="pago-list">${(h.pagos||[]).length?(h.pagos||[]).map((p,i)=>{const pend=p.confirmado===false;const compLink=p.compArch?`<a class="vtag cli" href="/api/archivos/${p.compArch}/descargar" target="_blank" rel="noopener">comprobante</a>`:(p.comp?`<a class="vtag cli" href="${attr(p.comp)}" target="_blank" rel="noopener">comprobante</a>`:'');return `<div class="pago-it"><span class="pf">${esc(p.fecha)}</span><span class="pi">${esc(p.ius)} IUS</span><span class="pe">${fmtPesos((+p.ius||0)*vIus)}</span>${pend?'<span class="vtag" style="background:#FEF0C7;color:#B54708">🕐 en revisión</span>':''}${compLink}<span class="pn">${esc(p.nota||'')}</span>${p.recibo?`<button class="rec-btn done" onclick="openModal({tipo:'recibo',id:'${sel.id}',i:${i}})">📄 Recibo N° ${String(p.recibo.num).padStart(4,'0')}</button>`:''}</div>`;}).join(""):`<div class="vacio">Todavía no hay pagos registrados.</div>`}</div>
       <div class="bloque-titulo">Gastos del proceso</div>
       <div class="gasto-list">${(h.gastos||[]).length?h.gastos.map(g=>{const pe=g.moneda==='ius'?(+g.monto*vIus):(+g.monto||0);return `<div class="gasto-it ${g.pagado?'pg':''}"><span class="gc">${esc(g.concepto)}</span><span class="gm">${fmtPesos(pe)}</span><span class="estado-pago ${g.pagado?'si':'no'}">${g.pagado?'Pagado':'Pendiente'}</span></div>`;}).join(""):`<div class="vacio">Sin gastos cargados.</div>`}</div>
       <div class="gasto-tot">Total de gastos: <b>${fmtPesos(gastosPesos)}</b></div>`:`<div class="vacio">El estudio todavía no cargó los honorarios de esta causa.</div>`);
@@ -2362,7 +2363,7 @@ function panelHonorarios(c){
   const h=c.honorarios||{ius:0,gastos:[],pagos:[]};
   const vIus=+config.valorIUS||0;
   const totalIus=+h.ius||0;
-  const pagadoIus=(h.pagos||[]).reduce((a,p)=>a+(+p.ius||0),0);
+  const pagadoIus=(h.pagos||[]).filter(p=>p.confirmado!==false).reduce((a,p)=>a+(+p.ius||0),0);
   const saldoIus=Math.max(0,totalIus-pagadoIus);
   const pct=totalIus>0?Math.min(100,Math.round(pagadoIus/totalIus*100)):0;
   const gastosPesos=(h.gastos||[]).reduce((a,g)=>a+(g.moneda==='ius'?(+g.monto*vIus):(+g.monto||0)),0);
@@ -2387,9 +2388,10 @@ function panelHonorarios(c){
     <input type="date" id="pg_fecha" value="${hoyISO}" title="Fecha del pago">
     <input type="number" id="pg_ius" placeholder="IUS" min="0" step="0.5">
     <input type="text" id="pg_nota" placeholder="Nota (efectivo / transferencia…)">
-    <input type="text" id="pg_comp" placeholder="Link del comprobante en Drive (opcional)">
+    <input type="file" id="pg_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Comprobante (opcional)">
+    <input type="text" id="pg_comp" placeholder="…o link del comprobante (opcional)">
     <button onclick="addPago('${c.id}')">+ Registrar pago</button></div>
-  <div class="pago-list">${(h.pagos||[]).length?h.pagos.map((p,i)=>`<div class="pago-it"><span class="pf">${esc(p.fecha)}</span><span class="pi">${esc(p.ius)} IUS</span><span class="pe">${fmtPesos((+p.ius||0)*vIus)}</span>${p.comp?`<a class="vtag cli" href="${attr(p.comp)}" target="_blank" rel="noopener">📎 comprobante</a>`:''}<span class="pn">${esc(p.nota||'')}</span>${p.recibo?`<button class="rec-btn done" onclick="openModal({tipo:'recibo',id:'${c.id}',i:${i}})">📄 Recibo N° ${String(p.recibo.num).padStart(4,'0')}</button>`:`<button class="rec-btn" onclick="emitirRecibo('${c.id}',${i})">Emitir recibo</button>`}<span class="pdel" onclick="delPago('${c.id}',${i})" title="Eliminar">×</span></div>`).join(""):`<div class="vacio">Sin pagos registrados todavía.</div>`}</div>
+  <div class="pago-list">${(h.pagos||[]).length?h.pagos.map((p,i)=>{const pend=p.confirmado===false;const compLink=p.compArch?`<a class="vtag cli" href="/api/archivos/${p.compArch}/descargar" target="_blank" rel="noopener">📎 comprobante</a>`:(p.comp?`<a class="vtag cli" href="${attr(p.comp)}" target="_blank" rel="noopener">📎 comprobante</a>`:'');const accion=pend?`<button class="rec-btn" onclick="confirmarPago('${c.id}',${i})">✓ Confirmar pago</button>`:(p.recibo?`<button class="rec-btn done" onclick="openModal({tipo:'recibo',id:'${c.id}',i:${i}})">📄 Recibo N° ${String(p.recibo.num).padStart(4,'0')}</button>`:`<button class="rec-btn" onclick="emitirRecibo('${c.id}',${i})">Emitir recibo</button>`);return `<div class="pago-it"><span class="pf">${esc(p.fecha)}</span><span class="pi">${esc(p.ius)} IUS</span><span class="pe">${fmtPesos((+p.ius||0)*vIus)}</span>${pend?'<span class="vtag" style="background:#FEF0C7;color:#B54708;border:1px solid #FEDF89">🕐 Informado — sin confirmar</span>':''}${compLink}<span class="pn">${esc(p.nota||'')}</span>${accion}<span class="pdel" onclick="delPago('${c.id}',${i})" title="Eliminar">×</span></div>`;}).join(""):`<div class="vacio">Sin pagos registrados todavía.</div>`}</div>
 
   <div class="bloque-titulo">Gastos del proceso</div>
   <div class="gasto-add">
@@ -2408,7 +2410,16 @@ function mConfigIus(){return `<div class="modal"><h3>Valor del IUS</h3>
   <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn-prim" onclick="setValorIUS2()">Guardar valor</button></div></div>`;}
 function setValorIUS2(){const v=parseMiles(document.getElementById('cfg_ius2').value);if(v>=0){config.valorIUS=v;saveConfig();}closeModal();if(calcSt.open)renderSide();}
 function setHonIus(id){const c=get(id);const v=+document.getElementById('hon_ius').value;c.honorarios.ius=v>=0?v:0;persist();renderFicha();}
-function addPago(id){const c=get(id);const f=isoToDMY(document.getElementById('pg_fecha').value);const ius=+document.getElementById('pg_ius').value;const nota=document.getElementById('pg_nota').value.trim();const comp=document.getElementById('pg_comp').value.trim();if(!ius||ius<=0){document.getElementById('pg_ius').focus();return;}c.honorarios.pagos.unshift({fecha:f,ius,nota,comp});persist();renderFicha();}
+async function addPago(id){const c=get(id);const f=isoToDMY(document.getElementById('pg_fecha').value);const ius=+document.getElementById('pg_ius').value;const nota=document.getElementById('pg_nota').value.trim();const comp=document.getElementById('pg_comp').value.trim();const fileEl=document.getElementById('pg_file');const file=fileEl&&fileEl.files&&fileEl.files[0];if(!ius||ius<=0){document.getElementById('pg_ius').focus();return;}let compArch=null;if(file){try{const fd=new FormData();fd.append('file',file);fd.append('causa_id',c.id);fd.append('nombre','Comprobante de pago');fd.append('carpeta','prueba');const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});const j=await r.json();if(j&&j.ok&&j.data)compArch=j.data.id;}catch(e){}}c.honorarios.pagos.unshift({fecha:f,ius,nota,comp,compArch,confirmado:true});persist();renderFicha();}
+function confirmarPago(id,i){const c=get(id);if(!c||!c.honorarios||!c.honorarios.pagos[i])return;if(!confirm('¿Confirmar que recibiste este pago? Se sumará a lo cobrado.'))return;c.honorarios.pagos[i].confirmado=true;persist();renderFicha();}
+async function informarPagoCliente(causaId){
+  const iusEl=document.getElementById('cli_pg_ius');const fileEl=document.getElementById('cli_pg_file');
+  const ius=+(iusEl&&iusEl.value);if(!ius||ius<=0){alert('Ingresá el monto en IUS que transferiste.');return;}
+  const fd=new FormData();fd.append('causa_uuid',causaId);fd.append('ius',ius);if(fileEl&&fileEl.files&&fileEl.files[0])fd.append('file',fileEl.files[0]);
+  try{const r=await fetch('/api/acceso/pago',{method:'POST',credentials:'same-origin',body:fd});const j=await r.json();if(!j||j.ok===false)throw new Error((j&&j.error)||'Error');
+    alert('¡Listo! Informaste tu pago. El estudio lo va a revisar y confirmar.');location.reload();
+  }catch(e){alert('No se pudo informar el pago: '+e.message);}
+}
 function delPago(id,i){const c=get(id);c.honorarios.pagos.splice(i,1);persist();renderFicha();}
 function addGasto(id){const c=get(id);const concepto=document.getElementById('gs_concepto').value.trim();const moneda=document.getElementById('gs_moneda').value;const monto=+document.getElementById('gs_monto').value;const comp=document.getElementById('gs_comp').value.trim();if(!concepto||!monto){return;}c.honorarios.gastos.push({concepto,moneda,monto,comp,pagado:false});persist();renderFicha();}
 function delGasto(id,i){const c=get(id);c.honorarios.gastos.splice(i,1);persist();renderFicha();}
@@ -3025,7 +3036,7 @@ function diasDesde(d){if(!d)return null;return Math.floor((new Date()-d)/8640000
 function ultActFecha(c){const b=(c.bitacora||[])[0];return b?parseDMY(b.fecha):null;}
 function vIus(){return +config.valorIUS||0;}
 function repTotIus(c){return +((c.honorarios&&c.honorarios.ius))||0;}
-function repPagIus(c){return ((c.honorarios&&c.honorarios.pagos)||[]).reduce((a,p)=>a+(+p.ius||0),0);}
+function repPagIus(c){return ((c.honorarios&&c.honorarios.pagos)||[]).filter(p=>p.confirmado!==false).reduce((a,p)=>a+(+p.ius||0),0);}
 function repSaldoIus(c){return Math.max(0,repTotIus(c)-repPagIus(c));}
 function repActivos(){return causas.filter(c=>c.estado!=='finalizada');}
 function repClientesActivos(){return [...new Set(repActivos().map(c=>c.cliente).filter(x=>x&&x!=='A completar'))];}
