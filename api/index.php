@@ -45,6 +45,7 @@ $rutas = [
   'archivos'    => 'archivos.php',// archivos adjuntos reales (PDF, Word, imágenes)
   'compartir'   => 'compartir.php',// compartir una causa con un abogado externo
   'acceso'      => 'acceso.php',  // portal de clientes (acceso por causa)
+  'avisos'      => 'avisos.php',  // novedades automáticas (docs nuevos, primer ingreso)
   'ia'          => 'ia.php',      // etapa 2 (preparado)
 ];
 
