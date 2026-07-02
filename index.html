@@ -2814,7 +2814,10 @@ function irACausa(cid){st.actual=cid;st.vista='ficha';st.tab='datos';st.cliente=
 function caducidadesProximas(){const out=[];causas.forEach(c=>{if(c.estado==='finalizada'||c.estado==='suspenso')return;const r=calcCaducidad(c);if(r&&r.venc&&!r.nocaduca&&!r.sinImpulso&&!r.pausa&&['venc','rojo','amar'].indexOf(r.nivel)>=0){out.push({cid:c.id,caratula:cShort(c.caratula),cliente:c.cliente,venc:r.venc,dias:r.diasRest,nivel:r.nivel});}});out.sort((a,b)=>a.dias-b.dias);return out;}
 /* Clientes/causas con saldo impago hace más de 30 días. */
 function morosos(){const v=+config.valorIUS||0;const out=[];causas.forEach(c=>{if(c.estado==='finalizada')return;const h=c.honorarios||{};const tot=+h.ius||0;if(tot<=0)return;const pag=(h.pagos||[]).filter(p=>p.confirmado!==false).reduce((a,p)=>a+(+p.ius||0),0);const sal=tot-pag;if(sal<=0)return;const fechas=(h.pagos||[]).filter(p=>p.confirmado!==false).map(p=>parseDMY(p.fecha)).filter(Boolean).sort((a,b)=>b-a);const ult=fechas[0]||parseDMY(((c.bitacora||[]).slice(-1)[0]||{}).fecha);const ds=diasDesde(ult);if(ds!=null&&ds>30)out.push({cid:c.id,caratula:cShort(c.caratula),cliente:c.cliente,sal:sal*v,ult:ult,ds:ds});});out.sort((a,b)=>b.ds-a.ds);return out;}
-function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas()+pagosInformados().length+caducidadesProximas().length+morosos().length;b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
+function urgentesHoyManana(){const hk=hoyKey();const d=new Date();d.setDate(d.getDate()+1);const mk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');return audiencias.filter(a=>a.fecha===hk||a.fecha===mk).sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')));}
+function compartidasConmigo(){return causas.filter(c=>c._compartida);}
+function iusDesactualizado(){if(!config.iusFecha)return true;const d=parseDMY(config.iusFecha);if(!d)return false;const n=new Date();return d.getFullYear()!==n.getFullYear()||d.getMonth()!==n.getMonth();}
+function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas()+pagosInformados().length+caducidadesProximas().length+morosos().length+compartidasConmigo().length+(iusDesactualizado()?1:0);b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
 function renderAvisos(){
   const list=notifs();const hk=hoyKey();
   const cards=list.map(a=>{
@@ -2855,9 +2858,21 @@ function renderAvisos(){
       <div class="avi-when">📅 último pago: ${x.ult?dmyCad(x.ult):'—'}</div></div>
       <button class="btn-sec" onclick="irAHonorarios('${x.cid}')">Ver honorarios</button></div>`).join('');
   const morSec=`<div class="avi-sec"><div class="avi-sec-h">Morosidad — pagos pendientes <span class="avi-n">${mor.length}</span></div>${mor.length?`<div class="avi-list">${morCards}</div>`:`<div class="avi-empty">Sin clientes en mora. 👍</div>`}</div>`;
+  const urg=urgentesHoyManana();const hk2=hoyKey();
+  const urgCards=urg.map(a=>{const esHoy=a.fecha===hk2;const virt=a.modalidad==='virtual';const tipoTxt=a.tipo==='cita'?('Cita con '+esc(a.cliente||'el cliente')):(a.tipo==='mediacion'?'Audiencia de mediación':(a.tipo==='juzgado'?'Audiencia en el juzgado':'Evento agendado'));return `<div class="avi-card"><div class="avi-ic">${a.tipo==='cita'?(virt?'💻':'📍'):'⚖️'}</div><div class="avi-body"><div class="avi-top"><b>${tipoTxt}</b>.<span class="avi-tag ${esHoy?'hoy':'man'}">${esHoy?'HOY':'MAÑANA'}</span></div>
+      <div class="avi-meta">${a.detalle?esc(a.detalle):esc(a.cliente||a.materia||'')}</div>
+      <div class="avi-when">📅 ${audFechaDMY(a.fecha)}${a.hora?(' · 🕐 '+esc(a.hora)+' hs'):''}${(virt&&a.link)?(' · <a href="'+attr(a.link)+'" target="_blank" rel="noopener">unirse</a>'):(a.lugar?(' · '+esc(a.lugar)):'')}</div></div>
+      <button class="btn-sec" onclick="verEnCalendario('${a.fecha}')">Ver</button></div>`;}).join('');
+  const urgSec=`<div class="avi-sec"><div class="avi-sec-h">Para hoy y mañana <span class="avi-n">${urg.length}</span></div>${urg.length?`<div class="avi-list">${urgCards}</div>`:`<div class="avi-empty">Sin audiencias ni citas para hoy o mañana.</div>`}</div>`;
+  const comps=compartidasConmigo();
+  const compCards=comps.map(c=>`<div class="avi-card"><div class="avi-ic">🔗</div><div class="avi-body"><div class="avi-top"><b>${esc(c._origen||'Otro estudio')}</b> te compartió una causa.<span class="avi-tag man">${c._permiso==='edicion'?'PODÉS EDITAR':'SOLO LECTURA'}</span></div>
+      <div class="avi-meta">${esc(cShort(c.caratula))}</div></div>
+      <button class="btn-sec" onclick="irACausa('${c.id}')">Abrir</button></div>`).join('');
+  const compSec=comps.length?`<div class="avi-sec"><div class="avi-sec-h">Causas compartidas con vos <span class="avi-n">${comps.length}</span></div><div class="avi-list">${compCards}</div></div>`:'';
+  const iusSec=iusDesactualizado()?`<div class="avi-sec"><div class="avi-sec-h">Valor del IUS</div><div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div></div>`:'';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
     <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Todo lo que requiere tu atención, reunido en un solo lugar.</div></div></div>
-    ${cadSec}${infoSec}${morSec}${audSec}${citaSec}${avSec}${verSec}</div>`;
+    ${urgSec}${cadSec}${infoSec}${morSec}${compSec}${iusSec}${audSec}${citaSec}${avSec}${verSec}</div>`;
 }
 function verEnCalendario(key){sideSt.sec='calendario';sideSt.calSel=key;const dt=new Date(key+'T00:00:00');sideSt.calY=dt.getFullYear();sideSt.calM=dt.getMonth();st.nav='calendario';window.scrollTo(0,0);render();}
 
