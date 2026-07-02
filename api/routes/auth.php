@@ -28,6 +28,14 @@ function handle_auth($method, $resto) {
     session_regenerate_id(true);
     $_SESSION['uid'] = (int)$u['id'];
     db()->prepare('UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?')->execute([$u['id']]);
+    // Registrar el PRIMER ingreso del cliente (para el aviso automático).
+    if ($u['rol'] === 'cliente') {
+      try {
+        $c = db()->query("SHOW COLUMNS FROM usuarios LIKE 'primer_acceso'")->fetch();
+        if (!$c) db()->exec("ALTER TABLE usuarios ADD COLUMN primer_acceso DATETIME NULL");
+        db()->prepare('UPDATE usuarios SET primer_acceso = COALESCE(primer_acceso, NOW()) WHERE id = ?')->execute([$u['id']]);
+      } catch (Throwable $e) { /* no bloquea el ingreso */ }
+    }
 
     json_ok([
       'id' => (int)$u['id'], 'nombre' => $u['nombre'], 'email' => $u['email'],
