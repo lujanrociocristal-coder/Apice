@@ -44,6 +44,7 @@ $rutas = [
   'usuarios'    => 'usuarios.php',// gestión de usuarios y claves (solo admin)
   'archivos'    => 'archivos.php',// archivos adjuntos reales (PDF, Word, imágenes)
   'compartir'   => 'compartir.php',// compartir una causa con un abogado externo
+  'acceso'      => 'acceso.php',  // portal de clientes (acceso por causa)
   'ia'          => 'ia.php',      // etapa 2 (preparado)
 ];
 
