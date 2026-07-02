@@ -2391,7 +2391,7 @@ function panelHonorarios(c){
     <input type="file" id="pg_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Comprobante (opcional)">
     <input type="text" id="pg_comp" placeholder="…o link del comprobante (opcional)">
     <button onclick="addPago('${c.id}')">+ Registrar pago</button></div>
-  <div class="pago-list">${(h.pagos||[]).length?h.pagos.map((p,i)=>{const pend=p.confirmado===false;const compLink=p.compArch?`<a class="vtag cli" href="/api/archivos/${p.compArch}/descargar" target="_blank" rel="noopener">📎 comprobante</a>`:(p.comp?`<a class="vtag cli" href="${attr(p.comp)}" target="_blank" rel="noopener">📎 comprobante</a>`:'');const accion=pend?`<button class="rec-btn" onclick="confirmarPago('${c.id}',${i})">✓ Confirmar pago</button>`:(p.recibo?`<button class="rec-btn done" onclick="openModal({tipo:'recibo',id:'${c.id}',i:${i}})">📄 Recibo N° ${String(p.recibo.num).padStart(4,'0')}</button>`:`<button class="rec-btn" onclick="emitirRecibo('${c.id}',${i})">Emitir recibo</button>`);return `<div class="pago-it"><span class="pf">${esc(p.fecha)}</span><span class="pi">${esc(p.ius)} IUS</span><span class="pe">${fmtPesos((+p.ius||0)*vIus)}</span>${pend?'<span class="vtag" style="background:#FEF0C7;color:#B54708;border:1px solid #FEDF89">🕐 Informado — sin confirmar</span>':''}${compLink}<span class="pn">${esc(p.nota||'')}</span>${accion}<span class="pdel" onclick="delPago('${c.id}',${i})" title="Eliminar">×</span></div>`;}).join(""):`<div class="vacio">Sin pagos registrados todavía.</div>`}</div>
+  <div class="pago-list">${(h.pagos||[]).length?h.pagos.map((p,i)=>{const pend=p.confirmado===false;const compLink=p.compArch?`<a class="vtag cli" href="/api/archivos/${p.compArch}/descargar" target="_blank" rel="noopener">📎 comprobante</a>`:(p.comp?`<a class="vtag cli" href="${attr(p.comp)}" target="_blank" rel="noopener">📎 comprobante</a>`:'');const accion=pend?`<button class="rec-btn" onclick="confirmarPago('${c.id}',${i})">✓ Confirmar pago</button>`:((p.recibo&&p.recibo.serverId)?`<button class="rec-btn done" onclick="openModal({tipo:'recibo',id:'${c.id}',i:${i}})">📄 Recibo N° ${String(p.recibo.num).padStart(4,'0')}</button>`:`<button class="rec-btn" onclick="emitirRecibo('${c.id}',${i})">${p.recibo?'Registrar recibo en el libro':'Emitir recibo'}</button>`);return `<div class="pago-it"><span class="pf">${esc(p.fecha)}</span><span class="pi">${esc(p.ius)} IUS</span><span class="pe">${fmtPesos((+p.ius||0)*vIus)}</span>${pend?'<span class="vtag" style="background:#FEF0C7;color:#B54708;border:1px solid #FEDF89">🕐 Informado — sin confirmar</span>':''}${compLink}<span class="pn">${esc(p.nota||'')}</span>${accion}<span class="pdel" onclick="delPago('${c.id}',${i})" title="Eliminar">×</span></div>`;}).join(""):`<div class="vacio">Sin pagos registrados todavía.</div>`}</div>
 
   <div class="bloque-titulo">Gastos del proceso</div>
   <div class="gasto-add">
@@ -2420,7 +2420,7 @@ async function informarPagoCliente(causaId){
     alert('¡Listo! Informaste tu pago. El estudio lo va a revisar y confirmar.');location.reload();
   }catch(e){alert('No se pudo informar el pago: '+e.message);}
 }
-function delPago(id,i){const c=get(id);c.honorarios.pagos.splice(i,1);persist();renderFicha();}
+async function delPago(id,i){const c=get(id);const p=c.honorarios.pagos[i];if(!confirm('¿Eliminar este pago? Si tiene un recibo emitido, también se quita del Libro de Recibos.'))return;if(p&&p.recibo&&p.recibo.serverId){try{await fetch('/api/recibos/'+p.recibo.serverId,{method:'DELETE',credentials:'same-origin'});}catch(e){}}c.honorarios.pagos.splice(i,1);persist();renderFicha();}
 function addGasto(id){const c=get(id);const concepto=document.getElementById('gs_concepto').value.trim();const moneda=document.getElementById('gs_moneda').value;const monto=+document.getElementById('gs_monto').value;const comp=document.getElementById('gs_comp').value.trim();if(!concepto||!monto){return;}c.honorarios.gastos.push({concepto,moneda,monto,comp,pagado:false});persist();renderFicha();}
 function delGasto(id,i){const c=get(id);c.honorarios.gastos.splice(i,1);persist();renderFicha();}
 function toggleGasto(id,i){const c=get(id);c.honorarios.gastos[i].pagado=!c.honorarios.gastos[i].pagado;persist();renderFicha();}
@@ -3777,20 +3777,20 @@ function numLetras(n){n=Math.floor(Math.abs(+n||0));if(n===0)return 'cero';
   return s.trim();
 }
 async function emitirRecibo(id,i){const c=get(id);if(!c||!c.honorarios||!c.honorarios.pagos[i])return;const p=c.honorarios.pagos[i];
-  if(p.recibo){openModal({tipo:'recibo',id:id,i:i});return;}
+  if(p.recibo&&p.recibo.serverId){openModal({tipo:'recibo',id:id,i:i});return;}
   const vIus=+config.valorIUS||0;const pesos=Math.round((+p.ius||0)*vIus);
-  const total=+c.honorarios.ius||0;const pagado=(c.honorarios.pagos||[]).reduce((a,x)=>a+(+x.ius||0),0);
+  const total=+c.honorarios.ius||0;const pagado=(c.honorarios.pagos||[]).filter(x=>x.confirmado!==false).reduce((a,x)=>a+(+x.ius||0),0);
   const saldoIus=Math.max(0,total-pagado);const saldoPesos=Math.round(saldoIus*vIus);
   // Número correlativo ÚNICO del estudio (lo asigna el servidor, sin repetidos).
-  let num=null;
+  let num=null,serverId=null;
   try{
     const body={causa_uuid:c.id,cliente_nombre:c.cliente,caratula:c.caratula,fecha:new Date().toISOString().slice(0,10),concepto:'Pago de honorarios',ius:(+p.ius||0),monto:pesos,monto_en_letras:(typeof numLetras==='function'?numLetras(pesos):'')};
     const r=await fetch('/api/recibos',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json();
-    if(j&&j.ok&&j.data&&j.data.numero)num=j.data.numero;
+    if(j&&j.ok&&j.data&&j.data.numero){num=j.data.numero;serverId=j.data.id;}
   }catch(e){}
-  if(num==null){config.reciboSeq=(config.reciboSeq||1);num=config.reciboSeq;config.reciboSeq=num+1;saveConfig();}
-  p.recibo={num:num,fecha:hoy(),ius:(+p.ius||0),pesos:pesos,saldoIus:saldoIus,saldoPesos:saldoPesos};
+  if(num==null){if(p.recibo&&p.recibo.num){num=p.recibo.num;}else{config.reciboSeq=(config.reciboSeq||1);num=config.reciboSeq;config.reciboSeq=num+1;saveConfig();}}
+  p.recibo={num:num,serverId:serverId,fecha:hoy(),ius:(+p.ius||0),pesos:pesos,saldoIus:saldoIus,saldoPesos:saldoPesos};
   persist();renderFicha();
   openModal({tipo:'recibo',id:id,i:i});
 }
