@@ -39,6 +39,7 @@ function handle_acceso($method, $resto) {
   $a = $resto[0] ?? '';
   if ($method === 'POST' && $a === '')          return acceso_activar();
   if ($method === 'POST' && $a === 'blanquear') return acceso_blanquear();
+  if ($method === 'POST' && $a === 'pago')      return acceso_informar_pago();
   if ($method === 'GET'  && $a === 'portal')    return acceso_portal();
   if ($method === 'GET'  && $a === '')          return acceso_listar();
   if ($method === 'DELETE' && $a !== '')        return acceso_revocar((int)$a);
@@ -139,6 +140,75 @@ function acceso_blanquear() {
   db()->prepare("UPDATE usuarios SET password_hash = ?, debe_cambiar_clave = 1 WHERE id = ? AND rol = 'cliente'")
       ->execute([hash_password($temp), $uid]);
   json_ok(['clave_temporal' => $temp]);
+}
+
+/* El cliente INFORMA un pago (monto + comprobante). Queda sin confirmar hasta
+   que el abogado lo verifique. */
+function acceso_informar_pago() {
+  $u = require_login();
+  if ($u['rol'] !== 'cliente') json_error('Solo disponible para clientes.', 403);
+  $uuid = trim((string)($_POST['causa_uuid'] ?? ''));
+  $ius  = (float)($_POST['ius'] ?? 0);
+  if ($uuid === '') json_error('Falta la causa.');
+  if ($ius <= 0) json_error('Ingresá el monto del pago (en IUS).');
+
+  $st = db()->prepare('SELECT estudio_id FROM acceso_cliente WHERE cliente_usuario_id = ? AND causa_uuid = ? LIMIT 1');
+  $st->execute([(int)$u['id'], $uuid]);
+  $eid = $st->fetchColumn();
+  if (!$eid) json_error('No tenés acceso a esta causa.', 403);
+  $eid = (int)$eid;
+
+  // Guardar el comprobante (si vino un archivo) y registrarlo como archivo visible.
+  $compArch = null;
+  if (!empty($_FILES['file']) && isset($_FILES['file']['error']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+    $orig = (string)$_FILES['file']['name'];
+    $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+    $size = (int)$_FILES['file']['size'];
+    if (in_array($ext, ['pdf','jpg','jpeg','png','doc','docx'], true) && $size > 0 && $size <= 20*1024*1024) {
+      $base = dirname(__DIR__, 3) . '/apice_archivos';
+      $causaSafe = preg_replace('/[^A-Za-z0-9_\-]/', '_', $uuid);
+      $dir = $base . '/' . $eid . '/' . $causaSafe;
+      if (!is_dir($dir)) @mkdir($dir, 0700, true);
+      $stored = bin2hex(random_bytes(10)) . '.' . $ext;
+      if (is_dir($dir) && move_uploaded_file($_FILES['file']['tmp_name'], $dir . '/' . $stored)) {
+        acceso_asegurar_archivos();
+        db()->prepare('INSERT INTO archivos (estudio_id, causa_id, carpeta, nombre, archivo, tipo, tamano, visible_cliente, subido_por)
+                       VALUES (?,?,?,?,?,?,?,1,?)')
+            ->execute([$eid, $uuid, 'prueba', 'Comprobante de pago (cliente)', $stored, $ext, $size, (int)$u['id']]);
+        $compArch = (int)db()->lastInsertId();
+      }
+    }
+  }
+
+  // Agregar el pago (sin confirmar) al JSON de honorarios de la causa.
+  $stc = db()->prepare('SELECT id, honorarios FROM causas WHERE uuid = ? AND estudio_id = ?');
+  $stc->execute([$uuid, $eid]);
+  $row = $stc->fetch();
+  if (!$row) json_error('La causa no está disponible.', 404);
+  $hon = $row['honorarios'] ? json_decode($row['honorarios'], true) : ['ius'=>0,'gastos'=>[],'pagos'=>[]];
+  if (empty($hon['pagos']) || !is_array($hon['pagos'])) $hon['pagos'] = [];
+  array_unshift($hon['pagos'], [
+    'fecha'      => date('d/m/Y'),
+    'ius'        => $ius,
+    'nota'       => 'Informado por el cliente',
+    'confirmado' => false,
+    'compArch'   => $compArch,
+  ]);
+  db()->prepare('UPDATE causas SET honorarios = ? WHERE id = ?')
+      ->execute([json_encode($hon, JSON_UNESCAPED_UNICODE), (int)$row['id']]);
+  json_ok(['informado' => true]);
+}
+
+/* Crea la tabla de archivos si no existe (para el comprobante del cliente). */
+function acceso_asegurar_archivos() {
+  db()->exec("CREATE TABLE IF NOT EXISTS archivos (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT, estudio_id INT UNSIGNED NOT NULL,
+    causa_id VARCHAR(64) NOT NULL, carpeta VARCHAR(24) NOT NULL DEFAULT 'actuaciones',
+    nombre VARCHAR(255) NOT NULL, archivo VARCHAR(120) NOT NULL, tipo VARCHAR(12) NOT NULL,
+    tamano INT UNSIGNED NOT NULL DEFAULT 0, visible_cliente TINYINT(1) NOT NULL DEFAULT 0,
+    subido_por INT UNSIGNED NULL, creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id), KEY idx_archivos_causa (causa_id), KEY idx_archivos_estudio (estudio_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
 /* ---------- DATOS DEL PORTAL (solo el cliente logueado) ---------- */
