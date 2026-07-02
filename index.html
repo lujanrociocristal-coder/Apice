@@ -2122,6 +2122,19 @@ function panelPend(c){
   }).join(""):`<div class="vacio">Sin pendientes. Agregá uno abajo.</div>`}</div>
   <div class="padd"><input id="np" placeholder="Escribir un nuevo pendiente y Enter…" onkeydown="if(event.key==='Enter')addPend('${c.id}')"><input type="date" id="npf" class="pfecha" title="Fecha (opcional)"><button onclick="addPend('${c.id}')">Agregar</button></div>`;
 }
+function clienteAvisos(){
+  const hk=hoyKey();const out=[];const d7=Date.now()-7*86400000;
+  (causas||[]).forEach(c=>{const h=c.honorarios||{};
+    const tot=+h.ius||0;const pag=(h.pagos||[]).filter(p=>p.confirmado!==false).reduce((a,p)=>a+(+p.ius||0),0);const sal=tot-pag;
+    if(sal>0)out.push({ic:'💰',txt:'Tenés honorarios pendientes de pago: '+sal+' IUS.'});
+    const gp=(h.gastos||[]).filter(g=>!g.pagado).length;if(gp)out.push({ic:'🧾',txt:'Hay '+gp+' gasto(s) del proceso pendientes.'});
+    (h.pagos||[]).forEach(p=>{const t=Date.parse(String(p.confirmadoEn||''));if(t&&t>d7)out.push({ic:'✅',txt:'El estudio confirmó tu pago de '+(+p.ius||0)+' IUS.'});});
+    (c.archivos||[]).forEach(a=>{const t=Date.parse(String(a.creado_en||'').replace(' ','T'));if(t&&t>d7)out.push({ic:'📄',txt:'Documento nuevo disponible: '+(a.nombre||'documento')+'.'});});
+  });
+  (audiencias||[]).forEach(a=>{if(a.fecha&&a.fecha>=hk){const dias=Math.round((new Date(a.fecha+'T00:00:00')-new Date(hk+'T00:00:00'))/86400000);if(dias<=7)out.push({ic:a.tipo==='cita'?'📅':'⚖️',txt:(a.tipo==='cita'?'Tenés una cita con el estudio':'Tenés una audiencia')+' el '+audFechaDMY(a.fecha)+(a.hora?(' a las '+a.hora+' hs'):'')+'.'});}});
+  return out;
+}
+function cliAvisosHTML(){if(!MODO_CLIENTE)return '';const cliAv=clienteAvisos();return cliAv.length?`<div class="avi-sec" style="margin-bottom:14px"><div class="avi-sec-h">Novedades <span class="avi-n">${cliAv.length}</span></div><div class="avi-list">${cliAv.map(a=>`<div class="avi-card"><div class="avi-ic">${a.ic}</div><div class="avi-body"><div class="avi-top">${esc(a.txt)}</div></div></div>`).join('')}</div></div>`:'';}
 function renderCliente(c){
   const nombre=MODO_CLIENTE?(__cliNombre||c.cliente):c.cliente;
   const hermanas=MODO_CLIENTE?causas.slice():causas.filter(x=>x.cliente===nombre);
@@ -2137,6 +2150,7 @@ function renderCliente(c){
     document.getElementById("app").innerHTML=`<div class="ficha">${header}
       <div class="panel">
         ${MODO_CLIENTE?`<div class="cliente-aviso">${iWarn}<div>Hola, ${esc(nombre)}. Tenés <b>${hermanas.length} causas</b> en el estudio. Tocá una para ver su estado, documentos, honorarios y agenda.</div></div>`:`<div class="cliente-aviso">${iWarn}<div>Simulación de la Capa 4. ${esc(nombre)} tiene <b>${hermanas.length} causas</b> en el estudio. En el prototipo B entra con su usuario y ve directamente esta pantalla para elegir cuál mirar.</div></div>`}
+        ${cliAvisosHTML()}
         <div class="bloque-titulo">Elegí la causa que querés ver</div>
         <div class="cli-causas">${cards}</div>
       </div></div>`;
@@ -2196,6 +2210,7 @@ function renderCliente(c){
     <div class="tabs">${cliTabBtn("datos","Mi causa")}${cliTabBtn("docs","Documentos")}${cliTabBtn("hon","Honorarios")}${cliTabBtn("agenda","Mi agenda")}</div>
     <div class="panel">
       ${MODO_CLIENTE?'':`<div class="cliente-aviso">${iWarn}<div>Vista simulada del cliente. Ve solo lo suyo, en lenguaje simple, sin estrategia ni notas internas.</div></div>`}
+      ${cliAvisosHTML()}
       ${panel}</div></div>`;
 }
 function modalContent(){
@@ -2429,7 +2444,7 @@ function mConfigIus(){return `<div class="modal"><h3>Valor del IUS</h3>
 function setValorIUS2(){const v=parseMiles(document.getElementById('cfg_ius2').value);if(v>=0){config.valorIUS=v;saveConfig();}closeModal();if(calcSt.open)renderSide();}
 function setHonIus(id){const c=get(id);const v=+document.getElementById('hon_ius').value;c.honorarios.ius=v>=0?v:0;persist();renderFicha();}
 async function addPago(id){const c=get(id);const f=isoToDMY(document.getElementById('pg_fecha').value);const ius=+document.getElementById('pg_ius').value;const nota=document.getElementById('pg_nota').value.trim();const comp=document.getElementById('pg_comp').value.trim();const fileEl=document.getElementById('pg_file');const file=fileEl&&fileEl.files&&fileEl.files[0];if(!ius||ius<=0){document.getElementById('pg_ius').focus();return;}let compArch=null;if(file){try{const fd=new FormData();fd.append('file',file);fd.append('causa_id',c.id);fd.append('nombre','Comprobante de pago');fd.append('carpeta','prueba');const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});const j=await r.json();if(j&&j.ok&&j.data)compArch=j.data.id;}catch(e){}}c.honorarios.pagos.unshift({fecha:f,ius,nota,comp,compArch,confirmado:true});persist();renderFicha();}
-function confirmarPago(id,i){const c=get(id);if(!c||!c.honorarios||!c.honorarios.pagos[i])return;if(!confirm('¿Confirmar que recibiste este pago? Se sumará a lo cobrado.'))return;c.honorarios.pagos[i].confirmado=true;persist();renderFicha();}
+function confirmarPago(id,i){const c=get(id);if(!c||!c.honorarios||!c.honorarios.pagos[i])return;if(!confirm('¿Confirmar que recibiste este pago? Se sumará a lo cobrado.'))return;c.honorarios.pagos[i].confirmado=true;c.honorarios.pagos[i].confirmadoEn=new Date().toISOString();persist();renderFicha();}
 async function informarPagoCliente(causaId){
   const iusEl=document.getElementById('cli_pg_ius');const fileEl=document.getElementById('cli_pg_file');
   const ius=+(iusEl&&iusEl.value);if(!ius||ius<=0){alert('Ingresá el monto en IUS que transferiste.');return;}
