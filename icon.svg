@@ -1,14 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ÁPICE">
-  <defs>
-    <linearGradient id="apg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3FC8BD"/>
-      <stop offset="1" stop-color="#356E94"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="96" fill="#1C2433"/>
-  <path d="M256 118 L372 338 L140 338 Z" fill="url(#apg)"/>
-  <path d="M256 210 L322 338 L190 338 Z" fill="#23436E"/>
-  <path d="M256 118 L270 250 L214 338 L140 338 Z" fill="#46D2C6" opacity="0.85"/>
-  <text x="256" y="430" text-anchor="middle" font-family="Inter, system-ui, sans-serif"
-        font-size="74" font-weight="700" letter-spacing="6" fill="#ECF2F5">ÁPICE</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ÁPICE"><defs><linearGradient id="apg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3FC8BD"/><stop offset="1" stop-color="#356E94"/></linearGradient></defs><rect width="512" height="512" rx="96" fill="#1C2433"/><path d="M256 130 L392 382 L120 382 Z" fill="url(#apg)"/><path d="M256 235 L333 382 L179 382 Z" fill="#23436E"/><path d="M256 130 L272 281 L207 382 L120 382 Z" fill="#46D2C6" opacity="0.85"/></svg>
