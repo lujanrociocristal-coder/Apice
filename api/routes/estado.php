@@ -38,12 +38,12 @@ function handle_estado($method, $resto) {
       $st = $pdo->prepare('SELECT * FROM causas WHERE estudio_id=? ORDER BY id DESC');
       $st->execute([$eid]);
       $rows = $st->fetchAll();
-      $stMov = $pdo->prepare('SELECT fecha_txt,texto,inicio FROM movimientos WHERE causa_id=? ORDER BY id ASC');
+      $stMov = $pdo->prepare('SELECT fecha_txt,texto,inicio,imp FROM movimientos WHERE causa_id=? ORDER BY id ASC');
       $arr = [];
       foreach ($rows as $c) {
         $stMov->execute([$c['id']]);
         $movs = $stMov->fetchAll();
-        $bit  = array_map(fn($m)=>['fecha'=>$m['fecha_txt'],'texto'=>$m['texto'],'inicio'=>(bool)$m['inicio']], $movs);
+        $bit  = array_map(fn($m)=>['fecha'=>$m['fecha_txt'],'texto'=>$m['texto'],'inicio'=>(bool)$m['inicio'],'imp'=>(bool)($m['imp']??0)], $movs);
         $arr[] = [
           'id'            => $c['uuid'] ?: 'c_'.$c['id'],
           'estado'        => $c['estado'],
@@ -87,6 +87,8 @@ function handle_estado($method, $resto) {
       col_json($pdo, 'causas', 'documentos');
       col_json($pdo, 'causas', 'pendientes');
       col_json($pdo, 'causas', 'alertas');
+      $rImp = $pdo->query("SHOW COLUMNS FROM movimientos LIKE 'imp'");
+      if ($rImp->rowCount() === 0) $pdo->exec("ALTER TABLE movimientos ADD COLUMN imp TINYINT(1) NOT NULL DEFAULT 0");
 
       $valor = field('value');
       if (is_string($valor)) $valor = json_decode($valor,true);
@@ -112,7 +114,7 @@ function handle_estado($method, $resto) {
             honorarios=VALUES(honorarios),documentos=VALUES(documentos),
             pendientes=VALUES(pendientes),alertas=VALUES(alertas)
         ');
-        $insMov = $pdo->prepare('INSERT INTO movimientos (causa_id,fecha_txt,texto,inicio) VALUES (?,?,?,?)');
+        $insMov = $pdo->prepare('INSERT INTO movimientos (causa_id,fecha_txt,texto,inicio,imp) VALUES (?,?,?,?,?)');
         $getId  = $pdo->prepare('SELECT id FROM causas WHERE uuid=?');
 
         $keepIds = [];
@@ -139,7 +141,7 @@ function handle_estado($method, $resto) {
           if ($cid && isset($c['bitacora']) && is_array($c['bitacora'])) {
             $pdo->prepare('DELETE FROM movimientos WHERE causa_id=?')->execute([$cid]);
             foreach ($c['bitacora'] as $m)
-              $insMov->execute([$cid,$m['fecha']??'',$m['texto']??'',empty($m['inicio'])?0:1]);
+              $insMov->execute([$cid,$m['fecha']??'',$m['texto']??'',empty($m['inicio'])?0:1,empty($m['imp'])?0:1]);
           }
         }
 
