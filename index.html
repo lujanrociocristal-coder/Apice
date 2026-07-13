@@ -2247,9 +2247,9 @@ function mAgregar(){
   </div>
   <div class="field"><label>Cliente</label><select id="n_cli_sel"><option value="">— Elegí un cliente existente —</option>${cliOpts}<option value="__nuevo__">➕ Cargar un cliente nuevo</option></select></div>
   <div class="field"><label>…o nombre del cliente nuevo</label><input id="n_cli_nuevo" placeholder="Completá solo si elegiste “cliente nuevo”"></div>
-  <div class="field"><label>Materia</label><select id="n_mat">${materiasFiltro().map(x=>`<option>${esc(x)}</option>`).join("")}</select></div>
+  <div class="field"><label>Materia (separar con coma)</label><input id="n_mat" list="n_mat_dl" placeholder="Ej: Sucesion, Alimentos"><datalist id="n_mat_dl">${materiasFiltro().map(x=>`<option value="${esc(x)}">`).join("")}</datalist></div>
   <div class="field"><label>Objeto</label><input id="n_obj" placeholder="Breve descripción del objeto"></div>
-  <div class="field"><label>Partes intervinientes</label><textarea id="n_par" rows="2" placeholder="Actora / demandado / causante…"></textarea></div>
+  <div class="ed-sub">Parte actora</div><div class="grid2"><div class="field"><label>Actor</label><input id="n_act" placeholder="Nombre del actor"></div><div class="field"><label>Patrocinio</label><input id="n_actpat" placeholder="Dra. ..."></div></div><div class="ed-sub">Parte demandada / contraparte</div><div class="grid2"><div class="field"><label>Demandado/s (separar con coma si hay mas de uno)</label><input id="n_dem" placeholder="Nombre del/los demandado/s"></div><div class="field"><label>Patrocinio</label><input id="n_dempat" placeholder=""></div></div>
   <div class="field"><label>Fuero</label><input id="n_fuero" placeholder="Civil / Familia / …"></div>
   <div class="ed-dir">
     <div class="ed-dir-h">📒 Asignar desde la Guía Judicial</div>
@@ -2302,12 +2302,12 @@ function mEditar(c){
   </div>
   <div class="ed-sub">Parte demandada / contraparte</div>
   <div class="grid2">
-    <div class="field"><label>Demandado</label><input id="e_dem" value="${attr(c.demandado||'')}"></div>
+    <div class="field"><label>Demandado/s (separar con coma si hay mas de uno)</label><input id="e_dem" value="${attr(c.demandado||'')}"></div>
     <div class="field"><label>Patrocinio</label><input id="e_dempat" value="${attr(c.demandadoPat||'')}"></div>
   </div>
   <div class="ed-sub">Cliente</div>
   <div class="grid2">
-    <div class="field"><label>Nombre</label><input id="e_cli" value="${attr(c.cliente)}"></div>
+    <div class="field"><label>Cliente</label><select id="e_cli_sel"><option value="__nuevo__">➕ Escribir otro nombre</option>${clienteNombres().map(n=>`<option value="${esc(n)}" ${c.cliente===n?'selected':''}>${esc(n)}</option>`).join('')}</select></div><div class="field"><label>…o nombre distinto</label><input id="e_cli_nuevo" placeholder="Completa si elegiste otro nombre" value="${(c.cliente&&!clienteNombres().includes(c.cliente))?attr(c.cliente):''}"></div>
     <div class="field"><label>Calidad (derecho propio / representación)</label><input id="e_ccal" value="${attr(c.clienteCalidad||'')}"></div>
   </div>
   <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn-prim" onclick="guardarEdit('${c.id}')">Guardar cambios</button></div></div>`;
@@ -2607,7 +2607,7 @@ function guardarEdit(id){const c=get(id);const g=i=>document.getElementById(i).v
   c.materia=g('e_mat').split(',').map(s=>s.trim()).filter(Boolean);if(!c.materia.length)c.materia=['Sucesión'];
   c.expediente=g('e_exp').trim()||null;c.cuij=g('e_cuij').trim()||null;c.objeto=g('e_obj').trim();
   c.fuero=g('e_fuero').trim();c.juzgado=g('e_juz').trim();c.juez=g('e_juez').trim();c.secretaria=g('e_sec').trim();
-  c.actor=g('e_act').trim();c.actorPat=g('e_actpat').trim();c.demandado=g('e_dem').trim();c.demandadoPat=g('e_dempat').trim();c.cliente=g('e_cli').trim();c.clienteCalidad=g('e_ccal').trim();
+  c.actor=g('e_act').trim();c.actorPat=g('e_actpat').trim();c.demandado=g('e_dem').trim();c.demandadoPat=g('e_dempat').trim();const __cliSel=g('e_cli_sel'),__cliNuevo=g('e_cli_nuevo').trim();const __nuevoCli=(__cliSel&&__cliSel!=='__nuevo__')?__cliSel:(__cliNuevo||c.cliente);if(__nuevoCli&&__nuevoCli!==c.cliente){const __old=c.cliente;const __otras=causas.filter(x=>x.id!==c.id&&x.cliente===__old);if(__otras.length&&confirm('Este cliente tiene '+__otras.length+' causa(s) mas registradas como "'+__old+'". Renombrarlas tambien a "'+__nuevoCli+'"?')){__otras.forEach(x=>x.cliente=__nuevoCli);if(clientes[__old]){clientes[__nuevoCli]=Object.assign({},clientes[__nuevoCli]||{},clientes[__old]);delete clientes[__old];persistCli();}}}c.cliente=__nuevoCli;c.clienteCalidad=g('e_ccal').trim();
   c.dirJuzId=(document.getElementById('e_dirjuz')||{}).value||null;
   persist();closeModal();if(st.vista==="ficha")renderFicha();}
 function irACausa(id,tab){st.modal=null;st.actual=id;st.vista="ficha";st.tab=tab;st.cliente=false;st.editPend=null;window.scrollTo(0,0);render();}
@@ -2636,10 +2636,10 @@ function guardarNueva(){const g=id=>{const el=document.getElementById(id);return
   const pend=enTr
     ?[{t:"Verificar el último movimiento en el expediente (IURIX).",done:false},{t:"Completar datos y documentación.",done:false}]
     :[{t:"Completar datos y documentación.",done:false},{t:"Preparar escrito de inicio.",done:false}];
-  causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:[g("n_mat")||"Sucesión"],
+  const __matArr=g("n_mat").split(',').map(s=>s.trim()).filter(Boolean);causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:__matArr.length?__matArr:["Sucesión"],
     caratula:car,cliente:cliName||"A completar",expediente:exp,cuij:null,objeto:g("n_obj")||"A completar.",
     fuero:g("n_fuero")||"A definir",juzgado:g("n_juz")||"A definir al presentar",juez:g("n_juez")||"—",secretaria:g("n_sec")||"—",dirJuzId:(document.getElementById("n_dirjuz")||{}).value||null,
-    letrada:g("n_let")||"Dra. Rocío Cristal Luján",clienteEs:"activa",actorRol:"Actora",actor:g("n_par")||"A completar",actorPat:g("n_let")||"Dra. Rocío Cristal Luján",demandadoRol:"Demandado",demandado:"A completar",demandadoPat:"",clienteCalidad:"por derecho propio",posicion:"—",
+    letrada:g("n_let")||"Dra. Rocío Cristal Luján",clienteEs:"activa",actorRol:"Actora",actor:g("n_act")||"A completar",actorPat:g("n_actpat")||g("n_let")||"Dra. Rocío Cristal Luján",demandadoRol:"Demandado",demandado:g("n_dem")||"A completar",demandadoPat:g("n_dempat")||"",clienteCalidad:"por derecho propio",posicion:"—",
     ultimoMov:{fecha:hoy(),texto:txtUlt},
     bitacora:[{fecha:hoy(),texto:txtAlta,inicio:true}],
     documentos:[],pendientes:pend,
