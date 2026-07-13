@@ -297,12 +297,12 @@ function acceso_causa_cliente($uuid, $estudioId) {
   // Archivos reales subidos al servidor, marcados visibles al cliente.
   $arch = [];
   try {
-    $sta = db()->prepare('SELECT id, nombre, tipo, tamano, creado_en FROM archivos
+    $sta = db()->prepare('SELECT id, nombre, tipo, tamano, fecha_doc, creado_en FROM archivos
                           WHERE causa_id = ? AND estudio_id = ? AND visible_cliente = 1
-                          ORDER BY creado_en DESC');
+                          ORDER BY COALESCE(fecha_doc, DATE(creado_en)) ASC, id ASC');
     $sta->execute([$uuid, $estudioId]);
     foreach ($sta->fetchAll() as $f) {
-      $arch[] = ['id' => (int)$f['id'], 'nombre' => $f['nombre'], 'tipo' => $f['tipo'], 'tamano' => (int)$f['tamano'], 'creado_en' => $f['creado_en']];
+      $arch[] = ['id' => (int)$f['id'], 'nombre' => $f['nombre'], 'tipo' => $f['tipo'], 'tamano' => (int)$f['tamano'], 'creado_en' => $f['creado_en'], 'fecha_doc' => $f['fecha_doc']];
     }
   } catch (Throwable $e) { /* la tabla archivos puede no existir todavía */ }
 
