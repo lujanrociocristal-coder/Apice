@@ -1829,9 +1829,9 @@ function archRow(cid,a){
     +'<span style="font-size:18px">'+icon+'</span>'
     +'<a href="/api/archivos/'+a.id+'/descargar" target="_blank" rel="noopener" style="font-weight:600;color:var(--tinta);text-decoration:none;flex:1;min-width:140px">'+esc(a.nombre)+'</a>'
     +'<span style="font-size:11px;font-weight:600;color:'+car.c+';background:'+car.c+'18;padding:3px 9px;border-radius:20px">'+car.l+'</span>'
-    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'
+    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'+(a.fecha_doc?'<span style="font-size:11px;color:var(--mut)">'+a.fecha_doc.split('-').reverse().join('/')+'</span>':'')
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
-    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
+    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarFechaArchivo('+a.id+',\''+cid+'\',\''+(a.fecha_doc||'')+'\')">Fecha</button>'+'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+cid+'\',\''+nomJs+'\')">Renombrar</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarArchivo('+a.id+',\''+cid+'\')">Eliminar</button>'
     +'</div>';
@@ -1839,7 +1839,7 @@ function archRow(cid,a){
 function docSetCarp(k){docSt.carpeta=k;renderDocLista();}
 function docFiltVis(v){docSt.fVis=v;renderDocLista();}
 function docBuscar(v){docSt.q=v;renderDocLista();}
-function agregarDocOverlay(causaId){
+function fechaISOaDMY(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):hoy();}function cambiarFechaArchivo(id,cid,fechaActual){var actualDMY=fechaActual?fechaActual.split('-').reverse().join('/'):'';var nuevo=prompt('Fecha del documento (dd/mm/aaaa):',actualDMY);if(nuevo===null)return;var m=nuevo.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!m){alert('Formato invalido. Usa dd/mm/aaaa.');return;}var iso=m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');archivoAccion(id,'PUT',{fecha_doc:iso}).then(function(){cargarArchivos(cid);}).catch(function(e){alert(e.message);});}function agregarDocOverlay(causaId){
   let selFile=null;
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
@@ -1857,7 +1857,7 @@ function agregarDocOverlay(causaId){
     +'<input id="docNombre" type="text" placeholder="Ej: Demanda inicial" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
     +'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Carpeta</label>'
     +'<select id="docCarp" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box;background:#fff">'+carpOpts+'</select>'
-    +'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docVis" type="checkbox"> Visible para el cliente</label>'
+    +'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docVis" type="checkbox"> Visible para el cliente</label>'+'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Fecha del documento</label>'+'<input id="docFecha" type="date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'+'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docMov" type="checkbox" checked> Agregar a movimientos (bitacora)</label>'+'<input id="docMovTxt" type="text" placeholder="Texto del movimiento (opcional)" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box;margin-top:6px">'
     +'<div id="docMsg" style="color:#8a2828;font-size:12px;margin-top:10px"></div>'
     +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
       +'<button id="docCancel" style="background:#EEF0F3;border:0;padding:11px 16px;border-radius:9px;font-size:14px;cursor:pointer">Cancelar</button>'
@@ -1885,12 +1885,12 @@ function agregarDocOverlay(causaId){
     fd.append('file',selFile);fd.append('causa_id',causaId);
     fd.append('nombre',(nomEl.value.trim()||selFile.name));
     fd.append('carpeta',ov.querySelector('#docCarp').value);
-    if(ov.querySelector('#docVis').checked)fd.append('visible_cliente','1');
+    if(ov.querySelector('#docVis').checked)fd.append('visible_cliente','1');fd.append('fecha_doc',ov.querySelector('#docFecha').value||new Date().toISOString().slice(0,10));
     try{
       const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});
       const j=await r.json();
       if(!j||j.ok===false)throw new Error((j&&j.error)||'Error al subir');
-      document.body.removeChild(ov);cargarArchivos(causaId);
+      if(ov.querySelector('#docMov').checked){var __c=get(causaId);if(__c){if(!Array.isArray(__c.bitacora))__c.bitacora=[];__c.bitacora.push({fecha:fechaISOaDMY(ov.querySelector('#docFecha').value),texto:(ov.querySelector('#docMovTxt').value.trim()||nomEl.value.trim()||selFile.name),inicio:false});persist();}}document.body.removeChild(ov);cargarArchivos(causaId);
     }catch(e){msgEl.textContent='No se pudo subir: '+e.message;guardarBtn.disabled=false;guardarBtn.textContent='Guardar';}
   });
 }
