@@ -298,9 +298,9 @@ function acceso_causa_cliente($uuid, $estudioId) {
   $arch = [];
   try {
     $sta = db()->prepare('SELECT id, nombre, tipo, tamano, fecha_doc, creado_en FROM archivos
-                          WHERE causa_id = ? AND estudio_id = ? AND visible_cliente = 1
+                          WHERE causa_id IN (?, ?) AND estudio_id = ? AND visible_cliente = 1
                           ORDER BY COALESCE(fecha_doc, DATE(creado_en)) ASC, id ASC');
-    $sta->execute([$uuid, $estudioId]);
+    $sta->execute([$uuid, (string)$c['id'], $estudioId]);
     foreach ($sta->fetchAll() as $f) {
       $arch[] = ['id' => (int)$f['id'], 'nombre' => $f['nombre'], 'tipo' => $f['tipo'], 'tamano' => (int)$f['tamano'], 'creado_en' => $f['creado_en'], 'fecha_doc' => $f['fecha_doc']];
     }
