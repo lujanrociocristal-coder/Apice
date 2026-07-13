@@ -1839,7 +1839,7 @@ function archRow(cid,a){
 function docSetCarp(k){docSt.carpeta=k;renderDocLista();}
 function docFiltVis(v){docSt.fVis=v;renderDocLista();}
 function docBuscar(v){docSt.q=v;renderDocLista();}
-function fechaISOaDMY(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):hoy();}function cambiarFechaArchivo(id,cid,fechaActual){var actualDMY=fechaActual?fechaActual.split('-').reverse().join('/'):'';var nuevo=prompt('Fecha del documento (dd/mm/aaaa):',actualDMY);if(nuevo===null)return;var m=nuevo.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!m){alert('Formato invalido. Usa dd/mm/aaaa.');return;}var iso=m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');archivoAccion(id,'PUT',{fecha_doc:iso}).then(function(){cargarArchivos(cid);}).catch(function(e){alert(e.message);});}function agregarDocOverlay(causaId){
+function fechaISOaDMY(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):hoy();}function cambiarFechaArchivo(id,cid,fechaActual){var actualDMY=fechaActual?fechaActual.split('-').reverse().join('/'):'';var nuevo=prompt('Fecha del documento (dd/mm/aaaa):',actualDMY);if(nuevo===null)return;var m=nuevo.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!m){alert('Formato invalido. Usa dd/mm/aaaa.');return;}var iso=m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');archivoAccion(id,'PUT',{fecha_doc:iso}).then(function(){cargarArchivos(cid);}).catch(function(e){alert(e.message);});}function agregarDocOverlay(causaId,preset){
   let selFile=null;
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
@@ -1865,7 +1865,7 @@ function fechaISOaDMY(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+
     +'</div>'
     +'</div>';
   document.body.appendChild(ov);
-  const selEl=ov.querySelector('#docSel'),nomEl=ov.querySelector('#docNombre');
+  if(preset){if(preset.nombre)ov.querySelector('#docNombre').value=preset.nombre;if(preset.carpeta)ov.querySelector('#docCarp').value=preset.carpeta;}const selEl=ov.querySelector('#docSel'),nomEl=ov.querySelector('#docNombre');
   const guardarBtn=ov.querySelector('#docGuardar'),msgEl=ov.querySelector('#docMsg');
   function onPick(inp){
     const f=inp.files&&inp.files[0];if(!f)return;
@@ -2403,7 +2403,7 @@ function panelHonorarios(c){
   const hoyISO=new Date().toISOString().slice(0,10);
   return `<div class="hon-eqnote">Equivalencias en pesos calculadas con IUS = <b>${fmtPesos(vIus)}</b>. El valor del IUS se cambia desde el botón <b>IUS</b> del tablero o desde el panel (☰) → Honorarios.</div>
 
-  <div class="conv-bar"><div><b>Convenio de honorarios</b><span>Generá el acuerdo abogado–cliente autocompletado (borrador editable).</span></div><button class="btn-add" onclick="openModal({tipo:'convenio',id:'${c.id}'})">${c.convenioForm?'Ver / editar':'Crear convenio'}</button></div>
+  <div class="conv-bar"><div><b>Convenio de honorarios</b><span>Generá el acuerdo abogado–cliente autocompletado (borrador editable).</span></div><button class="btn-add" onclick="openModal({tipo:'convenio',id:'${c.id}'})">${c.convenioForm?'Ver / editar':'Crear convenio'}</button><button class="btn-sec" onclick="agregarDocOverlay('${c.id}',{nombre:'Convenio de honorarios',carpeta:'cliente'})">📎 Subir convenio firmado</button></div>
   <div class="bloque-titulo">Honorarios profesionales (en IUS)</div>
   <div class="hon-card"><div class="hon-set"><label>Honorarios pactados del proceso</label>
     <input type="number" id="hon_ius" value="${totalIus}" min="0" step="0.5"><span>IUS</span>
