@@ -4004,7 +4004,7 @@ function cvTogglePago(){const s=document.getElementById('cv_pago');const b=docum
 function mConvenio(id){const f=cvGetForm(id)||cvSeed(id);const sug=id?escSug(get(id)):'';
   const base=(f.clausulas&&f.clausulas.length)?f.clausulas:CONVENIO_CLAUSULAS_DEFAULT();
   const unidad=f.unidad||'ius';const pago=f.pago||'unico';
-  let profs=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);
+  let profs=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);(id?((get(id)||{}).letrada||''):'').split('/').map(s=>s.trim()).filter(Boolean).forEach(n=>{if(profs.indexOf(n)<0)profs.push(n);});
   if(f.prof&&profs.indexOf(f.prof)<0)profs.unshift(f.prof);
   const profOpts=profs.map(n=>`<option value="${attr(n)}" ${f.prof===n?'selected':''}>${esc(n)}</option>`).join('');
   const fld=(lab,idd,val,ph)=>`<div class="field"><label>${lab}</label><input id="${idd}" value="${attr(val||'')}" placeholder="${attr(ph||'')}"></div>`;
