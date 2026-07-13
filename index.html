@@ -3822,7 +3822,7 @@ function DIR_SEED(){return [
  {id:'audien',cat:'mesa',nombre:'Oficina de Gestión de Audiencias',rol:'Coordinador Dr. Sebastián Andrés Lipari',integrantes:[],direccion:'Av. Colón 250',tel:'',email:'',notas:'',oficial:true,act:'2026-06'},
  {id:'aseso',cat:'asesoria',nombre:'Asesorías de Menores e Incapaces',rol:'Tres asesorías',integrantes:['Asesoría 1 — Dra. Daniela Faerman Cano · asesormenor1@juscatamarca.gob.ar','Asesoría 2 — Dra. Carolina Acuña Barrionuevo · asesormenor2@juscatamarca.gob.ar','Asesoría 3 — Dra. Sandra López Gardel · asesormenor3@juscatamarca.gob.ar'],direccion:'Chacabuco 788',tel:'',email:'',notas:'',oficial:true,act:'2026-06'}
 ];}
-function seedDir(){directorio=DIR_SEED();persistDir();}
+function seedDir(){directorio=DIR_SEED();persistDir();}function seedDirMerge(){const ids=new Set(directorio.map(x=>x.id));const nuevos=DIR_SEED().filter(x=>!ids.has(x.id));if(!nuevos.length){alert('Ya estan cargados todos los organismos oficiales.');return;}directorio=directorio.concat(nuevos);persistDir();renderDirectorio();alert('Se agregaron '+nuevos.length+' organismos oficiales (juzgados, mediacion, etc).');}
 function dirSetCat(c){dirSt.cat=c;dirSt.menu=null;renderDirectorio();}
 function dirMigrateNames(){const M={fam1:'Juzgado de Familia de Primera Instancia y de Primera Nominación',fam2:'Juzgado de Familia de Primera Instancia y de Segunda Nominación',fam3:'Juzgado de Familia de Primera Instancia y de Tercera Nominación',fam4:'Juzgado de Familia de Primera Instancia y de Cuarta Nominación, y de Violencia Familiar y de Género',civ1:'Juzgado de Primera Instancia en lo Civil, Primera Nominación',civ2:'Juzgado de Primera Instancia en lo Civil, Segunda Nominación',civ3:'Juzgado de Primera Instancia en lo Civil, Tercera Nominación',civ4:'Juzgado de Primera Instancia en lo Civil, Cuarta Nominación',civ5:'Juzgado de Primera Instancia en lo Civil, Quinta Nominación'};let ch=false;(directorio||[]).forEach(e=>{if(e&&M[e.id]&&e.nombre!==M[e.id]){e.nombre=M[e.id];ch=true;}});if(ch)persistDir();}
 function dirIntParse(x){const i=x.lastIndexOf('— ');if(i>=0)return {lbl:x.slice(0,i).trim(),nom:x.slice(i+2).trim()};const j=x.indexOf(':');if(j>=0)return {lbl:x.slice(0,j).trim(),nom:x.slice(j+1).trim()};return {lbl:'',nom:x.trim()};}
@@ -3856,7 +3856,7 @@ function renderDirectorio(){
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide gj-wrap">
     <div class="gj-head"><h1>Guía Judicial</h1>
       <div class="gj-head-acc"><div class="search gj-search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="dirBuscar" placeholder="Buscar…" value="${attr(dirSt.q)}"></div>
-      <button class="btn-add" onclick="dirEdit('')">+ Crear organismo</button></div></div>
+      <button class="btn-add" onclick="dirEdit('')">+ Crear organismo</button><button class="btn-sec" onclick="seedDirMerge()">↻ Cargar juzgados oficiales</button></div></div>
     <div class="gj-info"><span class="gj-info-ic">ℹ</span><div><b>Datos orientativos:</b> verificá siempre la nómina oficial antes de presentar escritos. Última actualización: Junio 2026.</div></div>
     <div class="gj-chips">${chips}</div>
     <div class="gj-grid">${cards}</div>
