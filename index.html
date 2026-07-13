@@ -1635,7 +1635,7 @@ function renderExpedientes(){
   ${st.filtrosOpen?filtrosHTML():''}`;
   const vis=visibles(causas),secs=st.fEstado?[st.fEstado]:ORDEN;
   secs.forEach(e=>{
-    const g=vis.filter(c=>c.estado===e);
+    const g=vis.filter(c=>c.estado===e);if(e==='tramite'||e==='preparacion')g.sort((a,b)=>(a.caratula||'').localeCompare(b.caratula||'','es'));
     h+=`<div class="seccion"><div class="seccion-head"><span class="marker ${cc(e)}"></span><h2>${ESTADOS[e].l}${e!=='finalizada'?'s':''}</h2><span class="cnt">${g.length}</span></div>`;
     h+= g.length===0 ? `<div class="vacio">${e==='finalizada'?'Todavía no hay causas finalizadas.':e==='suspenso'?'Ninguna causa en suspenso por ahora.':'Sin causas que coincidan con los filtros.'}</div>`
       : `<div class="grid">${g.map(card).join("")}</div>`;
@@ -2254,7 +2254,7 @@ function mAgregar(){
   <div class="ed-dir">
     <div class="ed-dir-h">📒 Asignar desde la Guía Judicial</div>
     <div class="grid2">
-      <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>x.cat==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select></div>
+      <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select></div>
       <div class="field"><label>Secretaría de esta causa</label><select id="n_dirsec" onchange="naDirSec(this.value)"><option value="">— Elegí secretaría —</option></select></div>
     </div>
     <div class="ed-dir-n">Elegí el juzgado y la secretaría que llevan la causa: se completan los campos de abajo y podés ajustarlos a mano. Si el juzgado no está en la Guía, escribilo abajo y tocá “Agregar a la Guía”.</div>
@@ -2284,7 +2284,7 @@ function mEditar(c){
   <div class="ed-dir">
     <div class="ed-dir-h">📒 Asignar desde el Directorio</div>
     <div class="grid2">
-      <div class="field"><label>Juzgado (del directorio)</label><select id="e_dirjuz" onchange="edDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>x.cat==='juzgado').map(x=>`<option value="${x.id}" ${c.dirJuzId===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select></div>
+      <div class="field"><label>Juzgado (del directorio)</label><select id="e_dirjuz" onchange="edDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}" ${c.dirJuzId===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select></div>
       <div class="field"><label>Secretaría de esta causa</label><select id="e_dirsec" onchange="edDirSec(this.value)">${edSecOptions(c)}</select></div>
     </div>
     <div class="ed-dir-n">Elegí el juzgado y la secretaría que llevan esta causa (los secretarios se reparten las causas). Se guarda y queda fijo. Igual podés ajustar los campos de abajo a mano.</div>
@@ -3848,15 +3848,15 @@ function dirCard(e){
 function renderDirectorio(){
   const q=(dirSt.q||'').toLowerCase().trim();
   let list=directorio.slice();
-  if(dirSt.cat!=='todos')list=list.filter(e=>e.cat===dirSt.cat);
+  if(dirSt.cat!=='todos')list=list.filter(e=>String(e.cat||'').trim().toLowerCase()===dirSt.cat);
   if(q)list=list.filter(e=>((e.nombre||'')+' '+(e.rol||'')+' '+(e.integrantes||[]).join(' ')+' '+(e.email||'')).toLowerCase().includes(q));
   const cats=DIR_CATS.filter(c=>c[0]!=='colega');
   const chips=[['todos','Todos']].concat(cats).map(([k,l])=>`<button class="gj-chip ${dirSt.cat===k?'on':''}" onclick="dirSetCat('${k}')">${l}</button>`).join('');
-  const cards=list.length?list.map(dirCard).join(''):'<div class="vacio">Sin organismos que coincidan.</div>';
+  const cards=list.length?list.map(dirCard).join(''):(dirSt.cat!=='todos'&&directorio.length?(function(){var cnt={};directorio.forEach(function(e){var k=e.cat||'(sin categoria)';cnt[k]=(cnt[k]||0)+1;});var resumen=Object.keys(cnt).map(function(k){return k+': '+cnt[k];}).join(', ');return '<div class="vacio">Sin organismos con categoria "'+dirSt.cat+'". Categorias reales en tu guia: '+resumen+'.</div>';})():'<div class="vacio">Sin organismos que coincidan.</div>');
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide gj-wrap">
     <div class="gj-head"><h1>Guía Judicial</h1>
       <div class="gj-head-acc"><div class="search gj-search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="dirBuscar" placeholder="Buscar…" value="${attr(dirSt.q)}"></div>
-      <button class="btn-add" onclick="dirEdit('')">+ Crear organismo</button><button class="btn-sec" onclick="seedDirMerge()">↻ Cargar juzgados oficiales</button></div></div>
+      <button class="btn-add" onclick="dirEdit('')">+ Crear organismo</button></div></div>
     <div class="gj-info"><span class="gj-info-ic">ℹ</span><div><b>Datos orientativos:</b> verificá siempre la nómina oficial antes de presentar escritos. Última actualización: Junio 2026.</div></div>
     <div class="gj-chips">${chips}</div>
     <div class="gj-grid">${cards}</div>
