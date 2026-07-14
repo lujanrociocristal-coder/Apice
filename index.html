@@ -2162,7 +2162,7 @@ function renderCliente(c){
   const cliTabBtn=(id,l)=>`<button class="tab ${tab===id?'on':''}" onclick="setCliTab('${id}')">${l}</button>`;
   let panel;
   if(tab==="docs"){
-    const docs=sel.documentos.filter(d=>d.visible);
+    const docs=sel.documentos.filter(d=>d.visible&&(d.u||sel.folder));
     const arch=sel.archivos||[];
     const archHtml=arch.length?arch.map(a=>{const icon=a.tipo==='pdf'?'📄':((['jpg','jpeg','png'].indexOf(a.tipo)>=0)?'🖼':'📝');return `<a class="doc" href="/api/archivos/${a.id}/descargar" target="_blank" rel="noopener">${icon} <span class="dn">${esc(a.nombre)}</span>${a.tipo?`<span class="dext">${esc(a.tipo)}</span>`:''}<span class="vtag cli" style="cursor:default">Descargar</span></a>`;}).join(""):'';
     const nada=(!docs.length&&!arch.length);
