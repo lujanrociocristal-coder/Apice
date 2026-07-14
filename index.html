@@ -2254,7 +2254,7 @@ function mAgregar(){
   <div class="ed-dir" style="display:none">
     <div class="ed-dir-h">📒 Asignar desde la Guía Judicial</div>
     <div class="grid2">
-      <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select>${dirJuzDiag()}</div> onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select></div>
+      <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select>${dirJuzDiag()}</div>
       <div class="field"><label>Secretaría de esta causa</label><select id="n_dirsec" onchange="naDirSec(this.value)"><option value="">— Elegí secretaría —</option></select></div>
     </div>
     <div class="ed-dir-n">Elegí el juzgado y la secretaría que llevan la causa: se completan los campos de abajo y podés ajustarlos a mano. Si el juzgado no está en la Guía, escribilo abajo y tocá “Agregar a la Guía”.</div>
