@@ -2251,7 +2251,7 @@ function mAgregar(){
   <div class="field"><label>Objeto</label><input id="n_obj" placeholder="Breve descripción del objeto"></div>
   <div class="ed-sub">Parte actora</div><div class="grid2"><div class="field"><label>Actor</label><input id="n_act" placeholder="Nombre del actor"></div><div class="field"><label>Patrocinio</label><input id="n_actpat" placeholder="Dra. ..."></div></div><div class="ed-sub">Parte demandada / contraparte</div><div class="grid2"><div class="field"><label>Demandado/s (separar con coma si hay mas de uno)</label><input id="n_dem" placeholder="Nombre del/los demandado/s"></div><div class="field"><label>Patrocinio</label><input id="n_dempat" placeholder=""></div></div>
   <div class="field"><label>Fuero</label><input id="n_fuero" placeholder="Civil / Familia / …"></div>
-  <div class="ed-dir">
+  <div class="ed-dir" style="display:none">
     <div class="ed-dir-h">📒 Asignar desde la Guía Judicial</div>
     <div class="grid2">
       <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select>${dirJuzDiag()}</div> onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select></div>
@@ -2281,7 +2281,7 @@ function mEditar(c){
     <div class="field"><label>CUIJ</label><input id="e_cuij" value="${attr(c.cuij||'')}"></div>
   </div>
   <div class="field"><label>Objeto</label><textarea id="e_obj" rows="2">${esc(c.objeto)}</textarea></div>
-  <div class="ed-dir">
+  <div class="ed-dir" style="display:none">
     <div class="ed-dir-h">📒 Asignar desde el Directorio</div>
     <div class="grid2">
       <div class="field"><label>Juzgado (del directorio)</label><select id="e_dirjuz" onchange="edDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}" ${c.dirJuzId===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select>${dirJuzDiag()}</div>
