@@ -1259,6 +1259,49 @@
 </style>
 </head>
 <body>
+<style>
+  #apiceSplash{position:fixed;inset:0;z-index:99998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
+    background:radial-gradient(120% 120% at 50% 32%, #223047 0%, #1C2433 60%, #141b27 100%);transition:opacity .6s ease}
+  #apiceSplash.apx-hide{opacity:0;pointer-events:none}
+  #apiceSplash .apx-stage{width:min(52vw,220px);height:min(52vw,220px);filter:drop-shadow(0 20px 50px rgba(0,0,0,.45))}
+  #apiceSplash svg{width:100%;height:100%;display:block}
+  #apiceSplash .apx-p{opacity:0;transform-box:fill-box;transform-origin:center}
+  #apiceSplash #apxFlash{opacity:0;transform-box:fill-box;transform-origin:center}
+  #apiceSplash .apx-edge{stroke:#fff;stroke-width:5;stroke-linecap:round;fill:none;opacity:0}
+  #apiceSplash .apx-txt{text-align:center;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  #apiceSplash .apx-word{letter-spacing:.42em;font-weight:700;font-size:23px;line-height:1.1;padding-left:.42em;color:#ECF2F5;opacity:0;transform:translateY(6px);transition:all .7s cubic-bezier(.18,.9,.28,1)}
+  #apiceSplash .apx-word.on{opacity:1;transform:none}
+  #apiceSplash .apx-sub{margin-top:12px;font-size:12px;color:#8FA3BC;letter-spacing:.14em;opacity:0;transition:opacity .8s ease .25s}
+  #apiceSplash .apx-sub.on{opacity:1}
+  .sb-logo{cursor:pointer}
+</style>
+<div id="apiceSplash" aria-hidden="true">
+  <div class="apx-stage">
+    <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ÁPICE">
+      <defs>
+        <linearGradient id="apxg" gradientUnits="userSpaceOnUse" x1="120" y1="130" x2="392" y2="382">
+          <stop offset="0" stop-color="#3FC8BD"/><stop offset="1" stop-color="#356E94"/>
+        </linearGradient>
+        <radialGradient id="apxFlashG" cx="50%" cy="50%" r="50%">
+          <stop offset="0" stop-color="#ffffff" stop-opacity="1"/>
+          <stop offset="45%" stop-color="#eafcff" stop-opacity=".7"/>
+          <stop offset="100%" stop-color="#eafcff" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect x="6" y="6" width="500" height="500" rx="96" fill="#1C2433"/>
+      <g id="apxLogo">
+        <path id="apxBase" class="apx-p" d="M256 130 L392 382 L120 382 Z" fill="url(#apxg)"/>
+        <path id="apxNavy" class="apx-p" d="M256 235 L333 382 L179 382 Z" fill="#23436E"/>
+        <path id="apxLite" class="apx-p" d="M256 130 L272 281 L207 382 L120 382 Z" fill="#46D2C6" opacity=".85"/>
+        <path id="apxEdgeL" class="apx-edge" d="M256 130 L120 382"/>
+        <path id="apxEdgeR" class="apx-edge" d="M256 130 L392 382"/>
+        <circle id="apxFlash" cx="256" cy="130" r="70" fill="url(#apxFlashG)"/>
+      </g>
+    </svg>
+  </div>
+  <div class="apx-txt"><div class="apx-word">ÁPICE</div><div class="apx-sub">GESTIÓN JURÍDICA</div></div>
+</div>
+<script>if(sessionStorage.getItem('apxSeen')){var _sp=document.getElementById('apiceSplash');if(_sp)_sp.style.display='none';}</script>
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo"><img id="sbLogo" alt="ÁPICE"></div>
   <button class="sb-notif" id="sbNotif" onclick="navTo('avisos')"><span class="sbn-bell">🔔</span>Avisos<span class="sbn-badge" id="sbnBadge"></span></button>
@@ -1635,7 +1678,7 @@ function renderExpedientes(){
   ${st.filtrosOpen?filtrosHTML():''}`;
   const vis=visibles(causas),secs=st.fEstado?[st.fEstado]:ORDEN;
   secs.forEach(e=>{
-    const g=vis.filter(c=>c.estado===e);if(e==='tramite'||e==='preparacion')g.sort((a,b)=>(a.caratula||'').localeCompare(b.caratula||'','es'));
+    const g=vis.filter(c=>c.estado===e);
     h+=`<div class="seccion"><div class="seccion-head"><span class="marker ${cc(e)}"></span><h2>${ESTADOS[e].l}${e!=='finalizada'?'s':''}</h2><span class="cnt">${g.length}</span></div>`;
     h+= g.length===0 ? `<div class="vacio">${e==='finalizada'?'Todavía no hay causas finalizadas.':e==='suspenso'?'Ninguna causa en suspenso por ahora.':'Sin causas que coincidan con los filtros.'}</div>`
       : `<div class="grid">${g.map(card).join("")}</div>`;
@@ -1829,9 +1872,9 @@ function archRow(cid,a){
     +'<span style="font-size:18px">'+icon+'</span>'
     +'<a href="/api/archivos/'+a.id+'/descargar" target="_blank" rel="noopener" style="font-weight:600;color:var(--tinta);text-decoration:none;flex:1;min-width:140px">'+esc(a.nombre)+'</a>'
     +'<span style="font-size:11px;font-weight:600;color:'+car.c+';background:'+car.c+'18;padding:3px 9px;border-radius:20px">'+car.l+'</span>'
-    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'+(a.fecha_doc?'<span style="font-size:11px;color:var(--mut)">'+a.fecha_doc.split('-').reverse().join('/')+'</span>':'')
+    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
-    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarFechaArchivo('+a.id+',\''+cid+'\',\''+(a.fecha_doc||'')+'\')">Fecha</button>'+'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
+    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+cid+'\',\''+nomJs+'\')">Renombrar</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarArchivo('+a.id+',\''+cid+'\')">Eliminar</button>'
     +'</div>';
@@ -1839,7 +1882,7 @@ function archRow(cid,a){
 function docSetCarp(k){docSt.carpeta=k;renderDocLista();}
 function docFiltVis(v){docSt.fVis=v;renderDocLista();}
 function docBuscar(v){docSt.q=v;renderDocLista();}
-function fechaISOaDMY(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):hoy();}function cambiarFechaArchivo(id,cid,fechaActual){var actualDMY=fechaActual?fechaActual.split('-').reverse().join('/'):'';var nuevo=prompt('Fecha del documento (dd/mm/aaaa):',actualDMY);if(nuevo===null)return;var m=nuevo.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!m){alert('Formato invalido. Usa dd/mm/aaaa.');return;}var iso=m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');archivoAccion(id,'PUT',{fecha_doc:iso}).then(function(){cargarArchivos(cid);}).catch(function(e){alert(e.message);});}function agregarDocOverlay(causaId,preset){
+function agregarDocOverlay(causaId){
   let selFile=null;
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
@@ -1857,7 +1900,7 @@ function fechaISOaDMY(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+
     +'<input id="docNombre" type="text" placeholder="Ej: Demanda inicial" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
     +'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Carpeta</label>'
     +'<select id="docCarp" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box;background:#fff">'+carpOpts+'</select>'
-    +'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docVis" type="checkbox"> Visible para el cliente</label>'+'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Fecha del documento</label>'+'<input id="docFecha" type="date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'+'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docMov" type="checkbox" checked> Agregar a movimientos (bitacora)</label>'+'<input id="docMovTxt" type="text" placeholder="Texto del movimiento (opcional)" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box;margin-top:6px">'
+    +'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docVis" type="checkbox"> Visible para el cliente</label>'
     +'<div id="docMsg" style="color:#8a2828;font-size:12px;margin-top:10px"></div>'
     +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
       +'<button id="docCancel" style="background:#EEF0F3;border:0;padding:11px 16px;border-radius:9px;font-size:14px;cursor:pointer">Cancelar</button>'
@@ -1865,7 +1908,7 @@ function fechaISOaDMY(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+
     +'</div>'
     +'</div>';
   document.body.appendChild(ov);
-  if(preset){if(preset.nombre)ov.querySelector('#docNombre').value=preset.nombre;if(preset.carpeta)ov.querySelector('#docCarp').value=preset.carpeta;}const selEl=ov.querySelector('#docSel'),nomEl=ov.querySelector('#docNombre');
+  const selEl=ov.querySelector('#docSel'),nomEl=ov.querySelector('#docNombre');
   const guardarBtn=ov.querySelector('#docGuardar'),msgEl=ov.querySelector('#docMsg');
   function onPick(inp){
     const f=inp.files&&inp.files[0];if(!f)return;
@@ -1885,12 +1928,12 @@ function fechaISOaDMY(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+
     fd.append('file',selFile);fd.append('causa_id',causaId);
     fd.append('nombre',(nomEl.value.trim()||selFile.name));
     fd.append('carpeta',ov.querySelector('#docCarp').value);
-    if(ov.querySelector('#docVis').checked)fd.append('visible_cliente','1');fd.append('fecha_doc',ov.querySelector('#docFecha').value||new Date().toISOString().slice(0,10));
+    if(ov.querySelector('#docVis').checked)fd.append('visible_cliente','1');
     try{
       const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});
       const j=await r.json();
       if(!j||j.ok===false)throw new Error((j&&j.error)||'Error al subir');
-      if(ov.querySelector('#docMov').checked){var __c=get(causaId);if(__c){if(!Array.isArray(__c.bitacora))__c.bitacora=[];__c.bitacora.push({fecha:fechaISOaDMY(ov.querySelector('#docFecha').value),texto:(ov.querySelector('#docMovTxt').value.trim()||nomEl.value.trim()||selFile.name),inicio:false});persist();}}document.body.removeChild(ov);cargarArchivos(causaId);
+      document.body.removeChild(ov);cargarArchivos(causaId);
     }catch(e){msgEl.textContent='No se pudo subir: '+e.message;guardarBtn.disabled=false;guardarBtn.textContent='Guardar';}
   });
 }
@@ -2162,7 +2205,7 @@ function renderCliente(c){
   const cliTabBtn=(id,l)=>`<button class="tab ${tab===id?'on':''}" onclick="setCliTab('${id}')">${l}</button>`;
   let panel;
   if(tab==="docs"){
-    const docs=sel.documentos.filter(d=>d.visible&&(d.u||sel.folder));
+    const docs=sel.documentos.filter(d=>d.visible);
     const arch=sel.archivos||[];
     const archHtml=arch.length?arch.map(a=>{const icon=a.tipo==='pdf'?'📄':((['jpg','jpeg','png'].indexOf(a.tipo)>=0)?'🖼':'📝');return `<a class="doc" href="/api/archivos/${a.id}/descargar" target="_blank" rel="noopener">${icon} <span class="dn">${esc(a.nombre)}</span>${a.tipo?`<span class="dext">${esc(a.tipo)}</span>`:''}<span class="vtag cli" style="cursor:default">Descargar</span></a>`;}).join(""):'';
     const nada=(!docs.length&&!arch.length);
@@ -2247,14 +2290,14 @@ function mAgregar(){
   </div>
   <div class="field"><label>Cliente</label><select id="n_cli_sel"><option value="">— Elegí un cliente existente —</option>${cliOpts}<option value="__nuevo__">➕ Cargar un cliente nuevo</option></select></div>
   <div class="field"><label>…o nombre del cliente nuevo</label><input id="n_cli_nuevo" placeholder="Completá solo si elegiste “cliente nuevo”"></div>
-  <div class="field"><label>Materia (separar con coma)</label><input id="n_mat" list="n_mat_dl" placeholder="Ej: Sucesion, Alimentos"><datalist id="n_mat_dl">${materiasFiltro().map(x=>`<option value="${esc(x)}">`).join("")}</datalist></div>
+  <div class="field"><label>Materia</label><select id="n_mat">${materiasFiltro().map(x=>`<option>${esc(x)}</option>`).join("")}</select></div>
   <div class="field"><label>Objeto</label><input id="n_obj" placeholder="Breve descripción del objeto"></div>
-  <div class="ed-sub">Parte actora</div><div class="grid2"><div class="field"><label>Actor</label><input id="n_act" placeholder="Nombre del actor"></div><div class="field"><label>Patrocinio</label><input id="n_actpat" placeholder="Dra. ..."></div></div><div class="ed-sub">Parte demandada / contraparte</div><div class="grid2"><div class="field"><label>Demandado/s (separar con coma si hay mas de uno)</label><input id="n_dem" placeholder="Nombre del/los demandado/s"></div><div class="field"><label>Patrocinio</label><input id="n_dempat" placeholder=""></div></div>
+  <div class="field"><label>Partes intervinientes</label><textarea id="n_par" rows="2" placeholder="Actora / demandado / causante…"></textarea></div>
   <div class="field"><label>Fuero</label><input id="n_fuero" placeholder="Civil / Familia / …"></div>
-  <div class="ed-dir" style="display:none">
+  <div class="ed-dir">
     <div class="ed-dir-h">📒 Asignar desde la Guía Judicial</div>
     <div class="grid2">
-      <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select>${dirJuzDiag()}</div>
+      <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>x.cat==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select></div>
       <div class="field"><label>Secretaría de esta causa</label><select id="n_dirsec" onchange="naDirSec(this.value)"><option value="">— Elegí secretaría —</option></select></div>
     </div>
     <div class="ed-dir-n">Elegí el juzgado y la secretaría que llevan la causa: se completan los campos de abajo y podés ajustarlos a mano. Si el juzgado no está en la Guía, escribilo abajo y tocá “Agregar a la Guía”.</div>
@@ -2281,10 +2324,10 @@ function mEditar(c){
     <div class="field"><label>CUIJ</label><input id="e_cuij" value="${attr(c.cuij||'')}"></div>
   </div>
   <div class="field"><label>Objeto</label><textarea id="e_obj" rows="2">${esc(c.objeto)}</textarea></div>
-  <div class="ed-dir" style="display:none">
+  <div class="ed-dir">
     <div class="ed-dir-h">📒 Asignar desde el Directorio</div>
     <div class="grid2">
-      <div class="field"><label>Juzgado (del directorio)</label><select id="e_dirjuz" onchange="edDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}" ${c.dirJuzId===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select>${dirJuzDiag()}</div>
+      <div class="field"><label>Juzgado (del directorio)</label><select id="e_dirjuz" onchange="edDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>x.cat==='juzgado').map(x=>`<option value="${x.id}" ${c.dirJuzId===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select></div>
       <div class="field"><label>Secretaría de esta causa</label><select id="e_dirsec" onchange="edDirSec(this.value)">${edSecOptions(c)}</select></div>
     </div>
     <div class="ed-dir-n">Elegí el juzgado y la secretaría que llevan esta causa (los secretarios se reparten las causas). Se guarda y queda fijo. Igual podés ajustar los campos de abajo a mano.</div>
@@ -2302,12 +2345,12 @@ function mEditar(c){
   </div>
   <div class="ed-sub">Parte demandada / contraparte</div>
   <div class="grid2">
-    <div class="field"><label>Demandado/s (separar con coma si hay mas de uno)</label><input id="e_dem" value="${attr(c.demandado||'')}"></div>
+    <div class="field"><label>Demandado</label><input id="e_dem" value="${attr(c.demandado||'')}"></div>
     <div class="field"><label>Patrocinio</label><input id="e_dempat" value="${attr(c.demandadoPat||'')}"></div>
   </div>
   <div class="ed-sub">Cliente</div>
   <div class="grid2">
-    <div class="field"><label>Cliente</label><select id="e_cli_sel"><option value="__nuevo__">➕ Escribir otro nombre</option>${clienteNombres().map(n=>`<option value="${esc(n)}" ${c.cliente===n?'selected':''}>${esc(n)}</option>`).join('')}</select></div><div class="field"><label>…o nombre distinto</label><input id="e_cli_nuevo" placeholder="Completa si elegiste otro nombre" value="${(c.cliente&&!clienteNombres().includes(c.cliente))?attr(c.cliente):''}"></div>
+    <div class="field"><label>Nombre</label><input id="e_cli" value="${attr(c.cliente)}"></div>
     <div class="field"><label>Calidad (derecho propio / representación)</label><input id="e_ccal" value="${attr(c.clienteCalidad||'')}"></div>
   </div>
   <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn-prim" onclick="guardarEdit('${c.id}')">Guardar cambios</button></div></div>`;
@@ -2362,7 +2405,7 @@ function setF(k,v){st[k]=(st[k]===v?null:v);renderExpedientes();}
 function setTab(t){st.tab=t;st.editPend=null;st.editMov=null;renderFicha();}
 function abrirFicha(id){st.actual=id;st.vista="ficha";st.tab="datos";st.cliente=false;st.editPend=null;st.editMov=null;window.scrollTo(0,0);render();calcSt.applied=null;if(calcSt.open)renderSide();}
 function cerrarFicha(){st.vista="tablero";st.actual=null;window.scrollTo(0,0);render();calcSt.applied=null;if(calcSt.open)renderSide();}
-function toggleCliente(v){st.cliente=v;if(v){st.cliCausa=st.actual;st.cliTab="datos";const __c=get(st.actual);if(__c){fetch('/api/archivos?causa='+encodeURIComponent(__c.id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok!==false&&Array.isArray(j.data)){__c.archivos=j.data.filter(function(a){return Number(a.visible_cliente)===1;});if(st.cliente&&st.actual===__c.id)renderFicha();}}).catch(function(){});}}else{st.cliCausa=null;}renderFicha();calcSt.applied=null;if(calcSt.open)renderSide();}
+function toggleCliente(v){st.cliente=v;if(v){st.cliCausa=st.actual;st.cliTab="datos";}else{st.cliCausa=null;}renderFicha();calcSt.applied=null;if(calcSt.open)renderSide();}
 function cliAbrir(id){st.cliCausa=id;st.cliTab="datos";window.scrollTo(0,0);renderFicha();}
 function cliVerCausas(){st.cliCausa=null;window.scrollTo(0,0);renderFicha();}
 function setCliTab(t){st.cliTab=t;renderFicha();}
@@ -2403,7 +2446,7 @@ function panelHonorarios(c){
   const hoyISO=new Date().toISOString().slice(0,10);
   return `<div class="hon-eqnote">Equivalencias en pesos calculadas con IUS = <b>${fmtPesos(vIus)}</b>. El valor del IUS se cambia desde el botón <b>IUS</b> del tablero o desde el panel (☰) → Honorarios.</div>
 
-  <div class="conv-bar"><div><b>Convenio de honorarios</b><span>Generá el acuerdo abogado–cliente autocompletado (borrador editable).</span></div><button class="btn-add" onclick="openModal({tipo:'convenio',id:'${c.id}'})">${c.convenioForm?'Ver / editar':'Crear convenio'}</button><button class="btn-sec" onclick="agregarDocOverlay('${c.id}',{nombre:'Convenio de honorarios',carpeta:'cliente'})">📎 Subir convenio firmado</button></div>
+  <div class="conv-bar"><div><b>Convenio de honorarios</b><span>Generá el acuerdo abogado–cliente autocompletado (borrador editable).</span></div><button class="btn-add" onclick="openModal({tipo:'convenio',id:'${c.id}'})">${c.convenioForm?'Ver / editar':'Crear convenio'}</button></div>
   <div class="bloque-titulo">Honorarios profesionales (en IUS)</div>
   <div class="hon-card"><div class="hon-set"><label>Honorarios pactados del proceso</label>
     <input type="number" id="hon_ius" value="${totalIus}" min="0" step="0.5"><span>IUS</span>
@@ -2607,7 +2650,7 @@ function guardarEdit(id){const c=get(id);const g=i=>document.getElementById(i).v
   c.materia=g('e_mat').split(',').map(s=>s.trim()).filter(Boolean);if(!c.materia.length)c.materia=['Sucesión'];
   c.expediente=g('e_exp').trim()||null;c.cuij=g('e_cuij').trim()||null;c.objeto=g('e_obj').trim();
   c.fuero=g('e_fuero').trim();c.juzgado=g('e_juz').trim();c.juez=g('e_juez').trim();c.secretaria=g('e_sec').trim();
-  c.actor=g('e_act').trim();c.actorPat=g('e_actpat').trim();c.demandado=g('e_dem').trim();c.demandadoPat=g('e_dempat').trim();const __cliSel=g('e_cli_sel'),__cliNuevo=g('e_cli_nuevo').trim();const __nuevoCli=(__cliSel&&__cliSel!=='__nuevo__')?__cliSel:(__cliNuevo||c.cliente);if(__nuevoCli&&__nuevoCli!==c.cliente){const __old=c.cliente;const __otras=causas.filter(x=>x.id!==c.id&&x.cliente===__old);if(__otras.length&&confirm('Este cliente tiene '+__otras.length+' causa(s) mas registradas como "'+__old+'". Renombrarlas tambien a "'+__nuevoCli+'"?')){__otras.forEach(x=>x.cliente=__nuevoCli);if(clientes[__old]){clientes[__nuevoCli]=Object.assign({},clientes[__nuevoCli]||{},clientes[__old]);delete clientes[__old];persistCli();}}}c.cliente=__nuevoCli;c.clienteCalidad=g('e_ccal').trim();
+  c.actor=g('e_act').trim();c.actorPat=g('e_actpat').trim();c.demandado=g('e_dem').trim();c.demandadoPat=g('e_dempat').trim();c.cliente=g('e_cli').trim();c.clienteCalidad=g('e_ccal').trim();
   c.dirJuzId=(document.getElementById('e_dirjuz')||{}).value||null;
   persist();closeModal();if(st.vista==="ficha")renderFicha();}
 function irACausa(id,tab){st.modal=null;st.actual=id;st.vista="ficha";st.tab=tab;st.cliente=false;st.editPend=null;window.scrollTo(0,0);render();}
@@ -2636,10 +2679,10 @@ function guardarNueva(){const g=id=>{const el=document.getElementById(id);return
   const pend=enTr
     ?[{t:"Verificar el último movimiento en el expediente (IURIX).",done:false},{t:"Completar datos y documentación.",done:false}]
     :[{t:"Completar datos y documentación.",done:false},{t:"Preparar escrito de inicio.",done:false}];
-  const __matArr=g("n_mat").split(',').map(s=>s.trim()).filter(Boolean);causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:__matArr.length?__matArr:["Sucesión"],
+  causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:[g("n_mat")||"Sucesión"],
     caratula:car,cliente:cliName||"A completar",expediente:exp,cuij:null,objeto:g("n_obj")||"A completar.",
     fuero:g("n_fuero")||"A definir",juzgado:g("n_juz")||"A definir al presentar",juez:g("n_juez")||"—",secretaria:g("n_sec")||"—",dirJuzId:(document.getElementById("n_dirjuz")||{}).value||null,
-    letrada:g("n_let")||"Dra. Rocío Cristal Luján",clienteEs:"activa",actorRol:"Actora",actor:g("n_act")||"A completar",actorPat:g("n_actpat")||g("n_let")||"Dra. Rocío Cristal Luján",demandadoRol:"Demandado",demandado:g("n_dem")||"A completar",demandadoPat:g("n_dempat")||"",clienteCalidad:"por derecho propio",posicion:"—",
+    letrada:g("n_let")||"Dra. Rocío Cristal Luján",clienteEs:"activa",actorRol:"Actora",actor:g("n_par")||"A completar",actorPat:g("n_let")||"Dra. Rocío Cristal Luján",demandadoRol:"Demandado",demandado:"A completar",demandadoPat:"",clienteCalidad:"por derecho propio",posicion:"—",
     ultimoMov:{fecha:hoy(),texto:txtUlt},
     bitacora:[{fecha:hoy(),texto:txtAlta,inicio:true}],
     documentos:[],pendientes:pend,
@@ -3822,7 +3865,7 @@ function DIR_SEED(){return [
  {id:'audien',cat:'mesa',nombre:'Oficina de Gestión de Audiencias',rol:'Coordinador Dr. Sebastián Andrés Lipari',integrantes:[],direccion:'Av. Colón 250',tel:'',email:'',notas:'',oficial:true,act:'2026-06'},
  {id:'aseso',cat:'asesoria',nombre:'Asesorías de Menores e Incapaces',rol:'Tres asesorías',integrantes:['Asesoría 1 — Dra. Daniela Faerman Cano · asesormenor1@juscatamarca.gob.ar','Asesoría 2 — Dra. Carolina Acuña Barrionuevo · asesormenor2@juscatamarca.gob.ar','Asesoría 3 — Dra. Sandra López Gardel · asesormenor3@juscatamarca.gob.ar'],direccion:'Chacabuco 788',tel:'',email:'',notas:'',oficial:true,act:'2026-06'}
 ];}
-function seedDir(){directorio=DIR_SEED();persistDir();}function seedDirMerge(){const ids=new Set(directorio.map(x=>x.id));const nuevos=DIR_SEED().filter(x=>!ids.has(x.id));if(!nuevos.length){alert('Ya estan cargados todos los organismos oficiales.');return;}directorio=directorio.concat(nuevos);persistDir();renderDirectorio();alert('Se agregaron '+nuevos.length+' organismos oficiales (juzgados, mediacion, etc).');}
+function seedDir(){directorio=DIR_SEED();persistDir();}
 function dirSetCat(c){dirSt.cat=c;dirSt.menu=null;renderDirectorio();}
 function dirMigrateNames(){const M={fam1:'Juzgado de Familia de Primera Instancia y de Primera Nominación',fam2:'Juzgado de Familia de Primera Instancia y de Segunda Nominación',fam3:'Juzgado de Familia de Primera Instancia y de Tercera Nominación',fam4:'Juzgado de Familia de Primera Instancia y de Cuarta Nominación, y de Violencia Familiar y de Género',civ1:'Juzgado de Primera Instancia en lo Civil, Primera Nominación',civ2:'Juzgado de Primera Instancia en lo Civil, Segunda Nominación',civ3:'Juzgado de Primera Instancia en lo Civil, Tercera Nominación',civ4:'Juzgado de Primera Instancia en lo Civil, Cuarta Nominación',civ5:'Juzgado de Primera Instancia en lo Civil, Quinta Nominación'};let ch=false;(directorio||[]).forEach(e=>{if(e&&M[e.id]&&e.nombre!==M[e.id]){e.nombre=M[e.id];ch=true;}});if(ch)persistDir();}
 function dirIntParse(x){const i=x.lastIndexOf('— ');if(i>=0)return {lbl:x.slice(0,i).trim(),nom:x.slice(i+2).trim()};const j=x.indexOf(':');if(j>=0)return {lbl:x.slice(0,j).trim(),nom:x.slice(j+1).trim()};return {lbl:'',nom:x.trim()};}
@@ -3845,20 +3888,20 @@ function dirCard(e){
     ${(foot.length||e.notas)?`<div class="gj-foot">${foot.join('')}${e.notas?`<div class="gj-notas">${esc(e.notas)}</div>`:''}</div>`:''}
   </div>`;
 }
-function dirNorm(s){var t=String(s||'').toLowerCase().trim().normalize('NFD');var out='';for(var i=0;i<t.length;i++){var c=t.charCodeAt(i);if(c<768||c>879)out+=t[i];}return out;}function dirJuzDiag(){var total=directorio.length;var juz=directorio.filter(function(x){return String(x.cat||'').trim().toLowerCase()==='juzgado';}).length;if(juz>0)return '';if(total===0)return '<div class="hint" style="color:#B54708;font-size:12px;margin-top:4px">Todavia no cargaste organismos en la Guia Judicial. Escribi el juzgado abajo y usa "+ Agregar a la Guia", o crea uno desde "Guia Judicial".</div>';var cnt={};directorio.forEach(function(e){var k=e.cat||'(sin categoria)';cnt[k]=(cnt[k]||0)+1;});var resumen=Object.keys(cnt).map(function(k){return k+': '+cnt[k];}).join(', ');return '<div class="hint" style="color:#B54708;font-size:12px;margin-top:4px">Tenes '+total+' organismos en la Guia pero ninguno con categoria "juzgado". Categorias reales: '+resumen+'. Revisalos en "Guia Judicial" y cambiales la categoria a "Juzgados".</div>';}function renderDirectorio(){
-
-  let list=directorio.slice();try{const q=dirNorm(dirSt.q);
-
-if(q)list=list.filter(function(e){var integ=Array.isArray(e.integrantes)?e.integrantes.join(' '):(e.integrantes?String(e.integrantes):'');return dirNorm([e.nombre,e.rol,e.direccion,e.email,e.notas,integ].join(' ')).includes(q);});}catch(err){list=directorio.slice();}
-
-
-  const cards=list.length?list.map(dirCard).join(''):'<div class="vacio">'+(directorio.length?'Sin organismos que coincidan con la busqueda.':'Todavia no cargaste organismos en la Guia.')+'</div>';
+function renderDirectorio(){
+  const q=(dirSt.q||'').toLowerCase().trim();
+  let list=directorio.slice();
+  if(dirSt.cat!=='todos')list=list.filter(e=>e.cat===dirSt.cat);
+  if(q)list=list.filter(e=>((e.nombre||'')+' '+(e.rol||'')+' '+(e.integrantes||[]).join(' ')+' '+(e.email||'')).toLowerCase().includes(q));
+  const cats=DIR_CATS.filter(c=>c[0]!=='colega');
+  const chips=[['todos','Todos']].concat(cats).map(([k,l])=>`<button class="gj-chip ${dirSt.cat===k?'on':''}" onclick="dirSetCat('${k}')">${l}</button>`).join('');
+  const cards=list.length?list.map(dirCard).join(''):'<div class="vacio">Sin organismos que coincidan.</div>';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide gj-wrap">
     <div class="gj-head"><h1>Guía Judicial</h1>
       <div class="gj-head-acc"><div class="search gj-search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="dirBuscar" placeholder="Buscar…" value="${attr(dirSt.q)}"></div>
       <button class="btn-add" onclick="dirEdit('')">+ Crear organismo</button></div></div>
     <div class="gj-info"><span class="gj-info-ic">ℹ</span><div><b>Datos orientativos:</b> verificá siempre la nómina oficial antes de presentar escritos. Última actualización: Junio 2026.</div></div>
-
+    <div class="gj-chips">${chips}</div>
     <div class="gj-grid">${cards}</div>
   </div>`;
   const b=document.getElementById('dirBuscar');
@@ -4004,7 +4047,7 @@ function cvTogglePago(){const s=document.getElementById('cv_pago');const b=docum
 function mConvenio(id){const f=cvGetForm(id)||cvSeed(id);const sug=id?escSug(get(id)):'';
   const base=(f.clausulas&&f.clausulas.length)?f.clausulas:CONVENIO_CLAUSULAS_DEFAULT();
   const unidad=f.unidad||'ius';const pago=f.pago||'unico';
-  let profs=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);(id?((get(id)||{}).letrada||''):'').split('/').map(s=>s.trim()).filter(Boolean).forEach(n=>{if(profs.indexOf(n)<0)profs.push(n);});
+  let profs=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);
   if(f.prof&&profs.indexOf(f.prof)<0)profs.unshift(f.prof);
   const profOpts=profs.map(n=>`<option value="${attr(n)}" ${f.prof===n?'selected':''}>${esc(n)}</option>`).join('');
   const fld=(lab,idd,val,ph)=>`<div class="field"><label>${lab}</label><input id="${idd}" value="${attr(val||'')}" placeholder="${attr(ph||'')}"></div>`;
@@ -4130,6 +4173,60 @@ async function initCliente(me){
 }
 async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
+</script>
+<script>
+/* ===== Animación de marca ÁPICE (cortina de bienvenida + repetir al tocar el logo) ===== */
+(function(){
+  var EASE="cubic-bezier(.16,.84,.30,1)", EDGE=288, running=false, actx=null;
+  function el(id){return document.getElementById(id);}
+  function ac(){ if(!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} if(actx&&actx.state==="suspended")actx.resume(); return actx; }
+  function whoosh(t){ var c=ac(); if(!c)return; var n=c.sampleRate*0.32,b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0),i;
+    for(i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    var s=c.createBufferSource();s.buffer=b; var lp=c.createBiquadFilter();lp.type="lowpass";
+    lp.frequency.setValueAtTime(500,t);lp.frequency.exponentialRampToValueAtTime(1100,t+0.18);
+    var g=c.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.07,t+0.03);g.gain.exponentialRampToValueAtTime(0.0006,t+0.28);
+    s.connect(lp).connect(g).connect(c.destination);s.start(t);s.stop(t+0.34); }
+  function click(t){ var c=ac(); if(!c)return; [1568,2093,3136].forEach(function(f,i){ var o=c.createOscillator(),g=c.createGain();
+    o.type="sine";o.frequency.value=f; var v=[0.10,0.07,0.045][i];
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(v,t+0.004);g.gain.exponentialRampToValueAtTime(0.0004,t+0.5);
+    o.connect(g).connect(c.destination);o.start(t);o.stop(t+0.55); }); }
+  function chord(t){ var c=ac(); if(!c)return; [220,277.18,329.63].forEach(function(f){ var o=c.createOscillator(),g=c.createGain();
+    o.type="triangle";o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.05,t+0.14);g.gain.exponentialRampToValueAtTime(0.0004,t+0.75);
+    o.connect(g).connect(c.destination);o.start(t);o.stop(t+0.8); }); }
+
+  function playAnim(sound){
+    var base=el("apxBase"),navy=el("apxNavy"),lite=el("apxLite"),eL=el("apxEdgeL"),eR=el("apxEdgeR"),
+        flash=el("apxFlash"),logo=el("apxLogo"),sp=el("apiceSplash");
+    if(!base||!sp)return;
+    var word=sp.querySelector(".apx-word"), sub=sp.querySelector(".apx-sub");
+    [eL,eR].forEach(function(e){e.style.strokeDasharray=EDGE;e.style.strokeDashoffset=EDGE;});
+    if(word)word.classList.remove("on"); if(sub)sub.classList.remove("on");
+    base.animate([{transform:"translateY(200px) scale(.94)",opacity:0},{transform:"none",opacity:1}],{delay:150,duration:660,easing:EASE,fill:"both"});
+    navy.animate([{transform:"translateX(180px) rotate(10deg)",opacity:0},{transform:"none",opacity:1}],{delay:405,duration:615,easing:EASE,fill:"both"});
+    lite.animate([{transform:"translateX(-185px)",opacity:0},{opacity:.85,transform:"none"}],{delay:630,duration:570,easing:EASE,fill:"both"});
+    flash.animate([{transform:"scale(.15)",opacity:0,offset:0},{transform:"scale(1)",opacity:.95,offset:.35},{transform:"scale(2.6)",opacity:0,offset:1}],{delay:1350,duration:780,easing:"cubic-bezier(.2,.7,.3,1)",fill:"both"});
+    var eo={delay:1395,duration:450,easing:"cubic-bezier(.3,.7,.2,1)",fill:"both"};
+    eL.animate([{strokeDashoffset:EDGE,opacity:0,offset:0},{opacity:1,offset:.2},{strokeDashoffset:0,opacity:0,offset:1}],eo);
+    eR.animate([{strokeDashoffset:EDGE,opacity:0,offset:0},{opacity:1,offset:.2},{strokeDashoffset:0,opacity:0,offset:1}],eo);
+    logo.animate([{transform:"scale(1)",offset:0},{transform:"scale(1.05)",offset:.18},{transform:"scale(.995)",offset:.4},{transform:"scale(1)",offset:1}],{delay:1320,duration:1140,easing:"ease-out",fill:"both"});
+    el("apiceSplash").querySelector(".apx-stage").animate([{filter:"drop-shadow(0 20px 50px rgba(0,0,0,.45)) brightness(1)"},{filter:"drop-shadow(0 20px 60px rgba(63,200,189,.35)) brightness(1.12)",offset:.25},{filter:"drop-shadow(0 20px 50px rgba(0,0,0,.45)) brightness(1)"}],{delay:1350,duration:1350,easing:"ease-in-out",fill:"both"});
+    setTimeout(function(){if(word)word.classList.add("on");if(sub)sub.classList.add("on");},1620);
+    if(sound){ var c=ac(); if(c){ var t=c.currentTime+0.02; whoosh(t+0.15);whoosh(t+0.405);whoosh(t+0.63);click(t+1.38);chord(t+1.42); } }
+  }
+
+  window.apiceIntro=function(sound){
+    var sp=el("apiceSplash"); if(!sp||running)return; running=true;
+    sp.style.display="flex"; sp.classList.remove("apx-hide");
+    setTimeout(function(){ sp.classList.add("apx-hide"); setTimeout(function(){sp.style.display="none";running=false;},650); },2600);
+    try{ playAnim(sound); }catch(e){}
+  };
+
+  // Al entrar: se muestra una vez por sesión del navegador (sin sonido: los navegadores lo bloquean sin gesto).
+  if(!sessionStorage.getItem("apxSeen")){ sessionStorage.setItem("apxSeen","1"); if(document.readyState!=="loading")apiceIntro(false); else window.addEventListener("load",function(){apiceIntro(false);}); }
+  // Tocar el logo (barra lateral / bienvenida / bloqueo) la repite con sonido.
+  document.addEventListener("click",function(e){ var t=e.target; if(t&&t.closest&&t.closest(".sb-logo, .onb-logo, .lock-logo")){ apiceIntro(true); } });
+})();
 </script>
 </body>
 </html>
