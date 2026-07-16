@@ -1191,7 +1191,11 @@
   .cima-panel{position:fixed;right:22px;bottom:88px;width:360px;max-width:calc(100vw - 28px);height:540px;max-height:calc(100vh - 120px);background:var(--tarjeta);border:1px solid var(--linea-fuerte);border-radius:16px;box-shadow:0 24px 60px -18px rgba(26,34,56,.45);z-index:300;display:flex;flex-direction:column;overflow:hidden}
   .cima-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:linear-gradient(135deg,var(--tinta),var(--nav-hi));color:#fff}
   .cima-h-id{display:flex;align-items:center;gap:10px}
-  .cima-star{font-size:18px;color:#9FE6DD}
+  .cima-star{font-size:0;line-height:0}
+  .cimaStarSvg{width:30px;height:30px;display:block}
+  #cimaBtn .cimaStarSvg{width:32px;height:32px}
+  @keyframes cimaTwk{0%,100%{opacity:.35}50%{opacity:1}}
+  .cimaTw{animation:cimaTwk 1.9s ease-in-out infinite;transform-origin:center}
   .cima-h-n{font-family:var(--serif);font-weight:600;font-size:15px}
   .cima-h-s{font-size:10.5px;color:#9FB1C9;margin-top:1px}
   .cima-h-acc{display:flex;gap:4px}
@@ -3495,7 +3499,7 @@ function renderConfig(){
 }
 /* ===== CHATBOT DE SOPORTE "CIMA" (v27) — árbol de decisión, sin IA ===== */
 const CIMA={
- root:{m:["Hola, soy Cima, tu guía en ÁPICE. ¿Por dónde querés empezar? ✦"],o:[{t:"🚀 Primeros pasos",go:"pasos"},{t:"📁 Cargar un expediente",go:"exp"},{t:"📄 Documentos",go:"docs"},{t:"📅 Agenda y audiencias",go:"agenda"},{t:"💰 Honorarios y reportes",go:"hon"},{t:"🛟 Tengo un problema",go:"sos"}]},
+ root:{m:["Hola, soy Cima, tu guía en ÁPICE. ¿Por dónde querés empezar? ✦"],o:[{t:"🚀 Primeros pasos",go:"pasos"},{t:"📁 Cargar un expediente",go:"exp"},{t:"📄 Documentos",go:"docs"},{t:"📅 Agenda y audiencias",go:"agenda"},{t:"💰 Honorarios y reportes",go:"hon"},{t:"🆘 Tengo un problema",go:"sos"}]},
  pasos:{m:["ÁPICE ordena todo tu estudio en un solo lugar: expedientes, documentos, plazos, agenda, clientes, honorarios y reportes.","Lo más rápido para verle el valor es crear tu primer expediente. ¿Vamos?"],o:[{t:"Sí, crear expediente",go:"exp"},{t:"Ver el panel de Inicio",nav:"dashboard"},{t:"↩ Menú",menu:true}]},
  exp:{m:["Para cargar un expediente: %menu%%clic% en **+ Nueva causa**, arriba a la derecha.","Completá carátula, materia y cliente. El resto lo cargás cuando quieras."],o:[{t:"✨ ¿Y si el cliente es nuevo?",go:"expcli"},{t:"Llevame al Inicio",nav:"dashboard"},{t:"↩ Menú",menu:true}]},
  expcli:{m:["Si el cliente no existía, apenas guardás ÁPICE te abre la ficha para cargar sus datos (persona física o jurídica). Quedan guardados y editables.","Ese es el momento ÁPICE: tu causa ya vive con bitácora, documentos, plazos y honorarios adentro."],o:[{t:"Ver Documentos",go:"docs"},{t:"↩ Menú",menu:true}]},
@@ -3515,6 +3519,7 @@ const CIMA={
  sos4:{m:["Por ahora tus datos se guardan en este dispositivo y podés descargar una copia desde **Configuración → Exportar**.","El resguardo en la nube con secreto profesional llega con la versión conectada."],o:[{t:"↩ Menú",menu:true}]},
  human:{m:["Esto merece una mano experta. En la versión conectada te derivo con el equipo de ÁPICE.","Por ahora, anotá tu consulta y la vemos juntas. ✦"],o:[{t:"↩ Menú",menu:true}]}
 };
+const CIMA_AV=`<svg class="cimaStarSvg" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cima"><defs><linearGradient id="cimatg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3FC8BD"/><stop offset="1" stop-color="#356E94"/></linearGradient></defs><circle cx="24" cy="24" r="22" fill="none" stroke="#7FB0C4" stroke-width="1.5" opacity=".55"/><path d="M24 4 L28.5 18.5 L43 23 L28.5 27.5 L24 42 L19.5 27.5 L5 23 L19.5 18.5 Z" fill="url(#cimatg)"/><path d="M24 13 L26.6 21.4 L35 24 L26.6 26.6 L24 35 L21.4 26.6 L13 24 L21.4 21.4 Z" fill="#8DE6DD" opacity=".85"/><path class="cimaTw" d="M37 8 C37 11 39 13 42 13 C39 13 37 15 37 18 C37 15 35 13 32 13 C35 13 37 11 37 8 Z" fill="#EAFCFF"/></svg>`;
 let cimaSt={open:false,node:'root',log:[]};
 function cimaIsMobile(){return window.innerWidth<760;}
 function cimaTxt(s){const m=cimaIsMobile();return s.replace(/%menu%/g,m?'abrí el menú con ☰ y ':'').replace(/%clic%/g,m?'tocá':'hacé clic').replace(/%Clic%/g,m?'Tocá':'Hacé clic');}
@@ -3524,9 +3529,9 @@ function cimaBot(node){(CIMA[node]||CIMA.root).m.forEach(m=>cimaPush('bot',cimaF
 function injectCima(){
   if(document.getElementById('cimaBtn'))return;
   const wrap=document.createElement('div');wrap.id='cimaWrap';
-  wrap.innerHTML=`<button id="cimaBtn" onclick="cimaToggle()" title="Ayuda de ÁPICE" aria-label="Ayuda"><span class="cima-ic">💬</span></button>
+  wrap.innerHTML=`<button id="cimaBtn" onclick="cimaToggle()" title="Ayuda de ÁPICE" aria-label="Ayuda">${CIMA_AV}</button>
     <div id="cimaPanel" class="cima-panel" style="display:none">
-      <div class="cima-head"><div class="cima-h-id"><span class="cima-star">✦</span><div><div class="cima-h-n">Cima</div><div class="cima-h-s">Tu guía en ÁPICE</div></div></div>
+      <div class="cima-head"><div class="cima-h-id"><span class="cima-star">${CIMA_AV}</span><div><div class="cima-h-n">Cima</div><div class="cima-h-s">Tu guía en ÁPICE</div></div></div>
         <div class="cima-h-acc"><button onclick="cimaReset()" title="Volver al inicio">⟲</button><button onclick="cimaToggle()" title="Cerrar">✕</button></div></div>
       <div class="cima-body" id="cimaBody"></div>
       <div class="cima-foot">Guía paso a paso · no reemplaza asesoramiento legal</div>
