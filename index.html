@@ -1682,7 +1682,7 @@ function renderExpedientes(){
   ${st.filtrosOpen?filtrosHTML():''}`;
   const vis=visibles(causas),secs=st.fEstado?[st.fEstado]:ORDEN;
   secs.forEach(e=>{
-    const g=vis.filter(c=>c.estado===e).sort((a,b)=>cShort(a.caratula).localeCompare(cShort(b.caratula),'es',{sensitivity:'base'}));
+    const g=vis.filter(c=>c.estado===e);if(e==='tramite'||e==='preparacion')g.sort((a,b)=>(a.caratula||'').localeCompare(b.caratula||'','es'));
     h+=`<div class="seccion"><div class="seccion-head"><span class="marker ${cc(e)}"></span><h2>${ESTADOS[e].l}${e!=='finalizada'?'s':''}</h2><span class="cnt">${g.length}</span></div>`;
     h+= g.length===0 ? `<div class="vacio">${e==='finalizada'?'Todavía no hay causas finalizadas.':e==='suspenso'?'Ninguna causa en suspenso por ahora.':'Sin causas que coincidan con los filtros.'}</div>`
       : `<div class="grid">${g.map(card).join("")}</div>`;
@@ -1876,9 +1876,9 @@ function archRow(cid,a){
     +'<span style="font-size:18px">'+icon+'</span>'
     +'<a href="/api/archivos/'+a.id+'/descargar" target="_blank" rel="noopener" style="font-weight:600;color:var(--tinta);text-decoration:none;flex:1;min-width:140px">'+esc(a.nombre)+'</a>'
     +'<span style="font-size:11px;font-weight:600;color:'+car.c+';background:'+car.c+'18;padding:3px 9px;border-radius:20px">'+car.l+'</span>'
-    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'
+    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'+(a.fecha_doc?'<span style="font-size:11px;color:var(--mut)">'+a.fecha_doc.split('-').reverse().join('/')+'</span>':'')
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
-    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
+    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarFechaArchivo('+a.id+',\''+cid+'\',\''+(a.fecha_doc||'')+'\')">Fecha</button>'+'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+cid+'\',\''+nomJs+'\')">Renombrar</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarArchivo('+a.id+',\''+cid+'\')">Eliminar</button>'
     +'</div>';
@@ -1886,7 +1886,7 @@ function archRow(cid,a){
 function docSetCarp(k){docSt.carpeta=k;renderDocLista();}
 function docFiltVis(v){docSt.fVis=v;renderDocLista();}
 function docBuscar(v){docSt.q=v;renderDocLista();}
-function agregarDocOverlay(causaId){
+function fechaISOaDMY(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):hoy();}function cambiarFechaArchivo(id,cid,fechaActual){var actualDMY=fechaActual?fechaActual.split('-').reverse().join('/'):'';var nuevo=prompt('Fecha del documento (dd/mm/aaaa):',actualDMY);if(nuevo===null)return;var m=nuevo.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!m){alert('Formato invalido. Usa dd/mm/aaaa.');return;}var iso=m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');archivoAccion(id,'PUT',{fecha_doc:iso}).then(function(){cargarArchivos(cid);}).catch(function(e){alert(e.message);});}function agregarDocOverlay(causaId,preset){
   let selFile=null;
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
@@ -1904,7 +1904,7 @@ function agregarDocOverlay(causaId){
     +'<input id="docNombre" type="text" placeholder="Ej: Demanda inicial" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
     +'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Carpeta</label>'
     +'<select id="docCarp" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box;background:#fff">'+carpOpts+'</select>'
-    +'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docVis" type="checkbox"> Visible para el cliente</label>'
+    +'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docVis" type="checkbox"> Visible para el cliente</label>'+'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Fecha del documento</label>'+'<input id="docFecha" type="date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'+'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docMov" type="checkbox" checked> Agregar a movimientos (bitacora)</label>'+'<input id="docMovTxt" type="text" placeholder="Texto del movimiento (opcional)" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box;margin-top:6px">'
     +'<div id="docMsg" style="color:#8a2828;font-size:12px;margin-top:10px"></div>'
     +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
       +'<button id="docCancel" style="background:#EEF0F3;border:0;padding:11px 16px;border-radius:9px;font-size:14px;cursor:pointer">Cancelar</button>'
@@ -1912,7 +1912,7 @@ function agregarDocOverlay(causaId){
     +'</div>'
     +'</div>';
   document.body.appendChild(ov);
-  const selEl=ov.querySelector('#docSel'),nomEl=ov.querySelector('#docNombre');
+  if(preset){if(preset.nombre)ov.querySelector('#docNombre').value=preset.nombre;if(preset.carpeta)ov.querySelector('#docCarp').value=preset.carpeta;}const selEl=ov.querySelector('#docSel'),nomEl=ov.querySelector('#docNombre');
   const guardarBtn=ov.querySelector('#docGuardar'),msgEl=ov.querySelector('#docMsg');
   function onPick(inp){
     const f=inp.files&&inp.files[0];if(!f)return;
@@ -1932,12 +1932,12 @@ function agregarDocOverlay(causaId){
     fd.append('file',selFile);fd.append('causa_id',causaId);
     fd.append('nombre',(nomEl.value.trim()||selFile.name));
     fd.append('carpeta',ov.querySelector('#docCarp').value);
-    if(ov.querySelector('#docVis').checked)fd.append('visible_cliente','1');
+    if(ov.querySelector('#docVis').checked)fd.append('visible_cliente','1');fd.append('fecha_doc',ov.querySelector('#docFecha').value||new Date().toISOString().slice(0,10));
     try{
       const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});
       const j=await r.json();
       if(!j||j.ok===false)throw new Error((j&&j.error)||'Error al subir');
-      document.body.removeChild(ov);cargarArchivos(causaId);
+      if(ov.querySelector('#docMov').checked){var __c=get(causaId);if(__c){if(!Array.isArray(__c.bitacora))__c.bitacora=[];__c.bitacora.push({fecha:fechaISOaDMY(ov.querySelector('#docFecha').value),texto:(ov.querySelector('#docMovTxt').value.trim()||nomEl.value.trim()||selFile.name),inicio:false});persist();}}document.body.removeChild(ov);cargarArchivos(causaId);
     }catch(e){msgEl.textContent='No se pudo subir: '+e.message;guardarBtn.disabled=false;guardarBtn.textContent='Guardar';}
   });
 }
@@ -2089,7 +2089,7 @@ function docFiltered(c){
     if(docSt.fVis==='no'&&d.visible)return false;
     if(q&&!((d.n||'').toLowerCase().includes(q)||(d.etiquetas||[]).join(' ').toLowerCase().includes(q)))return false;
     return true;
-  }).sort((a,b)=>(parseDMY(b.d.fecha)||0)-(parseDMY(a.d.fecha)||0));
+  });
 }
 function setDocFolder(k){docSt.carpeta=k;docSt.menu=null;renderFicha();}
 function setDocFilter(k,v){docSt[k]=v;docSt.menu=null;renderFicha();}
@@ -2117,12 +2117,7 @@ function guardarDoc(id){
   const carpeta=document.getElementById('sd_carp').value;
   const relevancia=document.getElementById('sd_rel').value;
   const visible=document.getElementById('sd_vis').checked;
-  const fIso=(document.getElementById('sd_fecha')||{}).value||'';
-  const fecha=fIso?isoToDMY(fIso):docHoy();
-  c.documentos.unshift({n,tipo:docTipo(n),fecha,usuario:'Rocío Luján',carpeta,relevancia,visible,etiquetas:[],u:null,historial:[{fecha,txt:'Documento cargado'}]});
-  c.bitacora.unshift({fecha,texto:'📄 Documento cargado: '+n,nuevo:true});
-  c.bitacora.sort((a,b)=>(parseDMY(b.fecha)||0)-(parseDMY(a.fecha)||0));
-  syncUltimo(c);
+  c.documentos.unshift({n,tipo:docTipo(n),fecha:docHoy(),usuario:'Rocío Luján',carpeta,relevancia,visible,etiquetas:[],u:null,historial:[{fecha:docHoy(),txt:'Documento cargado'}]});
   persist();closeModal();renderFicha();
 }
 function mSubirDoc(c){
@@ -2135,7 +2130,6 @@ function mSubirDoc(c){
      <button class="up-opt" onclick="document.getElementById('sd_n').focus()">🖼️ Subir desde galería</button>
      <button class="up-opt" onclick="document.getElementById('sd_n').focus()">📕 Subir PDF</button></div>
    <div class="field"><label>Nombre del documento *</label><input id="sd_n" placeholder="Ej. Sentencia de Primera Instancia.pdf"></div>
-   <div class="field"><label>Fecha del documento</label><input type="date" id="sd_fecha" value="${hoyKey()}"></div>
    <div class="field"><label>Carpeta</label><select id="sd_carp">${CARP_ORDEN.map(k=>`<option value="${k}">${CARPETAS[k].l}</option>`).join('')}</select></div>
    <div class="field"><label>Relevancia procesal</label><select id="sd_rel"><option value="critica">Crítica</option><option value="relevante">Relevante</option><option value="tramite" selected>Trámite</option></select></div>
    <div class="field cbx"><label><input type="checkbox" id="sd_vis"> Visible para el cliente</label></div>
@@ -2215,7 +2209,7 @@ function renderCliente(c){
   const cliTabBtn=(id,l)=>`<button class="tab ${tab===id?'on':''}" onclick="setCliTab('${id}')">${l}</button>`;
   let panel;
   if(tab==="docs"){
-    const docs=sel.documentos.filter(d=>d.visible);
+    const docs=sel.documentos.filter(d=>d.visible&&(d.u||sel.folder));
     const arch=sel.archivos||[];
     const archHtml=arch.length?arch.map(a=>{const icon=a.tipo==='pdf'?'📄':((['jpg','jpeg','png'].indexOf(a.tipo)>=0)?'🖼':'📝');return `<a class="doc" href="/api/archivos/${a.id}/descargar" target="_blank" rel="noopener">${icon} <span class="dn">${esc(a.nombre)}</span>${a.tipo?`<span class="dext">${esc(a.tipo)}</span>`:''}<span class="vtag cli" style="cursor:default">Descargar</span></a>`;}).join(""):'';
     const nada=(!docs.length&&!arch.length);
@@ -2300,14 +2294,14 @@ function mAgregar(){
   </div>
   <div class="field"><label>Cliente</label><select id="n_cli_sel"><option value="">— Elegí un cliente existente —</option>${cliOpts}<option value="__nuevo__">➕ Cargar un cliente nuevo</option></select></div>
   <div class="field"><label>…o nombre del cliente nuevo</label><input id="n_cli_nuevo" placeholder="Completá solo si elegiste “cliente nuevo”"></div>
-  <div class="field"><label>Materia</label><select id="n_mat">${materiasFiltro().map(x=>`<option>${esc(x)}</option>`).join("")}</select></div>
+  <div class="field"><label>Materia (separar con coma)</label><input id="n_mat" list="n_mat_dl" placeholder="Ej: Sucesion, Alimentos"><datalist id="n_mat_dl">${materiasFiltro().map(x=>`<option value="${esc(x)}">`).join("")}</datalist></div>
   <div class="field"><label>Objeto</label><input id="n_obj" placeholder="Breve descripción del objeto"></div>
-  <div class="field"><label>Partes intervinientes</label><textarea id="n_par" rows="2" placeholder="Actora / demandado / causante…"></textarea></div>
+  <div class="ed-sub">Parte actora</div><div class="grid2"><div class="field"><label>Actor</label><input id="n_act" placeholder="Nombre del actor"></div><div class="field"><label>Patrocinio</label><input id="n_actpat" placeholder="Dra. ..."></div></div><div class="ed-sub">Parte demandada / contraparte</div><div class="grid2"><div class="field"><label>Demandado/s (separar con coma si hay mas de uno)</label><input id="n_dem" placeholder="Nombre del/los demandado/s"></div><div class="field"><label>Patrocinio</label><input id="n_dempat" placeholder=""></div></div>
   <div class="field"><label>Fuero</label><input id="n_fuero" placeholder="Civil / Familia / …"></div>
-  <div class="ed-dir">
+  <div class="ed-dir" style="display:none">
     <div class="ed-dir-h">📒 Asignar desde la Guía Judicial</div>
     <div class="grid2">
-      <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>x.cat==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select></div>
+      <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select>${dirJuzDiag()}</div>
       <div class="field"><label>Secretaría de esta causa</label><select id="n_dirsec" onchange="naDirSec(this.value)"><option value="">— Elegí secretaría —</option></select></div>
     </div>
     <div class="ed-dir-n">Elegí el juzgado y la secretaría que llevan la causa: se completan los campos de abajo y podés ajustarlos a mano. Si el juzgado no está en la Guía, escribilo abajo y tocá “Agregar a la Guía”.</div>
@@ -2334,10 +2328,10 @@ function mEditar(c){
     <div class="field"><label>CUIJ</label><input id="e_cuij" value="${attr(c.cuij||'')}"></div>
   </div>
   <div class="field"><label>Objeto</label><textarea id="e_obj" rows="2">${esc(c.objeto)}</textarea></div>
-  <div class="ed-dir">
+  <div class="ed-dir" style="display:none">
     <div class="ed-dir-h">📒 Asignar desde el Directorio</div>
     <div class="grid2">
-      <div class="field"><label>Juzgado (del directorio)</label><select id="e_dirjuz" onchange="edDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>x.cat==='juzgado').map(x=>`<option value="${x.id}" ${c.dirJuzId===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select></div>
+      <div class="field"><label>Juzgado (del directorio)</label><select id="e_dirjuz" onchange="edDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>String(x.cat||'').trim().toLowerCase()==='juzgado').map(x=>`<option value="${x.id}" ${c.dirJuzId===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select>${dirJuzDiag()}</div>
       <div class="field"><label>Secretaría de esta causa</label><select id="e_dirsec" onchange="edDirSec(this.value)">${edSecOptions(c)}</select></div>
     </div>
     <div class="ed-dir-n">Elegí el juzgado y la secretaría que llevan esta causa (los secretarios se reparten las causas). Se guarda y queda fijo. Igual podés ajustar los campos de abajo a mano.</div>
@@ -2355,12 +2349,12 @@ function mEditar(c){
   </div>
   <div class="ed-sub">Parte demandada / contraparte</div>
   <div class="grid2">
-    <div class="field"><label>Demandado</label><input id="e_dem" value="${attr(c.demandado||'')}"></div>
+    <div class="field"><label>Demandado/s (separar con coma si hay mas de uno)</label><input id="e_dem" value="${attr(c.demandado||'')}"></div>
     <div class="field"><label>Patrocinio</label><input id="e_dempat" value="${attr(c.demandadoPat||'')}"></div>
   </div>
   <div class="ed-sub">Cliente</div>
   <div class="grid2">
-    <div class="field"><label>Nombre</label><input id="e_cli" value="${attr(c.cliente)}"></div>
+    <div class="field"><label>Cliente</label><select id="e_cli_sel"><option value="__nuevo__">➕ Escribir otro nombre</option>${clienteNombres().map(n=>`<option value="${esc(n)}" ${c.cliente===n?'selected':''}>${esc(n)}</option>`).join('')}</select></div><div class="field"><label>…o nombre distinto</label><input id="e_cli_nuevo" placeholder="Completa si elegiste otro nombre" value="${(c.cliente&&!clienteNombres().includes(c.cliente))?attr(c.cliente):''}"></div>
     <div class="field"><label>Calidad (derecho propio / representación)</label><input id="e_ccal" value="${attr(c.clienteCalidad||'')}"></div>
   </div>
   <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn-prim" onclick="guardarEdit('${c.id}')">Guardar cambios</button></div></div>`;
@@ -2415,7 +2409,7 @@ function setF(k,v){st[k]=(st[k]===v?null:v);renderExpedientes();}
 function setTab(t){st.tab=t;st.editPend=null;st.editMov=null;renderFicha();}
 function abrirFicha(id){st.actual=id;st.vista="ficha";st.tab="datos";st.cliente=false;st.editPend=null;st.editMov=null;window.scrollTo(0,0);render();calcSt.applied=null;if(calcSt.open)renderSide();}
 function cerrarFicha(){st.vista="tablero";st.actual=null;window.scrollTo(0,0);render();calcSt.applied=null;if(calcSt.open)renderSide();}
-function toggleCliente(v){st.cliente=v;if(v){st.cliCausa=st.actual;st.cliTab="datos";}else{st.cliCausa=null;}renderFicha();calcSt.applied=null;if(calcSt.open)renderSide();}
+function toggleCliente(v){st.cliente=v;if(v){st.cliCausa=st.actual;st.cliTab="datos";const __c=get(st.actual);if(__c){fetch('/api/archivos?causa='+encodeURIComponent(__c.id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok!==false&&Array.isArray(j.data)){__c.archivos=j.data.filter(function(a){return Number(a.visible_cliente)===1;});if(st.cliente&&st.actual===__c.id)renderFicha();}}).catch(function(){});}}else{st.cliCausa=null;}renderFicha();calcSt.applied=null;if(calcSt.open)renderSide();}
 function cliAbrir(id){st.cliCausa=id;st.cliTab="datos";window.scrollTo(0,0);renderFicha();}
 function cliVerCausas(){st.cliCausa=null;window.scrollTo(0,0);renderFicha();}
 function setCliTab(t){st.cliTab=t;renderFicha();}
@@ -2456,7 +2450,7 @@ function panelHonorarios(c){
   const hoyISO=new Date().toISOString().slice(0,10);
   return `<div class="hon-eqnote">Equivalencias en pesos calculadas con IUS = <b>${fmtPesos(vIus)}</b>. El valor del IUS se cambia desde el botón <b>IUS</b> del tablero o desde el panel (☰) → Honorarios.</div>
 
-  <div class="conv-bar"><div><b>Convenio de honorarios</b><span>Generá el acuerdo abogado–cliente autocompletado (borrador editable).</span></div><button class="btn-add" onclick="openModal({tipo:'convenio',id:'${c.id}'})">${c.convenioForm?'Ver / editar':'Crear convenio'}</button></div>
+  <div class="conv-bar"><div><b>Convenio de honorarios</b><span>Generá el acuerdo abogado–cliente autocompletado (borrador editable).</span></div><button class="btn-add" onclick="openModal({tipo:'convenio',id:'${c.id}'})">${c.convenioForm?'Ver / editar':'Crear convenio'}</button><button class="btn-sec" onclick="agregarDocOverlay('${c.id}',{nombre:'Convenio de honorarios',carpeta:'cliente'})">📎 Subir convenio firmado</button></div>
   <div class="bloque-titulo">Honorarios profesionales (en IUS)</div>
   <div class="hon-card"><div class="hon-set"><label>Honorarios pactados del proceso</label>
     <input type="number" id="hon_ius" value="${totalIus}" min="0" step="0.5"><span>IUS</span>
@@ -2660,7 +2654,7 @@ function guardarEdit(id){const c=get(id);const g=i=>document.getElementById(i).v
   c.materia=g('e_mat').split(',').map(s=>s.trim()).filter(Boolean);if(!c.materia.length)c.materia=['Sucesión'];
   c.expediente=g('e_exp').trim()||null;c.cuij=g('e_cuij').trim()||null;c.objeto=g('e_obj').trim();
   c.fuero=g('e_fuero').trim();c.juzgado=g('e_juz').trim();c.juez=g('e_juez').trim();c.secretaria=g('e_sec').trim();
-  c.actor=g('e_act').trim();c.actorPat=g('e_actpat').trim();c.demandado=g('e_dem').trim();c.demandadoPat=g('e_dempat').trim();c.cliente=g('e_cli').trim();c.clienteCalidad=g('e_ccal').trim();
+  c.actor=g('e_act').trim();c.actorPat=g('e_actpat').trim();c.demandado=g('e_dem').trim();c.demandadoPat=g('e_dempat').trim();const __cliSel=g('e_cli_sel'),__cliNuevo=g('e_cli_nuevo').trim();const __nuevoCli=(__cliSel&&__cliSel!=='__nuevo__')?__cliSel:(__cliNuevo||c.cliente);if(__nuevoCli&&__nuevoCli!==c.cliente){const __old=c.cliente;const __otras=causas.filter(x=>x.id!==c.id&&x.cliente===__old);if(__otras.length&&confirm('Este cliente tiene '+__otras.length+' causa(s) mas registradas como "'+__old+'". Renombrarlas tambien a "'+__nuevoCli+'"?')){__otras.forEach(x=>x.cliente=__nuevoCli);if(clientes[__old]){clientes[__nuevoCli]=Object.assign({},clientes[__nuevoCli]||{},clientes[__old]);delete clientes[__old];persistCli();}}}c.cliente=__nuevoCli;c.clienteCalidad=g('e_ccal').trim();
   c.dirJuzId=(document.getElementById('e_dirjuz')||{}).value||null;
   persist();closeModal();if(st.vista==="ficha")renderFicha();}
 function irACausa(id,tab){st.modal=null;st.actual=id;st.vista="ficha";st.tab=tab;st.cliente=false;st.editPend=null;window.scrollTo(0,0);render();}
@@ -2689,10 +2683,10 @@ function guardarNueva(){const g=id=>{const el=document.getElementById(id);return
   const pend=enTr
     ?[{t:"Verificar el último movimiento en el expediente (IURIX).",done:false},{t:"Completar datos y documentación.",done:false}]
     :[{t:"Completar datos y documentación.",done:false},{t:"Preparar escrito de inicio.",done:false}];
-  causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:[g("n_mat")||"Sucesión"],
+  const __matArr=g("n_mat").split(',').map(s=>s.trim()).filter(Boolean);causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:__matArr.length?__matArr:["Sucesión"],
     caratula:car,cliente:cliName||"A completar",expediente:exp,cuij:null,objeto:g("n_obj")||"A completar.",
     fuero:g("n_fuero")||"A definir",juzgado:g("n_juz")||"A definir al presentar",juez:g("n_juez")||"—",secretaria:g("n_sec")||"—",dirJuzId:(document.getElementById("n_dirjuz")||{}).value||null,
-    letrada:g("n_let")||"Dra. Rocío Cristal Luján",clienteEs:"activa",actorRol:"Actora",actor:g("n_par")||"A completar",actorPat:g("n_let")||"Dra. Rocío Cristal Luján",demandadoRol:"Demandado",demandado:"A completar",demandadoPat:"",clienteCalidad:"por derecho propio",posicion:"—",
+    letrada:g("n_let")||"Dra. Rocío Cristal Luján",clienteEs:"activa",actorRol:"Actora",actor:g("n_act")||"A completar",actorPat:g("n_actpat")||g("n_let")||"Dra. Rocío Cristal Luján",demandadoRol:"Demandado",demandado:g("n_dem")||"A completar",demandadoPat:g("n_dempat")||"",clienteCalidad:"por derecho propio",posicion:"—",
     ultimoMov:{fecha:hoy(),texto:txtUlt},
     bitacora:[{fecha:hoy(),texto:txtAlta,inicio:true}],
     documentos:[],pendientes:pend,
@@ -3876,7 +3870,7 @@ function DIR_SEED(){return [
  {id:'audien',cat:'mesa',nombre:'Oficina de Gestión de Audiencias',rol:'Coordinador Dr. Sebastián Andrés Lipari',integrantes:[],direccion:'Av. Colón 250',tel:'',email:'',notas:'',oficial:true,act:'2026-06'},
  {id:'aseso',cat:'asesoria',nombre:'Asesorías de Menores e Incapaces',rol:'Tres asesorías',integrantes:['Asesoría 1 — Dra. Daniela Faerman Cano · asesormenor1@juscatamarca.gob.ar','Asesoría 2 — Dra. Carolina Acuña Barrionuevo · asesormenor2@juscatamarca.gob.ar','Asesoría 3 — Dra. Sandra López Gardel · asesormenor3@juscatamarca.gob.ar'],direccion:'Chacabuco 788',tel:'',email:'',notas:'',oficial:true,act:'2026-06'}
 ];}
-function seedDir(){directorio=DIR_SEED();persistDir();}
+function seedDir(){directorio=DIR_SEED();persistDir();}function seedDirMerge(){const ids=new Set(directorio.map(x=>x.id));const nuevos=DIR_SEED().filter(x=>!ids.has(x.id));if(!nuevos.length){alert('Ya estan cargados todos los organismos oficiales.');return;}directorio=directorio.concat(nuevos);persistDir();renderDirectorio();alert('Se agregaron '+nuevos.length+' organismos oficiales (juzgados, mediacion, etc).');}
 function dirSetCat(c){dirSt.cat=c;dirSt.menu=null;renderDirectorio();}
 function dirMigrateNames(){const M={fam1:'Juzgado de Familia de Primera Instancia y de Primera Nominación',fam2:'Juzgado de Familia de Primera Instancia y de Segunda Nominación',fam3:'Juzgado de Familia de Primera Instancia y de Tercera Nominación',fam4:'Juzgado de Familia de Primera Instancia y de Cuarta Nominación, y de Violencia Familiar y de Género',civ1:'Juzgado de Primera Instancia en lo Civil, Primera Nominación',civ2:'Juzgado de Primera Instancia en lo Civil, Segunda Nominación',civ3:'Juzgado de Primera Instancia en lo Civil, Tercera Nominación',civ4:'Juzgado de Primera Instancia en lo Civil, Cuarta Nominación',civ5:'Juzgado de Primera Instancia en lo Civil, Quinta Nominación'};let ch=false;(directorio||[]).forEach(e=>{if(e&&M[e.id]&&e.nombre!==M[e.id]){e.nombre=M[e.id];ch=true;}});if(ch)persistDir();}
 function dirIntParse(x){const i=x.lastIndexOf('— ');if(i>=0)return {lbl:x.slice(0,i).trim(),nom:x.slice(i+2).trim()};const j=x.indexOf(':');if(j>=0)return {lbl:x.slice(0,j).trim(),nom:x.slice(j+1).trim()};return {lbl:'',nom:x.trim()};}
@@ -3899,20 +3893,20 @@ function dirCard(e){
     ${(foot.length||e.notas)?`<div class="gj-foot">${foot.join('')}${e.notas?`<div class="gj-notas">${esc(e.notas)}</div>`:''}</div>`:''}
   </div>`;
 }
-function renderDirectorio(){
-  const q=(dirSt.q||'').toLowerCase().trim();
-  let list=directorio.slice();
-  if(dirSt.cat!=='todos')list=list.filter(e=>e.cat===dirSt.cat);
-  if(q)list=list.filter(e=>((e.nombre||'')+' '+(e.rol||'')+' '+(e.integrantes||[]).join(' ')+' '+(e.email||'')).toLowerCase().includes(q));
-  const cats=DIR_CATS.filter(c=>c[0]!=='colega');
-  const chips=[['todos','Todos']].concat(cats).map(([k,l])=>`<button class="gj-chip ${dirSt.cat===k?'on':''}" onclick="dirSetCat('${k}')">${l}</button>`).join('');
-  const cards=list.length?list.map(dirCard).join(''):'<div class="vacio">Sin organismos que coincidan.</div>';
+function dirNorm(s){var t=String(s||'').toLowerCase().trim().normalize('NFD');var out='';for(var i=0;i<t.length;i++){var c=t.charCodeAt(i);if(c<768||c>879)out+=t[i];}return out;}function dirJuzDiag(){var total=directorio.length;var juz=directorio.filter(function(x){return String(x.cat||'').trim().toLowerCase()==='juzgado';}).length;if(juz>0)return '';if(total===0)return '<div class="hint" style="color:#B54708;font-size:12px;margin-top:4px">Todavia no cargaste organismos en la Guia Judicial. Escribi el juzgado abajo y usa "+ Agregar a la Guia", o crea uno desde "Guia Judicial".</div>';var cnt={};directorio.forEach(function(e){var k=e.cat||'(sin categoria)';cnt[k]=(cnt[k]||0)+1;});var resumen=Object.keys(cnt).map(function(k){return k+': '+cnt[k];}).join(', ');return '<div class="hint" style="color:#B54708;font-size:12px;margin-top:4px">Tenes '+total+' organismos en la Guia pero ninguno con categoria "juzgado". Categorias reales: '+resumen+'. Revisalos en "Guia Judicial" y cambiales la categoria a "Juzgados".</div>';}function renderDirectorio(){
+
+  let list=directorio.slice();try{const q=dirNorm(dirSt.q);
+
+if(q)list=list.filter(function(e){var integ=Array.isArray(e.integrantes)?e.integrantes.join(' '):(e.integrantes?String(e.integrantes):'');return dirNorm([e.nombre,e.rol,e.direccion,e.email,e.notas,integ].join(' ')).includes(q);});}catch(err){list=directorio.slice();}
+
+
+  const cards=list.length?list.map(dirCard).join(''):'<div class="vacio">'+(directorio.length?'Sin organismos que coincidan con la busqueda.':'Todavia no cargaste organismos en la Guia.')+'</div>';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide gj-wrap">
     <div class="gj-head"><h1>Guía Judicial</h1>
       <div class="gj-head-acc"><div class="search gj-search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="dirBuscar" placeholder="Buscar…" value="${attr(dirSt.q)}"></div>
       <button class="btn-add" onclick="dirEdit('')">+ Crear organismo</button></div></div>
     <div class="gj-info"><span class="gj-info-ic">ℹ</span><div><b>Datos orientativos:</b> verificá siempre la nómina oficial antes de presentar escritos. Última actualización: Junio 2026.</div></div>
-    <div class="gj-chips">${chips}</div>
+
     <div class="gj-grid">${cards}</div>
   </div>`;
   const b=document.getElementById('dirBuscar');
@@ -4058,7 +4052,7 @@ function cvTogglePago(){const s=document.getElementById('cv_pago');const b=docum
 function mConvenio(id){const f=cvGetForm(id)||cvSeed(id);const sug=id?escSug(get(id)):'';
   const base=(f.clausulas&&f.clausulas.length)?f.clausulas:CONVENIO_CLAUSULAS_DEFAULT();
   const unidad=f.unidad||'ius';const pago=f.pago||'unico';
-  let profs=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);
+  let profs=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);(id?((get(id)||{}).letrada||''):'').split('/').map(s=>s.trim()).filter(Boolean).forEach(n=>{if(profs.indexOf(n)<0)profs.push(n);});
   if(f.prof&&profs.indexOf(f.prof)<0)profs.unshift(f.prof);
   const profOpts=profs.map(n=>`<option value="${attr(n)}" ${f.prof===n?'selected':''}>${esc(n)}</option>`).join('');
   const fld=(lab,idd,val,ph)=>`<div class="field"><label>${lab}</label><input id="${idd}" value="${attr(val||'')}" placeholder="${attr(ph||'')}"></div>`;
