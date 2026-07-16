@@ -1682,7 +1682,7 @@ function renderExpedientes(){
   ${st.filtrosOpen?filtrosHTML():''}`;
   const vis=visibles(causas),secs=st.fEstado?[st.fEstado]:ORDEN;
   secs.forEach(e=>{
-    const g=vis.filter(c=>c.estado===e);
+    const g=vis.filter(c=>c.estado===e).sort((a,b)=>cShort(a.caratula).localeCompare(cShort(b.caratula),'es',{sensitivity:'base'}));
     h+=`<div class="seccion"><div class="seccion-head"><span class="marker ${cc(e)}"></span><h2>${ESTADOS[e].l}${e!=='finalizada'?'s':''}</h2><span class="cnt">${g.length}</span></div>`;
     h+= g.length===0 ? `<div class="vacio">${e==='finalizada'?'Todavía no hay causas finalizadas.':e==='suspenso'?'Ninguna causa en suspenso por ahora.':'Sin causas que coincidan con los filtros.'}</div>`
       : `<div class="grid">${g.map(card).join("")}</div>`;
@@ -2089,7 +2089,7 @@ function docFiltered(c){
     if(docSt.fVis==='no'&&d.visible)return false;
     if(q&&!((d.n||'').toLowerCase().includes(q)||(d.etiquetas||[]).join(' ').toLowerCase().includes(q)))return false;
     return true;
-  });
+  }).sort((a,b)=>(parseDMY(b.d.fecha)||0)-(parseDMY(a.d.fecha)||0));
 }
 function setDocFolder(k){docSt.carpeta=k;docSt.menu=null;renderFicha();}
 function setDocFilter(k,v){docSt[k]=v;docSt.menu=null;renderFicha();}
@@ -2117,7 +2117,12 @@ function guardarDoc(id){
   const carpeta=document.getElementById('sd_carp').value;
   const relevancia=document.getElementById('sd_rel').value;
   const visible=document.getElementById('sd_vis').checked;
-  c.documentos.unshift({n,tipo:docTipo(n),fecha:docHoy(),usuario:'Rocío Luján',carpeta,relevancia,visible,etiquetas:[],u:null,historial:[{fecha:docHoy(),txt:'Documento cargado'}]});
+  const fIso=(document.getElementById('sd_fecha')||{}).value||'';
+  const fecha=fIso?isoToDMY(fIso):docHoy();
+  c.documentos.unshift({n,tipo:docTipo(n),fecha,usuario:'Rocío Luján',carpeta,relevancia,visible,etiquetas:[],u:null,historial:[{fecha,txt:'Documento cargado'}]});
+  c.bitacora.unshift({fecha,texto:'📄 Documento cargado: '+n,nuevo:true});
+  c.bitacora.sort((a,b)=>(parseDMY(b.fecha)||0)-(parseDMY(a.fecha)||0));
+  syncUltimo(c);
   persist();closeModal();renderFicha();
 }
 function mSubirDoc(c){
@@ -2130,6 +2135,7 @@ function mSubirDoc(c){
      <button class="up-opt" onclick="document.getElementById('sd_n').focus()">🖼️ Subir desde galería</button>
      <button class="up-opt" onclick="document.getElementById('sd_n').focus()">📕 Subir PDF</button></div>
    <div class="field"><label>Nombre del documento *</label><input id="sd_n" placeholder="Ej. Sentencia de Primera Instancia.pdf"></div>
+   <div class="field"><label>Fecha del documento</label><input type="date" id="sd_fecha" value="${hoyKey()}"></div>
    <div class="field"><label>Carpeta</label><select id="sd_carp">${CARP_ORDEN.map(k=>`<option value="${k}">${CARPETAS[k].l}</option>`).join('')}</select></div>
    <div class="field"><label>Relevancia procesal</label><select id="sd_rel"><option value="critica">Crítica</option><option value="relevante">Relevante</option><option value="tramite" selected>Trámite</option></select></div>
    <div class="field cbx"><label><input type="checkbox" id="sd_vis"> Visible para el cliente</label></div>
