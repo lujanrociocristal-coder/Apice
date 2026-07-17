@@ -1850,7 +1850,32 @@ async function cargarArchivos(causaId){
     if(cont)cont.innerHTML='<div style="color:#B42318">No se pudieron cargar los documentos: '+esc(e.message)+'</div>';
     return;
   }
+  reconciliarMovsDocs(causaId);
   renderDocLista();
+}
+/* Por cada documento del servidor sin movimiento en la bitácora, crea uno (con la
+   fecha del documento). Dedupe por archId, así no duplica al recargar. Repara además
+   los documentos que se hayan subido antes de existir esta función. */
+function reconciliarMovsDocs(causaId){
+  try{
+    const c=get(causaId);if(!c)return;
+    c.bitacora=c.bitacora||[];
+    const conocidos={};
+    c.bitacora.forEach(b=>{if(b&&b.archId!=null)conocidos[b.archId]=true;});
+    let sumo=false;
+    (__archCache.items||[]).forEach(a=>{
+      if(a&&a.id!=null&&!conocidos[a.id]){
+        const f=a.fecha_doc?fmtFechaDoc(a.fecha_doc):docHoy();
+        c.bitacora.unshift({fecha:f,texto:'📄 Documento cargado: '+(a.nombre||'documento'),nuevo:true,doc:true,archId:a.id});
+        conocidos[a.id]=true;sumo=true;
+      }
+    });
+    if(sumo){
+      c.bitacora.sort((x,y)=>(parseDMY(y.fecha)||0)-(parseDMY(x.fecha)||0));
+      syncUltimo(c);persist();
+      if(typeof renderFicha==='function')renderFicha();
+    }
+  }catch(e){}
 }
 function docFiltrados(){
   let arr=__archCache.items.slice();
