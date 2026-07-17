@@ -979,6 +979,16 @@
   .ed-dir{background:#3C6FA60a;border:1px solid #3C6FA630;border-radius:10px;padding:12px;margin:6px 0 14px}
   .ed-dir-h{font-size:12px;font-weight:700;color:var(--azul);margin-bottom:8px}
   .ed-dir-n{font-size:11px;color:var(--mut);line-height:1.45;margin-top:4px}
+  .dpk-inp{width:100%}
+  .dpk-list{margin:2px 0 8px;border:1px solid var(--linea);border-radius:10px;overflow:hidden;max-height:230px;overflow-y:auto;background:var(--tarj,#fff)}
+  .dpk-item{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--linea);background:transparent;padding:8px 11px;cursor:pointer;font:inherit}
+  .dpk-item:last-child{border-bottom:0}
+  .dpk-item:hover{background:#3C6FA612}
+  .dpk-item.sel{background:#3C6FA61f}
+  .dpk-item b{display:block;font-size:12.5px;font-weight:600;color:var(--tinta)}
+  .dpk-item i{display:block;font-size:11px;font-style:normal;color:var(--mut);margin-top:1px}
+  .dpk-empty{padding:9px 11px;font-size:11.5px;color:var(--mut);line-height:1.4}
+  .dpk-ok{padding:9px 11px;font-size:12px;font-weight:600;color:#067647;background:#ECFDF3}
   /* ===== Citas con clientes (v53) ===== */
   .calc-hint2{font-size:11px;color:var(--mut);margin-top:5px}
   .aud-btns{display:flex;gap:8px;align-items:stretch;width:100%}
@@ -2306,11 +2316,12 @@ function mAgregar(){
   <div class="field"><label>Fuero</label><input id="n_fuero" placeholder="Civil / Familia / …"></div>
   <div class="ed-dir">
     <div class="ed-dir-h">📒 Asignar desde la Guía Judicial</div>
-    <div class="grid2">
-      <div class="field"><label>Juzgado (de la Guía)</label><select id="n_dirjuz" onchange="naDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>x.cat==='juzgado').map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select></div>
-      <div class="field"><label>Secretaría de esta causa</label><select id="n_dirsec" onchange="naDirSec(this.value)"><option value="">— Elegí secretaría —</option></select></div>
-    </div>
-    <div class="ed-dir-n">Elegí el juzgado y la secretaría que llevan la causa: se completan los campos de abajo y podés ajustarlos a mano. Si el juzgado no está en la Guía, escribilo abajo y tocá “Agregar a la Guía”.</div>
+    <input type="hidden" id="n_dirjuz" value="">
+    <div class="field"><label>Buscá el juzgado por palabra clave</label>
+      <input id="n_dirq" class="dpk-inp" autocomplete="off" placeholder="Escribí: familia, civil, violencia, tercera…" oninput="dirPickFilter('n')" onfocus="dirPickShow('n')"></div>
+    <div id="n_dirlist" class="dpk-list" style="display:none"></div>
+    <div class="field"><label>Secretaría de esta causa</label><select id="n_dirsec" onchange="dirPickSec('n',this.value)"><option value="">— Elegí secretaría —</option></select></div>
+    <div class="ed-dir-n">Escribí una palabra (por ejemplo “familia”) y tocá el juzgado: se completan los campos de abajo. Si no está en la Guía, escribilo abajo y tocá “Agregar a la Guía”.</div>
   </div>
   <div class="grid2">
     <div class="field"><label>Juzgado</label><input id="n_juz" placeholder="Juzgado…"></div>
@@ -2335,12 +2346,13 @@ function mEditar(c){
   </div>
   <div class="field"><label>Objeto</label><textarea id="e_obj" rows="2">${esc(c.objeto)}</textarea></div>
   <div class="ed-dir">
-    <div class="ed-dir-h">📒 Asignar desde el Directorio</div>
-    <div class="grid2">
-      <div class="field"><label>Juzgado (del directorio)</label><select id="e_dirjuz" onchange="edDirJuz(this.value)"><option value="">— Elegí un juzgado —</option>${directorio.filter(x=>x.cat==='juzgado').map(x=>`<option value="${x.id}" ${c.dirJuzId===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select></div>
-      <div class="field"><label>Secretaría de esta causa</label><select id="e_dirsec" onchange="edDirSec(this.value)">${edSecOptions(c)}</select></div>
-    </div>
-    <div class="ed-dir-n">Elegí el juzgado y la secretaría que llevan esta causa (los secretarios se reparten las causas). Se guarda y queda fijo. Igual podés ajustar los campos de abajo a mano.</div>
+    <div class="ed-dir-h">📒 Asignar desde la Guía Judicial</div>
+    <input type="hidden" id="e_dirjuz" value="${attr(c.dirJuzId||'')}">
+    <div class="field"><label>Buscá el juzgado por palabra clave</label>
+      <input id="e_dirq" class="dpk-inp" autocomplete="off" placeholder="Escribí: familia, civil, violencia, tercera…" value="${attr(dirNombreDe(c.dirJuzId))}" oninput="dirPickFilter('e')" onfocus="dirPickShow('e')"></div>
+    <div id="e_dirlist" class="dpk-list" style="display:none"></div>
+    <div class="field"><label>Secretaría de esta causa</label><select id="e_dirsec" onchange="dirPickSec('e',this.value)">${edSecOptions(c)}</select></div>
+    <div class="ed-dir-n">Escribí una palabra (por ejemplo “familia”) y tocá el juzgado que lleva la causa: se completan los campos de abajo. Después elegí la secretaría. Igual podés ajustar todo a mano.</div>
   </div>
   <div class="grid2">
     <div class="field"><label>Fuero</label><input id="e_fuero" value="${attr(c.fuero)}"></div>
@@ -3953,6 +3965,17 @@ function naAddToGuia(){const juz=((document.getElementById('n_juz')||{}).value||
 function edSecOptions(c){const j=c.dirJuzId?directorio.find(x=>x.id===c.dirJuzId):null;let o='<option value="">— Elegí secretaría —</option>';if(j&&j.integrantes){o+=j.integrantes.map(s=>{const nm=edSecName(s);return `<option value="${attr(nm)}" ${c.secretaria===nm?'selected':''}>${esc(s)}</option>`;}).join('');}return o;}
 function edDirJuz(id){const j=directorio.find(x=>x.id===id);const juz=document.getElementById('e_juz'),juez=document.getElementById('e_juez'),sec=document.getElementById('e_dirsec');if(j){if(juz)juz.value=j.nombre;if(juez&&edJuezName(j.rol))juez.value=edJuezName(j.rol);let o='<option value="">— Elegí secretaría —</option>'+(j.integrantes||[]).map(s=>`<option value="${attr(edSecName(s))}">${esc(s)}</option>`).join('');if(sec)sec.innerHTML=o;}else if(sec){sec.innerHTML='<option value="">— Elegí secretaría —</option>';}}
 function edDirSec(val){const sec=document.getElementById('e_sec');if(sec)sec.value=val;}
+/* ===== Buscador de juzgados por palabra clave (v45) ===== */
+function dirGuessFuero(nombre){nombre=nombre||'';if(/violencia|familia/i.test(nombre))return 'Familia';if(/civil/i.test(nombre))return 'Civil';if(/trabajo|laboral/i.test(nombre))return 'Trabajo';if(/penal|correccional/i.test(nombre))return 'Penal';return '';}
+function dirEsJuzgado(x){if(!x)return false;if(x.cat)return x.cat==='juzgado';return /^Juzgado\b/i.test(x.nombre||'');}
+function dirJuzList(){if(!directorio||!directorio.length){try{seedDir();}catch(e){}}return (directorio||[]).filter(dirEsJuzgado);}
+function dirMigrateCats(){try{const seed=DIR_SEED();const M={};seed.forEach(s=>{M[s.id]=s.cat;});let ch=false;(directorio||[]).forEach(e=>{if(e&&!e.cat){if(M[e.id])e.cat=M[e.id];else if(/^Juzgado\b/i.test(e.nombre||''))e.cat='juzgado';else if(/mediaci/i.test(e.nombre||''))e.cat='mediacion';else if(/mesa|notificacion|audiencia/i.test(e.nombre||''))e.cat='mesa';else if(/asesor/i.test(e.nombre||''))e.cat='asesoria';else if(/equipo/i.test(e.nombre||''))e.cat='equipo';else e.cat='colega';ch=true;}});if(ch)persistDir();}catch(e){}}
+function dirNorm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function dirNombreDe(id){if(!id)return '';const j=dirJuzList().find(x=>x.id===id);return j?j.nombre:'';}
+function dirPickFilter(pfx){const inp=document.getElementById(pfx+'_dirq');const cont=document.getElementById(pfx+'_dirlist');if(!cont)return;const nq=dirNorm(inp?inp.value:'').trim();let arr=dirJuzList();if(nq)arr=arr.filter(j=>dirNorm(j.nombre+' '+(j.rol||'')+' '+dirGuessFuero(j.nombre)).indexOf(nq)>=0);if(!arr.length){cont.innerHTML='<div class="dpk-empty">Sin coincidencias. Probá otra palabra (familia, civil…). Si el juzgado no está en la Guía, escribilo a mano abajo.</div>';cont.style.display='block';return;}const selId=(document.getElementById(pfx+'_dirjuz')||{}).value||'';cont.innerHTML=arr.map(j=>'<button type="button" class="dpk-item'+(j.id===selId?' sel':'')+'" onclick="dirPickChoose(\''+pfx+'\',\''+j.id+'\')"><b>'+esc(j.nombre)+'</b><i>'+esc(j.rol||'')+'</i></button>').join('');cont.style.display='block';}
+function dirPickShow(pfx){dirPickFilter(pfx);}
+function dirPickChoose(pfx,id){const j=dirJuzList().find(x=>x.id===id);if(!j)return;const setv=function(sfx,v){const el=document.getElementById(pfx+sfx);if(el&&v!=null)el.value=v;};const hid=document.getElementById(pfx+'_dirjuz');if(hid)hid.value=id;setv('_juz',j.nombre);const jz=edJuezName(j.rol);if(jz)setv('_juez',jz);const fu=document.getElementById(pfx+'_fuero');if(fu&&!(fu.value||'').trim()){const f=dirGuessFuero(j.nombre);if(f)fu.value=f;}const sec=document.getElementById(pfx+'_dirsec');if(sec)sec.innerHTML='<option value="">— Elegí secretaría —</option>'+(j.integrantes||[]).map(function(s){return '<option value="'+attr(edSecName(s))+'">'+esc(s)+'</option>';}).join('');const inp=document.getElementById(pfx+'_dirq');if(inp)inp.value=j.nombre;const cont=document.getElementById(pfx+'_dirlist');if(cont)cont.innerHTML='<div class="dpk-ok">✓ Juzgado elegido. Ahora elegí la secretaría abajo.</div>';}
+function dirPickSec(pfx,val){const el=document.getElementById(pfx+'_sec');if(el)el.value=val;}
 /* ===== RECIBOS DE PAGO (v43) ===== */
 function estudioDatos(){const p=config.perfil||{};return {nombre:p.abogada||'Dra. Rocío Cristal Luján',estudio:p.estudio||'',mp:p.matricula||'2686',cuit:p.cuit||'',dom:p.domicilio||''};}
 function numLetras(n){n=Math.floor(Math.abs(+n||0));if(n===0)return 'cero';
@@ -4182,7 +4205,7 @@ async function initCliente(me){
   if(causas.length){st.actual=causas[0].id;st.vista='ficha';renderCliente(causas[0]);}
   else{document.getElementById('app').innerHTML='<div class="ficha"><div class="ficha-top cli-top"><button class="volver" onclick="cerrarSesion()">Cerrar sesión</button><div class="cli-portal-h"><div class="cli-brand"><img class="logo" src="'+LOGO+'"><div><div class="clab">Portal del cliente</div><h2 style="padding-left:0">'+esc(__cliNombre)+'</h2></div></div></div></div><div class="panel"><div class="vacio">Todavía no tenés causas habilitadas. El estudio te dará acceso cuando corresponda.</div></div></div>';}
 }
-async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
+async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();dirMigrateCats();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 </script>
 <script>
