@@ -2295,7 +2295,14 @@ function renderCliente(c){
         <div class="campo full"><div class="ck">Juzgado</div><div class="cv">${esc(sel.juzgado)}</div></div>
       </div>
       <div class="bloque-titulo">Movimientos de su causa</div>
-      <div class="tl">${sel.bitacora.map((b,i)=>{const actual=i===0;return `<div class="tl-item ${actual?'actual':''}"><div class="tl-fecha">${esc(b.fecha)} ${actual?'<span class="tl-tag act">último</span>':''}</div><div class="tl-txt">${esc(b.texto)}</div></div>`;}).join("")}</div>`;
+      <div class="tl">${(function(){
+        const base=(sel.bitacora||[]).map(b=>({fecha:b.fecha,texto:b.texto}));
+        const yaTxt={};base.forEach(b=>{yaTxt[b.texto]=true;});
+        const docs=(sel.archivos||[]).map(a=>({fecha:a.fecha_doc?fmtFechaDoc(a.fecha_doc):'',texto:'📄 Documento cargado: '+(a.nombre||'documento')})).filter(d=>!yaTxt[d.texto]);
+        const merged=base.concat(docs);
+        merged.sort((x,y)=>(parseDMY(y.fecha)||0)-(parseDMY(x.fecha)||0));
+        return merged.map((b,i)=>{const actual=i===0;return `<div class="tl-item ${actual?'actual':''}"><div class="tl-fecha">${esc(b.fecha)} ${actual?'<span class="tl-tag act">último</span>':''}</div><div class="tl-txt">${esc(b.texto)}</div></div>`;}).join("");
+      })()}</div>`;
   }
   document.getElementById("app").innerHTML=`<div class="ficha">${header}
     <div class="cli-causa-tit"><div class="spine ${k}"></div>${esc(sel.caratula)}</div>
