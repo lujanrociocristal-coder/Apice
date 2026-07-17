@@ -1877,6 +1877,7 @@ function renderDocLista(){
   if(!arr.length){cont.innerHTML='<div style="color:var(--mut);font-style:italic">No hay documentos que coincidan con el filtro.</div>';return;}
   cont.innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'+arr.map(a=>archRow(cid,a)).join('')+'</div>';
 }
+function fmtFechaDoc(s){if(!s)return '';const p=String(s).slice(0,10).split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):s;}
 function archRow(cid,a){
   const icon=a.tipo==='pdf'?'📄':((['jpg','jpeg','png'].indexOf(a.tipo)>=0)?'🖼':'📝');
   const car=CARPETAS[a.carpeta]||CARPETAS.actuaciones;
@@ -1886,7 +1887,7 @@ function archRow(cid,a){
     +'<span style="font-size:18px">'+icon+'</span>'
     +'<a href="/api/archivos/'+a.id+'/descargar" target="_blank" rel="noopener" style="font-weight:600;color:var(--tinta);text-decoration:none;flex:1;min-width:140px">'+esc(a.nombre)+'</a>'
     +'<span style="font-size:11px;font-weight:600;color:'+car.c+';background:'+car.c+'18;padding:3px 9px;border-radius:20px">'+car.l+'</span>'
-    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+'</span>'
+    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+(a.fecha_doc?(' · 📅 '+esc(fmtFechaDoc(a.fecha_doc))):'')+'</span>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+cid+'\',\''+nomJs+'\')">Renombrar</button>'
@@ -1914,6 +1915,8 @@ function agregarDocOverlay(causaId){
     +'<input id="docNombre" type="text" placeholder="Ej: Demanda inicial" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
     +'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Carpeta</label>'
     +'<select id="docCarp" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box;background:#fff">'+carpOpts+'</select>'
+    +'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Fecha del documento</label>'
+    +'<input id="docFecha" type="date" value="'+hoyKey()+'" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
     +'<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer"><input id="docVis" type="checkbox"> Visible para el cliente</label>'
     +'<div id="docMsg" style="color:#8a2828;font-size:12px;margin-top:10px"></div>'
     +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
@@ -1942,6 +1945,7 @@ function agregarDocOverlay(causaId){
     fd.append('file',selFile);fd.append('causa_id',causaId);
     fd.append('nombre',(nomEl.value.trim()||selFile.name));
     fd.append('carpeta',ov.querySelector('#docCarp').value);
+    const _fv=(ov.querySelector('#docFecha')||{}).value||'';if(_fv)fd.append('fecha_doc',_fv);
     if(ov.querySelector('#docVis').checked)fd.append('visible_cliente','1');
     try{
       const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});
