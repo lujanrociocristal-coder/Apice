@@ -145,13 +145,30 @@ function handle_estado($method, $resto) {
           }
         }
 
+        /* ---------------------------------------------------------------
+           PROTECCION DE DATOS (v46)
+           Antes, cada guardado reemplazaba TODO el conjunto de causas del
+           estudio: si un colega guardaba con una copia desactualizada, o si
+           la app arrancaba sin datos por un error de carga, se borraban
+           causas reales. Ahora solo se permite el borrado chico (el uso
+           normal: la abogada elimina UNA causa con doble confirmacion).
+           Cualquier borrado masivo se rechaza y se deja constancia.
+           --------------------------------------------------------------- */
+        $LIMITE_BORRADO = 2;
         if (empty($keepIds)) {
-          $pdo->prepare('DELETE FROM causas WHERE estudio_id = ?')->execute([$eid]);
+          // Guardado sin ninguna causa: casi siempre es un error del cliente.
+          error_log('[APICE] estado: guardado SIN causas para estudio ' . $eid . ' -> no se borro nada (proteccion).');
         } else {
           $in  = str_repeat('?,', count($keepIds) - 1) . '?';
-          $sql = "DELETE FROM causas WHERE estudio_id = ? AND uuid NOT IN ($in)";
-          $params = array_merge([$eid], $keepIds);
-          $pdo->prepare($sql)->execute($params);
+          $stC = $pdo->prepare("SELECT COUNT(*) FROM causas WHERE estudio_id = ? AND uuid NOT IN ($in)");
+          $stC->execute(array_merge([$eid], $keepIds));
+          $aBorrar = (int)$stC->fetchColumn();
+          if ($aBorrar > 0 && $aBorrar <= $LIMITE_BORRADO) {
+            $sql = "DELETE FROM causas WHERE estudio_id = ? AND uuid NOT IN ($in)";
+            $pdo->prepare($sql)->execute(array_merge([$eid], $keepIds));
+          } elseif ($aBorrar > $LIMITE_BORRADO) {
+            error_log('[APICE] estado: se evito borrar ' . $aBorrar . ' causas del estudio ' . $eid . ' (guardado incompleto).');
+          }
         }
 
         $pdo->commit();
@@ -231,13 +248,21 @@ function handle_estado($method, $resto) {
           ]);
         }
 
+        /* PROTECCION DE DATOS (v46): igual que en causas, no permitir borrados masivos. */
+        $LIMITE_BORRADO_CLI = 2;
         if (empty($keepUuids)) {
-          $pdo->prepare('DELETE FROM clientes WHERE estudio_id = ?')->execute([$eid]);
+          error_log('[APICE] estado: guardado SIN clientes para estudio ' . $eid . ' -> no se borro nada (proteccion).');
         } else {
           $in  = str_repeat('?,', count($keepUuids) - 1) . '?';
-          $sql = "DELETE FROM clientes WHERE estudio_id = ? AND uuid NOT IN ($in)";
-          $params = array_merge([$eid], $keepUuids);
-          $pdo->prepare($sql)->execute($params);
+          $stC = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE estudio_id = ? AND uuid NOT IN ($in)");
+          $stC->execute(array_merge([$eid], $keepUuids));
+          $aBorrarCli = (int)$stC->fetchColumn();
+          if ($aBorrarCli > 0 && $aBorrarCli <= $LIMITE_BORRADO_CLI) {
+            $sql = "DELETE FROM clientes WHERE estudio_id = ? AND uuid NOT IN ($in)";
+            $pdo->prepare($sql)->execute(array_merge([$eid], $keepUuids));
+          } elseif ($aBorrarCli > $LIMITE_BORRADO_CLI) {
+            error_log('[APICE] estado: se evito borrar ' . $aBorrarCli . ' clientes del estudio ' . $eid . ' (guardado incompleto).');
+          }
         }
 
         $pdo->commit();
