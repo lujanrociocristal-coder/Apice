@@ -122,3 +122,7 @@ function causas_por_vencer($estudioId, $diasLimite = 15) {
       $vencidas = count(array_filter($venc, function ($v) { return $v['dias'] < 0; }));
       if ($vencidas > 0) {
             return 'Tenes ' . count($venc) . ' causas con plazo de caducidad vencido o por vencer (' . $vencidas . ' ya vencidas). Revisalas en "Caducidad de instancia".';
+      }
+      /* Varias causas por vencer, ninguna vencida todavia. */
+      return 'Tenes ' . count($venc) . ' causas con plazo de caducidad por vencer. Revisalas en "Caducidad de instancia".';
+}
