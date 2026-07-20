@@ -120,8 +120,11 @@ function archivos_max_bytes()  { return 20 * 1024 * 1024; } // 20 MB
 
 /* Busca un archivo por id y verifica que sea del MISMO estudio de la persona. */
 function archivo_del_estudio($id, $u) {
-    $st = db()->prepare('SELECT * FROM archivos WHERE id = ?');
-    $st->execute([$id]);
+    /* Doble candado (v46): se filtra por estudio en la consulta MISMA y ademas
+       se vuelve a verificar en PHP. Si alguna vez alguien toca una de las dos,
+       la otra sigue protegiendo los datos. */
+    $st = db()->prepare('SELECT * FROM archivos WHERE id = ? AND estudio_id = ?');
+    $st->execute([$id, (int)$u['estudio_id']]);
     $a = $st->fetch();
     if (!$a) json_error('Archivo no encontrado.', 404);
         if ((int)$a['estudio_id'] !== (int)$u['estudio_id']) json_error('No tenes acceso a este archivo.', 403);

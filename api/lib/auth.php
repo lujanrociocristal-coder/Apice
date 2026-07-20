@@ -100,8 +100,10 @@ function estudio_actual() {
 /* ¿La usuaria puede ver/editar esta causa? */
 function puede_acceder_causa($causaId, $soloLectura = false) {
   $u = require_login();
-  $st = db()->prepare('SELECT id, estudio_id, owner_id, cliente_id FROM causas WHERE id = ?');
-  $st->execute([$causaId]);
+  /* Doble candado (v46): el filtro por estudio va en la consulta MISMA y
+     ademas se verifica en PHP. Defensa en profundidad. */
+  $st = db()->prepare('SELECT id, estudio_id, owner_id, cliente_id FROM causas WHERE id = ? AND estudio_id = ?');
+  $st->execute([$causaId, (int)$u['estudio_id']]);
   $c = $st->fetch();
   if (!$c) json_error('La causa no existe.', 404);
   if ((int)$c['estudio_id'] !== (int)$u['estudio_id']) json_error('No tenés acceso a esta causa.', 403);
