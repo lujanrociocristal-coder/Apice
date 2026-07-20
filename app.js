@@ -2189,7 +2189,36 @@ function cfgDefaults(){
 function cfgAvatar(){const el=document.getElementById('avatarInput');if(el)el.click();}
 function abogados(){const pl=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);if(pl.length)return pl;const a=(config&&config.abogados&&config.abogados.length)?config.abogados.slice():[];if(!a.length)a.push((config&&config.perfil&&config.perfil.abogada)||'Dra. Rocío Cristal Luján');return a;}
 function descargarJSON(nombre,obj){try{const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=nombre;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}catch(e){alert('La exportación funciona en el navegador (no en la vista previa).');}}
-function exportarDatos(){descargarJSON('apice-respaldo-'+hoyKey()+'.json',{generado:new Date().toISOString(),causas,clientes,audiencias,config});}
+/* Copia de seguridad COMPLETA (v46): suma la Guía Judicial y el listado de
+   documentos guardados en el servidor, para que el respaldo sirva de verdad. */
+async function exportarDatos(){
+  try{syncAviso('warn','Generando la copia de seguridad…');}catch(e){}
+  const documentosServidor=[];
+  for(const c of (causas||[])){
+    try{
+      const r=await fetch('/api/archivos?causa='+encodeURIComponent(c.id),{credentials:'same-origin'});
+      const j=await r.json();
+      ((j&&j.data)||[]).forEach(a=>documentosServidor.push({causa:c.caratula,causa_id:c.id,archivo_id:a.id,nombre:a.nombre,tipo:a.tipo,tamano:a.tamano,fecha_doc:a.fecha_doc,visible_cliente:a.visible_cliente}));
+    }catch(e){}
+  }
+  descargarJSON('apice-respaldo-'+hoyKey()+'.json',{
+    generado:new Date().toISOString(),
+    version:' APICE respaldo v2',
+    contiene:'Causas (con movimientos, honorarios, pendientes y documentos-ficha), clientes, agenda, Guia Judicial y configuracion.',
+    aclaracion:'Los ARCHIVOS de los documentos no estan dentro de este JSON: se guardan en el servidor. En "documentosServidor" va el listado completo con nombre, fecha y causa para poder ubicarlos.',
+    causas,clientes,audiencias,directorio,config,documentosServidor
+  });
+  try{syncAviso('ok','✓ Copia de seguridad descargada ('+(causas||[]).length+' causas, '+documentosServidor.length+' documentos listados).');}catch(e){}
+}
+/* Export legible en planilla: una fila por causa. */
+function exportarCausasCSV(){
+  const filas=[['Caratula','Cliente','Expediente','Estado','Fuero','Juzgado','Secretaria','Materia','Movimientos','Ultimo movimiento','Fecha ultimo']];
+  (causas||[]).forEach(c=>{
+    const b=(c.bitacora||[])[0]||{};
+    filas.push([c.caratula||'',c.cliente||'',c.expediente||'',(ESTADOS[c.estado]||{}).l||c.estado||'',c.fuero||'',c.juzgado||'',c.secretaria||'',(c.materia||[]).join(' / '),(c.bitacora||[]).length,b.texto||'',b.fecha||'']);
+  });
+  descargarCSV('apice-causas-'+hoyKey()+'.csv',filas);
+}
 function restablecerDatos(){if(!confirm('Esto vuelve la app a los datos de ejemplo y borra los cambios cargados (causas, clientes, audiencias). ¿Seguro?'))return;seedCausas();clientes={};audiencias=[];persist();persistCli();persistAud();alert('Datos restablecidos.');navTo('dashboard');}
 function profRowsHTML(){const list=config.profesionales||[];if(!list.length)return '';return '<div class="prof-list">'+list.map((p,i)=>`<div class="prof-row"><input id="pf_nom_${i}" placeholder="Nombre (Dra./Dr. \u2026)" value="${attr(p.nombre||'')}"><input id="pf_mp_${i}" placeholder="M.P." value="${attr(p.mp||'')}"><input id="pf_cuit_${i}" placeholder="CUIL / CUIT" value="${attr(p.cuit||'')}"><button class="prof-del" onclick="profDel(${i})" title="Quitar">\u2715</button></div>`).join('')+'</div>';}
 function profReadRows(){const list=[];let i=0;while(document.getElementById('pf_nom_'+i)){list.push({nombre:document.getElementById('pf_nom_'+i).value.trim(),mp:document.getElementById('pf_mp_'+i).value.trim(),cuit:document.getElementById('pf_cuit_'+i).value.trim()});i++;}if(i>0)config.profesionales=list;}
@@ -2237,8 +2266,8 @@ function renderConfig(){
     <div class="cfg-grid">${fld('cfg_inact','Días sin actividad para marcar crítico',config.repInactiv,'')}${fld('cfg_venc','Días de vencimiento para marcar crítico',config.repVenc,'')}</div>
     <div class="cfg-note">Definen cuándo un expediente pasa a 🔴 crítico en Reportes y en EstrategIA.</div></div>`;
   const datos=`<div class="cfg-block"><div class="cfg-bh"><h3>Datos y seguridad</h3><span class="cfg-badge a">Activo</span></div>
-    <div class="cfg-acc"><button class="btn-sec" onclick="exportarDatos()">⭳ Exportar copia de seguridad (.json)</button></div>
-    <div class="cfg-note">Tus datos quedan guardados en este dispositivo. El respaldo en la nube y el cumplimiento de la Ley 25.326 (datos personales) y el secreto profesional se completan en la versión conectada.</div></div>`;
+    <div class="cfg-acc"><button class="btn-sec" onclick="exportarDatos()">⭳ Exportar copia de seguridad (.json)</button><button class="btn-sec" onclick="exportarCausasCSV()">⭳ Exportar causas en planilla (.csv)</button></div>
+    <div class="cfg-note">Tus datos se guardan en el <b>servidor del estudio</b> (compartidos con quienes trabajen con vos) y además queda una copia en este dispositivo como respaldo. Si alguna vez falla el guardado, la app te avisa y reintenta sola.<br><b>Copia de seguridad:</b> el .json incluye causas, movimientos, honorarios, clientes, agenda y Guía Judicial, más el listado de los documentos guardados en el servidor. Conviene descargarla cada tanto y guardarla fuera de la computadora.</div></div>`;
   const soon=(t,d)=>`<div class="cfg-soon"><div class="cfg-soon-h">${t}<span class="cfg-badge b">pronto</span></div><div class="cfg-soon-d">${d}</div></div>`;
   const bloquesB=`<div class="cfg-block"><div class="cfg-bh"><h3>Próximamente (versión conectada)</h3></div><div class="cfg-soon-grid">
     ${soon('Equipo e integrantes','Sumar abogados y colaboradores, asignar expedientes y roles. Activa la vista de productividad por integrante.')}
