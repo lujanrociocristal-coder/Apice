@@ -121,6 +121,14 @@ function handle_estado($method, $resto) {
         foreach ($valor as $c) {
           if (!isset($c['id'])) continue;
           $keepIds[] = $c['id'];
+          /* ------------------------------------------------------------------
+             TRABAJO EN EQUIPO (v46)
+             El navegador marca con _mod cuales causas cambio REALMENTE. Las que
+             no cambiaron se saltean: asi, si un colega edito esa causa mientras
+             tanto, su trabajo NO se pisa. Si _mod no viene (version vieja de la
+             app), se actualiza igual, como antes.
+             ------------------------------------------------------------------ */
+          if (array_key_exists('_mod', $c) && $c['_mod'] === false) continue;
           $j = fn($v) => isset($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : null;
           $ups->execute([
             $eid,$u['id'],$c['id'],

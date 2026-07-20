@@ -32,6 +32,28 @@ function normalize(){causas.forEach(c=>{
   }
 });}
 function seedCausas(){causas=JSON.parse(JSON.stringify(CAUSAS));normalize();}
+/* ===== Detección de cambios por causa (v46) =====
+   Evita que dos personas del estudio se pisen: cada navegador guarda una
+   "huella" de cómo estaba cada causa al cargarla. Al guardar, solo se marcan
+   como modificadas las que cambiaron ACÁ. El servidor deja intactas las demás,
+   así el trabajo de un colega no se sobrescribe.
+   Si la huella no se puede calcular, la causa se marca como modificada: ante
+   la duda, se guarda (nunca se pierde un cambio). */
+let __hashCausas={};
+function hashCausa(c){
+  try{
+    const s=JSON.stringify(c);
+    let h=0;
+    for(let i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;}
+    return s.length+':'+h;
+  }catch(e){return null;}
+}
+function marcarCausasGuardadas(arr){
+  try{
+    __hashCausas={};
+    (arr||[]).forEach(function(c){const h=hashCausa(c);if(h!==null)__hashCausas[c.id]=h;});
+  }catch(e){__hashCausas={};}
+}
 async function loadState(){
   try{if(window.storage){const r=await window.storage.get(STORE);if(r&&r.value)return JSON.parse(r.value);}}catch(e){}
   try{if(typeof localStorage!=='undefined'){const v=localStorage.getItem(STORE);if(v)return JSON.parse(v);}}catch(e){}
@@ -44,10 +66,18 @@ async function saveState(){
   const data=JSON.stringify(propias);
   /* 1) Respaldo en el dispositivo SIEMPRE primero: pase lo que pase, no se pierde acá. */
   try{if(typeof localStorage!=='undefined')localStorage.setItem(STORE,data);}catch(e){}
-  /* 2) Guardado en el servidor, avisando y reintentando si falla. */
+  /* 2) Guardado en el servidor. Se marca qué causas cambiaron REALMENTE en
+        este dispositivo, para que el servidor no pise el trabajo de un colega
+        en las causas que acá no se tocaron. */
+  const paraServidor=JSON.stringify(propias.map(function(c){
+    const h=hashCausa(c);
+    const anterior=__hashCausas[c.id];
+    const cambiada=(anterior===undefined)||(h===null)||(h!==anterior);
+    return Object.assign({},c,{_mod:cambiada});
+  }));
   try{
-    if(window.storage){await window.storage.set(STORE,data);syncOk();}
-  }catch(e){syncFallo(data,e);}
+    if(window.storage){await window.storage.set(STORE,paraServidor);marcarCausasGuardadas(propias);syncOk();}
+  }catch(e){syncFallo(paraServidor,e);}
   const comp=causas.filter(c=>c._compartida&&c._permiso==='edicion');
   for(const c of comp){
     try{
@@ -2986,7 +3016,8 @@ async function initCliente(me){
   if(causas.length){st.actual=causas[0].id;st.vista='ficha';renderCliente(causas[0]);}
   else{document.getElementById('app').innerHTML='<div class="ficha"><div class="ficha-top cli-top"><button class="volver" onclick="cerrarSesion()">Cerrar sesión</button><div class="cli-portal-h"><div class="cli-brand"><img class="logo" src="'+LOGO+'"><div><div class="clab">Portal del cliente</div><h2 style="padding-left:0">'+esc(__cliNombre)+'</h2></div></div></div></div><div class="panel"><div class="vacio">Todavía no tenés causas habilitadas. El estudio te dará acceso cuando corresponda.</div></div></div>';}
 }
-async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();dirMigrateCats();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
+async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}
+  marcarCausasGuardadas(causas.filter(function(c){return !c._compartida;}));try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();dirMigrateCats();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 
 /* ===== Aviso de version nueva (v46) =====
