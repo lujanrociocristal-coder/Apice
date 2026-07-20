@@ -164,6 +164,9 @@ function acceso_informar_pago() {
     $orig = (string)$_FILES['file']['name'];
     $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
     $size = (int)$_FILES['file']['size'];
+    require_once __DIR__ . '/../lib/subidas.php';
+    $maloComp = subidas_validar($_FILES['file']['tmp_name'], $ext);
+    if ($maloComp !== '') json_error($maloComp);
     if (in_array($ext, ['pdf','jpg','jpeg','png','doc','docx'], true) && $size > 0 && $size <= 20*1024*1024) {
       $base = dirname(__DIR__, 3) . '/apice_archivos';
       $causaSafe = preg_replace('/[^A-Za-z0-9_\-]/', '_', $uuid);

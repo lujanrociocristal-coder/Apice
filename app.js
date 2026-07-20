@@ -2219,7 +2219,9 @@ function exportarCausasCSV(){
   });
   descargarCSV('apice-causas-'+hoyKey()+'.csv',filas);
 }
-function restablecerDatos(){if(!confirm('Esto vuelve la app a los datos de ejemplo y borra los cambios cargados (causas, clientes, audiencias). ¿Seguro?'))return;seedCausas();clientes={};audiencias=[];persist();persistCli();persistAud();alert('Datos restablecidos.');navTo('dashboard');}
+/* restablecerDatos() se eliminó por seguridad (v46): cargaba los datos de
+   ejemplo y los guardaba, lo que podía pisar causas reales del estudio.
+   Era del tiempo del prototipo y ya no tenía ningún botón que la usara. */
 function profRowsHTML(){const list=config.profesionales||[];if(!list.length)return '';return '<div class="prof-list">'+list.map((p,i)=>`<div class="prof-row"><input id="pf_nom_${i}" placeholder="Nombre (Dra./Dr. \u2026)" value="${attr(p.nombre||'')}"><input id="pf_mp_${i}" placeholder="M.P." value="${attr(p.mp||'')}"><input id="pf_cuit_${i}" placeholder="CUIL / CUIT" value="${attr(p.cuit||'')}"><button class="prof-del" onclick="profDel(${i})" title="Quitar">\u2715</button></div>`).join('')+'</div>';}
 function profReadRows(){const list=[];let i=0;while(document.getElementById('pf_nom_'+i)){list.push({nombre:document.getElementById('pf_nom_'+i).value.trim(),mp:document.getElementById('pf_mp_'+i).value.trim(),cuit:document.getElementById('pf_cuit_'+i).value.trim()});i++;}if(i>0)config.profesionales=list;}
 function profAddRow(){profReadRows();config.profesionales=config.profesionales||[];config.profesionales.push({nombre:'',mp:'',cuit:''});renderConfig();}

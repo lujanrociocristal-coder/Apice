@@ -148,6 +148,11 @@ function archivo_subir() {
           json_error('Formato no permitido. Solo PDF, Word (doc/docx) o imagenes (jpg, png).');
     }
 
+    /* Ademas del nombre, se revisa el CONTENIDO real del archivo (v46). */
+    require_once __DIR__ . '/../lib/subidas.php';
+    $malo = subidas_validar($f['tmp_name'], $ext);
+    if ($malo !== '') json_error($malo);
+
         $estudioId = (int)$u['estudio_id'];
     $dir = archivos_base() . '/' . $estudioId . '/' . $causaId;
     if (!is_dir($dir)) { @mkdir($dir, 0700, true); }

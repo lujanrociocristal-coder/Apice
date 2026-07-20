@@ -17,14 +17,24 @@ function handle_auth($method, $resto) {
     $pass  = (string)field('password');
     if (!$email || !$pass) json_error('Ingresá email y contraseña.');
 
+    /* Limite de intentos (v46): frena la prueba de contraseñas una tras otra.
+       Es una espera temporal, nunca un bloqueo definitivo. */
+    require_once __DIR__ . '/../lib/intentos.php';
+    $faltan = intentos_espera($email);
+    if ($faltan > 0) {
+      json_error('Demasiados intentos fallidos. Esperá ' . $faltan . ' minuto(s) y volvé a probar. Si no recordás tu contraseña, pedile al estudio que te la blanquee.', 429);
+    }
+
     $st = db()->prepare('SELECT u.*, e.tipo AS estudio_tipo
                          FROM usuarios u JOIN estudios e ON e.id = u.estudio_id
                          WHERE u.email = ? AND u.activo = 1');
     $st->execute([$email]);
     $u = $st->fetch();
     if (!$u || !check_password($pass, $u['password_hash'])) {
+      intentos_registrar_fallo($email);
       json_error('Email o contraseña incorrectos.', 401);
     }
+    intentos_limpiar($email);
     session_regenerate_id(true);
     $_SESSION['uid'] = (int)$u['id'];
     db()->prepare('UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?')->execute([$u['id']]);
