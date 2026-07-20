@@ -2988,3 +2988,44 @@ async function initCliente(me){
 }
 async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else seedDir();dirMigrateNames();dirMigrateCats();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
+
+/* ===== Aviso de version nueva (v46) =====
+   La app compara su propia version (la del app.js que cargo) con la que hay
+   publicada en el servidor. Si hay una mas nueva, ofrece actualizar. Nunca
+   recarga sola: la decision es de la usuaria, para no interrumpir el trabajo. */
+function apiceVersionActual(){
+  try{
+    const s=document.querySelector('script[src*="app.js"]');
+    if(!s)return '';
+    const m=(s.getAttribute('src')||'').match(/[?&]v=([^&"']+)/);
+    return m?m[1]:'';
+  }catch(e){return '';}
+}
+let __versionAvisada=false;
+async function chequearVersionNueva(){
+  if(__versionAvisada)return;
+  const actual=apiceVersionActual();
+  if(!actual)return;
+  try{
+    const html=await fetch('/index.html?ts='+Date.now(),{cache:'no-store'}).then(r=>r.text());
+    const m=html.match(/app\.js\?v=([^"'&]+)/);
+    if(m&&m[1]&&m[1]!==actual){__versionAvisada=true;mostrarAvisoVersion();}
+  }catch(e){/* sin conexion: no molesta */}
+}
+function mostrarAvisoVersion(){
+  let el=document.getElementById('avisoVersion');
+  if(!el){el=document.createElement('div');el.id='avisoVersion';document.body.appendChild(el);}
+  el.innerHTML='<span>Hay una version nueva de APICE.</span>'
+    +'<button onclick="location.reload()">Actualizar</button>'
+    +'<button class="sec" onclick="ocultarAvisoVersion()">Despues</button>';
+  el.className='on';
+}
+function ocultarAvisoVersion(){
+  const el=document.getElementById('avisoVersion');
+  if(el)el.className='';
+}
+if(typeof window!=='undefined'){
+  setTimeout(chequearVersionNueva,60000);
+  setInterval(chequearVersionNueva,5*60*1000);
+  window.addEventListener('focus',chequearVersionNueva);
+}
