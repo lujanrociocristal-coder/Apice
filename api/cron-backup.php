@@ -47,20 +47,31 @@ function esc_val($pdo, $v) {
 
 try {
   $pdo = db();
-  $fecha  = date('Y-m-d_His');
-  $ruta   = $destino . '/apice-' . $fecha . '.sql.gz';
-  $gz = gzopen($ruta, 'wb9');
-  if (!$gz) { echo "ERROR: no se pudo crear el archivo\n"; exit(1); }
+  $fecha = date('Y-m-d_His');
 
-  gzwrite($gz, "-- Respaldo APICE  " . date('c') . "\n");
-  gzwrite($gz, "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n");
+  /* Si el servidor tiene compresion, se usa (.sql.gz). Si no, se guarda
+     el .sql normal. Asi el respaldo funciona igual en cualquier servidor. */
+  $comprime = function_exists('gzopen');
+  $ruta = $destino . '/apice-' . $fecha . ($comprime ? '.sql.gz' : '.sql');
+  $fh = $comprime ? gzopen($ruta, 'wb9') : fopen($ruta, 'wb');
+  if (!$fh) { echo "ERROR: no se pudo crear el archivo\n"; exit(1); }
+
+  $escribir = function ($txt) use ($fh, $comprime) {
+    if ($comprime) { gzwrite($fh, $txt); } else { fwrite($fh, $txt); }
+  };
+  $cerrar = function () use ($fh, $comprime) {
+    if ($comprime) { gzclose($fh); } else { fclose($fh); }
+  };
+
+  $escribir("-- Respaldo APICE  " . date('c') . "\n");
+  $escribir("SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n");
 
   $tablas = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
   $totalFilas = 0;
 
   foreach ($tablas as $tabla) {
     $crear = $pdo->query('SHOW CREATE TABLE `' . $tabla . '`')->fetch(PDO::FETCH_NUM);
-    gzwrite($gz, "\n-- Tabla: $tabla\nDROP TABLE IF EXISTS `$tabla`;\n" . $crear[1] . ";\n");
+    $escribir("\n-- Tabla: $tabla\nDROP TABLE IF EXISTS `$tabla`;\n" . $crear[1] . ";\n");
 
     $st = $pdo->query('SELECT * FROM `' . $tabla . '`');
     $filas = 0;
@@ -68,20 +79,23 @@ try {
       $cols = '`' . implode('`,`', array_keys($fila)) . '`';
       $vals = [];
       foreach ($fila as $v) $vals[] = esc_val($pdo, $v);
-      gzwrite($gz, "INSERT INTO `$tabla` ($cols) VALUES (" . implode(',', $vals) . ");\n");
+      $escribir("INSERT INTO `$tabla` ($cols) VALUES (" . implode(',', $vals) . ");\n");
       $filas++; $totalFilas++;
     }
-    gzwrite($gz, "-- ($filas filas)\n");
+    $escribir("-- ($filas filas)\n");
   }
 
-  gzwrite($gz, "\nSET FOREIGN_KEY_CHECKS=1;\n");
-  gzclose($gz);
+  $escribir("\nSET FOREIGN_KEY_CHECKS=1;\n");
+  $cerrar();
 
   $kb = round(filesize($ruta) / 1024, 1);
   echo "OK: respaldo creado -> " . basename($ruta) . " ({$kb} KB, " . count($tablas) . " tablas, {$totalFilas} filas)\n";
 
   /* Borrar los respaldos mas viejos, conservando los ultimos $CONSERVAR. */
-  $previos = glob($destino . '/apice-*.sql.gz');
+  $previos = array_merge(
+    glob($destino . '/apice-*.sql.gz') ?: [],
+    glob($destino . '/apice-*.sql') ?: []
+  );
   if ($previos && count($previos) > $CONSERVAR) {
     usort($previos, function ($a, $b) { return filemtime($b) - filemtime($a); });
     foreach (array_slice($previos, $CONSERVAR) as $viejo) {
@@ -89,7 +103,8 @@ try {
       echo "  - borrado por antiguedad: " . basename($viejo) . "\n";
     }
   }
-  echo "Copias guardadas: " . count(glob($destino . '/apice-*.sql.gz')) . " (se conservan las ultimas {$CONSERVAR})\n";
+  $quedan = count(glob($destino . '/apice-*.sql.gz') ?: []) + count(glob($destino . '/apice-*.sql') ?: []);
+  echo "Copias guardadas: {$quedan} (se conservan las ultimas {$CONSERVAR})\n";
 
 } catch (Throwable $e) {
   echo "ERROR: " . $e->getMessage() . "\n";
