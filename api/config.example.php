@@ -45,7 +45,16 @@ return [
   // ¿Forzar HTTPS en las cookies? Dejalo en true (tu plan tiene SSL gratis).
   'cookie_secure' => true,
 
-  /* ---- ETAPA 2 (dejar vacío por ahora) ---- */
+  /* ---- RESPALDO AUTOMÁTICO DE LA BASE ---- */
+// Palabra secreta para poder disparar el respaldo desde el navegador.
+// El respaldo automático (cron) NO la necesita: corre por línea de comandos.
+// Esto sirve solo para probarlo o hacer una copia manual entrando a:
+//     https://abogadoscatamarca.com/api/cron-backup.php?token=LO_QUE_PONGAS_ACA
+// Poné un texto largo al azar. Si lo dejás vacío, esa vía queda cerrada
+// (el cron sigue funcionando igual).
+'backup_token' => '',
+
+/* ---- ETAPA 2 (dejar vacío por ahora) ---- */
   // "Ingresar con Google": se completa más adelante. Dejalo vacío.
   'google_client_id'     => '',
   'google_client_secret' => '',
