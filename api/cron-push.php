@@ -10,6 +10,19 @@
 * Comando en Cron (PHP): <ruta>/public_html/api/cron-push.php
 * ========================================================================== */
 
+/* SEGURIDAD (v46): esta tarea la ejecuta el Cron por linea de comandos.
+   Desde internet solo funciona con la clave secreta de config.php; si no,
+   responde 404 y no ejecuta nada. Evita que un tercero dispare los avisos. */
+if (php_sapi_name() !== 'cli') {
+  $cfgSeg = @include __DIR__ . '/config.php';
+  $tokSeg = (is_array($cfgSeg) && !empty($cfgSeg['backup_token'])) ? $cfgSeg['backup_token'] : '';
+  $dadoSeg = isset($_GET['token']) ? (string)$_GET['token'] : '';
+  if ($tokSeg === '' || $dadoSeg === '' || !hash_equals($tokSeg, $dadoSeg)) {
+    http_response_code(404);
+    exit('Not found');
+  }
+}
+
 require __DIR__ . '/lib/db.php';
 require __DIR__ . '/lib/push.php';
 require __DIR__ . '/lib/caducidad.php';
