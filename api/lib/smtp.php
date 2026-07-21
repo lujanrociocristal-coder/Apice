@@ -17,10 +17,27 @@
  * ========================================================================== */
 
 function smtp_config() {
-  /* La configuracion NO esta en public_html: vive en apice_privado/ (fuera de
-     la carpeta publica, para que nadie pueda descargarla). config_path() de
-     db.php sabe buscarla en todos los lugares posibles. */
   require_once __DIR__ . '/db.php';
+
+  /* 1) Primero, lo cargado DESDE LA APP (Configuración → Correo). Es la via
+        recomendada: no hay que editar archivos en el servidor. */
+  try {
+    $st = db()->prepare('SELECT clave, valor FROM ajustes WHERE clave IN
+                         ("smtp_host","smtp_port","smtp_user","smtp_pass")');
+    $st->execute();
+    $a = [];
+    foreach ($st->fetchAll() as $f) { $a[$f['clave']] = $f['valor']; }
+    if (!empty($a['smtp_host']) && !empty($a['smtp_user']) && !empty($a['smtp_pass'])) {
+      return [
+        'host' => $a['smtp_host'],
+        'port' => !empty($a['smtp_port']) ? (int)$a['smtp_port'] : 465,
+        'user' => $a['smtp_user'],
+        'pass' => $a['smtp_pass'],
+      ];
+    }
+  } catch (Throwable $e) { /* la tabla puede no existir todavia */ }
+
+  /* 2) Si no, se busca en el archivo de configuracion (apice_privado/). */
   $ruta = function_exists('config_path') ? config_path() : (__DIR__ . '/../config.php');
   $cfg = @include $ruta;
   if (!is_array($cfg)) return null;

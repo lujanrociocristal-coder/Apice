@@ -2304,7 +2304,7 @@ function renderConfig(){
     <div class="cfg-grid">${fld('cfg_inact','Días sin actividad para marcar crítico',config.repInactiv,'')}${fld('cfg_venc','Días de vencimiento para marcar crítico',config.repVenc,'')}</div>
     <div class="cfg-note">Definen cuándo un expediente pasa a 🔴 crítico en Reportes y en EstrategIA.</div></div>`;
   const datos=`<div class="cfg-block"><div class="cfg-bh"><h3>Datos y seguridad</h3><span class="cfg-badge a">Activo</span></div>
-    <div class="cfg-acc"><button class="btn-sec" onclick="exportarDatos()">⭳ Exportar copia de seguridad (.json)</button><button class="btn-sec" onclick="exportarCausasCSV()">⭳ Exportar causas en planilla (.csv)</button></div>
+    <div class="cfg-acc"><button class="btn-sec" onclick="abrirCorreoConfig()">✉ Correo para recuperar contraseñas</button><button class="btn-sec" onclick="exportarDatos()">⭳ Exportar copia de seguridad (.json)</button><button class="btn-sec" onclick="exportarCausasCSV()">⭳ Exportar causas en planilla (.csv)</button></div>
     <div class="cfg-note">Tus datos se guardan en el <b>servidor del estudio</b> (compartidos con quienes trabajen con vos) y además queda una copia en este dispositivo como respaldo. Si alguna vez falla el guardado, la app te avisa y reintenta sola.<br><b>Copia de seguridad:</b> el .json incluye causas, movimientos, honorarios, clientes, agenda y Guía Judicial, más el listado de los documentos guardados en el servidor. Conviene descargarla cada tanto y guardarla fuera de la computadora.</div></div>`;
   const soon=(t,d)=>`<div class="cfg-soon"><div class="cfg-soon-h">${t}<span class="cfg-badge b">pronto</span></div><div class="cfg-soon-d">${d}</div></div>`;
   const bloquesB=`<div class="cfg-block"><div class="cfg-bh"><h3>Próximamente (versión conectada)</h3></div><div class="cfg-soon-grid">
@@ -3065,4 +3065,62 @@ if(typeof window!=='undefined'){
   setTimeout(chequearVersionNueva,60000);
   setInterval(chequearVersionNueva,5*60*1000);
   window.addEventListener('focus',chequearVersionNueva);
+}
+
+/* ===== Correo de salida para "olvide mi contrasena" (v46) =====
+   Se carga desde acá para no tener que editar archivos en el servidor.
+   La contraseña viaja por HTTPS, se guarda en el servidor y nunca vuelve
+   al navegador: solo se muestra si está cargada o no. */
+async function abrirCorreoConfig(){
+  let datos={host:'smtp.hostinger.com',port:'465',user:'',tiene_clave:false};
+  try{ datos=await window.APICE.get('/config/correo')||datos; }catch(e){}
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.6);display:flex;align-items:center;justify-content:center;z-index:100002;padding:16px;overflow:auto';
+  const inp='width:100%;padding:11px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:16px;box-sizing:border-box';
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:440px;width:100%;padding:24px;font-family:system-ui,sans-serif;color:#1C2433">'
+    +'<h2 style="font-size:19px;margin:0 0 6px">Correo para recuperar contrase&ntilde;as</h2>'
+    +'<p style="font-size:13px;color:#6B7280;margin:0 0 16px;line-height:1.5">Estos datos permiten que el sistema env&iacute;e el enlace de "olvid&eacute; mi contrase&ntilde;a". Son los de la casilla de correo de tu dominio.</p>'
+    +'<label for="coHost" style="display:block;font-size:12px;color:#6B7280;margin-bottom:4px">Servidor de salida</label>'
+    +'<input id="coHost" style="'+inp+'" value="'+(datos.host||'')+'">'
+    +'<label for="coPort" style="display:block;font-size:12px;color:#6B7280;margin:12px 0 4px">Puerto (465 o 587)</label>'
+    +'<input id="coPort" style="'+inp+'" value="'+(datos.port||'465')+'">'
+    +'<label for="coUser" style="display:block;font-size:12px;color:#6B7280;margin:12px 0 4px">Casilla</label>'
+    +'<input id="coUser" style="'+inp+'" placeholder="apice@abogadoscatamarca.com" value="'+(datos.user||'')+'">'
+    +'<label for="coPass" style="display:block;font-size:12px;color:#6B7280;margin:12px 0 4px">Contrase&ntilde;a de esa casilla'
+    +(datos.tiene_clave?' <span style="color:#067647">(ya hay una cargada)</span>':'')+'</label>'
+    +'<input id="coPass" type="password" autocomplete="new-password" style="'+inp+'" placeholder="'+(datos.tiene_clave?'Dejalo vacío para no cambiarla':'')+'">'
+    +'<div id="coMsg" style="font-size:13px;margin-top:14px;line-height:1.5"></div>'
+    +'<div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap">'
+    +'<button id="coSave" style="flex:1;min-width:130px;background:#1C2433;color:#fff;border:0;padding:12px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">Guardar</button>'
+    +'<button id="coTest" style="flex:1;min-width:130px;background:#3FC8BD;color:#0d2b2a;border:0;padding:12px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">Guardar y probar</button>'
+    +'</div>'
+    +'<button id="coClose" style="width:100%;background:#EEF0F3;border:0;padding:11px;border-radius:9px;font-size:14px;cursor:pointer;margin-top:8px">Cerrar</button>'
+    +'</div>';
+  document.body.appendChild(ov);
+  const msg=ov.querySelector('#coMsg');
+  ov.querySelector('#coClose').addEventListener('click',()=>document.body.removeChild(ov));
+  async function guardar(){
+    const cuerpo={host:ov.querySelector('#coHost').value.trim(),port:ov.querySelector('#coPort').value.trim(),
+                  user:ov.querySelector('#coUser').value.trim(),pass:ov.querySelector('#coPass').value};
+    if(!cuerpo.host||!cuerpo.user){msg.style.color='#B42318';msg.textContent='Complet\u00e1 el servidor y la casilla.';return false;}
+    await window.APICE.put('/config/correo',cuerpo);
+    return true;
+  }
+  ov.querySelector('#coSave').addEventListener('click',async function(){
+    msg.style.color='#6B7280';msg.textContent='Guardando...';
+    try{ if(await guardar()){msg.style.color='#067647';msg.textContent='\u2713 Datos guardados.';} }
+    catch(e){ msg.style.color='#B42318';msg.textContent=e.message||'No se pudo guardar.'; }
+  });
+  ov.querySelector('#coTest').addEventListener('click',async function(){
+    msg.style.color='#6B7280';msg.textContent='Guardando y enviando una prueba...';
+    try{
+      if(!(await guardar()))return;
+      const r=await window.APICE.post('/config/correo',{});
+      msg.style.color='#067647';
+      msg.innerHTML='\u2713 <b>Correo enviado a '+esc(r&&r.a?r.a:'tu casilla')+'</b>.<br>Revis\u00e1 tu bandeja (y el correo no deseado). Si lleg\u00f3, la recuperaci\u00f3n de contrase\u00f1as ya funciona.';
+    }catch(e){
+      msg.style.color='#B42318';
+      msg.textContent=e.message||'No se pudo enviar. Revis\u00e1 la contrase\u00f1a y prob\u00e1 el puerto 587.';
+    }
+  });
 }

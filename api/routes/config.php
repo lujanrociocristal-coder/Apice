@@ -17,6 +17,12 @@ function handle_config($method, $resto) {
     if ($method === 'POST')   return feriado_crear();
     if ($method === 'DELETE') return feriado_borrar($id);
   }
+  /* Correo de salida, para "olvidé mi contraseña" (v46). Solo la administradora. */
+  if ($sub === 'correo') {
+    if ($method === 'GET')  return correo_ver();
+    if ($method === 'PUT')  return correo_guardar();
+    if ($method === 'POST') return correo_probar();
+  }
   if ($method === 'GET') return config_ver();
   if ($method === 'PUT') return config_editar();
   json_error('Método no permitido.', 405);
@@ -62,4 +68,78 @@ function feriado_borrar($id) {
   // No se pueden borrar los globales (estudio_id NULL) desde un estudio.
   db()->prepare('DELETE FROM feriados WHERE id = ? AND estudio_id = ?')->execute([$id, $u['estudio_id']]);
   json_ok(['borrado' => true]);
+}
+
+/* ===========================================================================
+ *  CORREO DE SALIDA  (v46)
+ *
+ *  Para que "olvide mi contrasena" pueda enviar el enlace, hace falta una
+ *  casilla del dominio. Estos datos se cargan DESDE LA APP (Configuracion),
+ *  asi no hay que editar archivos en el servidor.
+ *
+ *  La contrasena se guarda en la base y NUNCA se devuelve al navegador:
+ *  solo se informa si esta cargada o no.
+ * ========================================================================== */
+function correo_tabla() {
+  db()->exec("CREATE TABLE IF NOT EXISTS ajustes (
+    clave VARCHAR(60) NOT NULL,
+    valor TEXT NULL,
+    actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (clave)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
+function ajuste_leer($clave) {
+  correo_tabla();
+  $st = db()->prepare('SELECT valor FROM ajustes WHERE clave = ?');
+  $st->execute([$clave]);
+  $v = $st->fetchColumn();
+  return $v === false ? null : $v;
+}
+function ajuste_guardar($clave, $valor) {
+  correo_tabla();
+  db()->prepare('INSERT INTO ajustes (clave, valor) VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE valor = VALUES(valor), actualizado_en = NOW()')
+      ->execute([$clave, $valor]);
+}
+
+function correo_ver() {
+  require_admin();
+  $pass = ajuste_leer('smtp_pass');
+  json_ok([
+    'host' => ajuste_leer('smtp_host') ?: 'smtp.hostinger.com',
+    'port' => ajuste_leer('smtp_port') ?: '465',
+    'user' => ajuste_leer('smtp_user') ?: '',
+    'tiene_clave' => !empty($pass),
+  ]);
+}
+
+function correo_guardar() {
+  require_admin();
+  $host = trim((string)field('host'));
+  $port = (int)field('port');
+  $user = trim((string)field('user'));
+  $pass = (string)field('pass');
+  if ($host === '' || $user === '') json_error('Completá el servidor y la casilla.');
+  if ($port <= 0) $port = 465;
+  ajuste_guardar('smtp_host', $host);
+  ajuste_guardar('smtp_port', (string)$port);
+  ajuste_guardar('smtp_user', $user);
+  /* Si el campo de contrasena viene vacio, se conserva la que ya estaba. */
+  if ($pass !== '') ajuste_guardar('smtp_pass', $pass);
+  json_ok(['guardado' => true]);
+}
+
+/* Manda un correo de prueba a la persona que esta usando la app. */
+function correo_probar() {
+  $u = require_admin();
+  require_once __DIR__ . '/../lib/smtp.php';
+  $destino = trim((string)field('email')) ?: $u['email'];
+  if (!filter_var($destino, FILTER_VALIDATE_EMAIL)) json_error('El correo de destino no es válido.');
+  $cuerpo = '<div style="font-family:system-ui,Arial,sans-serif;color:#1C2433;font-size:15px">'
+    . '<p style="font-size:20px;font-weight:700;margin:0 0 4px">ÁPICE</p>'
+    . '<p>Este es un correo de prueba. Si lo estás leyendo, el envío quedó funcionando '
+    . 'y la recuperación de contraseña ya opera.</p></div>';
+  $ok = smtp_enviar($destino, 'ÁPICE - Correo de prueba', $cuerpo);
+  if (!$ok) json_error('No se pudo enviar. Revisá la casilla, la contraseña y el puerto (probá 465 o 587).', 500);
+  json_ok(['enviado' => true, 'a' => $destino]);
 }
