@@ -61,6 +61,12 @@ function recup_enviar_mail($para, $nombre, $enlace) {
     . htmlspecialchars($enlace, ENT_QUOTES, 'UTF-8') . '</p>'
     . '</div>';
 
+  /* 1) Se intenta por SMTP con la casilla del dominio (lo confiable). */
+  require_once __DIR__ . '/smtp.php';
+  if (smtp_enviar($para, $asunto, $cuerpo)) return true;
+
+  /* 2) Respaldo: envio directo de PHP. En este plan no suele funcionar,
+        pero se deja por si el servidor lo habilita mas adelante. */
   $headers  = "MIME-Version: 1.0\r\n";
   $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
   $headers .= 'From: APICE <' . $de . ">\r\n";

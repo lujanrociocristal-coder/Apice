@@ -45,7 +45,16 @@ return [
   // ¿Forzar HTTPS en las cookies? Dejalo en true (tu plan tiene SSL gratis).
   'cookie_secure' => true,
 
-  /* ---- RESPALDO AUTOMÁTICO DE LA BASE ---- */
+  /* ---- ENVÍO DE CORREO (para "olvidé mi contraseña") ----
+   Se necesita una casilla del dominio creada en hPanel → Emails.
+   El servidor y el puerto te los muestra Hostinger al crearla.
+   Si estos datos quedan vacíos, la recuperación por correo NO funciona. */
+'smtp_host' => 'smtp.hostinger.com',
+'smtp_port' => 465,
+'smtp_user' => 'no-responder@abogadoscatamarca.com',
+'smtp_pass' => 'COMPLETAR_contraseña_de_esa_casilla',
+
+/* ---- RESPALDO AUTOMÁTICO DE LA BASE ---- */
 // Palabra secreta para poder disparar el respaldo desde el navegador.
 // El respaldo automático (cron) NO la necesita: corre por línea de comandos.
 // Esto sirve solo para probarlo o hacer una copia manual entrando a:
