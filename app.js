@@ -3136,3 +3136,61 @@ function esSuperAdmin(){ return !!__soySuper; }
     __soySuper=!!(me&&me.data&&Number(me.data.es_superadmin)===1);
   }catch(e){}
 })();
+
+/* ===== Botón "atrás" del navegador y del celular (v46) =====
+   Antes, tocar "atrás" salía de ÁPICE aunque estuvieras dentro de una causa
+   o con una ventana abierta. Ahora retrocede DENTRO de la app, como espera
+   cualquiera que use un celular:
+       ventana abierta  ->  la cierra
+       ficha de causa   ->  vuelve al listado
+       otra sección     ->  vuelve al inicio
+       ya en el inicio  ->  avisa, y recién ahí sale
+   Es una de esas cosas que no se notan cuando están bien, pero irritan
+   muchísimo cuando faltan. */
+(function(){
+  if(typeof window==='undefined'||!window.history||!history.pushState)return;
+  window.__apiceAtras=true;
+  let avisoSalir=null;
+
+  function sembrar(){ try{ history.pushState({apice:1},'',location.href); }catch(e){} }
+
+  function mostrarAvisoSalir(){
+    let el=document.getElementById('avisoSalir');
+    if(!el){
+      el=document.createElement('div');
+      el.id='avisoSalir';
+      el.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:100003;'
+        +'background:#1C2433;color:#fff;padding:11px 18px;border-radius:11px;font-size:13.5px;'
+        +'font-family:system-ui,sans-serif;box-shadow:0 8px 26px rgba(15,20,30,.3)';
+      document.body.appendChild(el);
+    }
+    el.textContent='Tocá "atrás" otra vez para salir de ÁPICE';
+    el.style.display='block';
+    clearTimeout(avisoSalir);
+    avisoSalir=setTimeout(function(){ if(el)el.style.display='none'; },2200);
+  }
+
+  window.addEventListener('popstate',function(){
+    let manejado=false;
+    try{
+      if(st && st.modal && typeof closeModal==='function'){
+        closeModal(); manejado=true;
+      } else if(st && st.cliente && st.cliCausa && typeof cliVerCausas==='function'){
+        cliVerCausas(); manejado=true;
+      } else if(st && st.vista==='ficha' && typeof cerrarFicha==='function'){
+        cerrarFicha(); manejado=true;
+      } else if(st && (st.nav||'dashboard')!=='dashboard' && typeof navTo==='function'){
+        navTo('dashboard'); manejado=true;
+      }
+    }catch(e){}
+
+    if(manejado){
+      sembrar();               // seguimos capturando el próximo "atrás"
+    }else{
+      mostrarAvisoSalir();     // ya está en el inicio: avisa antes de salir
+      sembrar();
+    }
+  });
+
+  window.addEventListener('load',function(){ setTimeout(sembrar,800); });
+})();
