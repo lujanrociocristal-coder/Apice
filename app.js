@@ -32,6 +32,8 @@ function normalize(){causas.forEach(c=>{
   }
 });}
 function seedCausas(){causas=JSON.parse(JSON.stringify(CAUSAS));normalize();}
+/* Nombres de las pestañas, para la miga de navegación (v46). */
+const TAB_NOMBRES={datos:'Datos',avance:'Movimientos',docs:'Documentos',honorarios:'Honorarios',pendientes:'Pendientes'};
 /* ===== Detección de cambios por causa (v46) =====
    Evita que dos personas del estudio se pisen: cada navegador guarda una
    "huella" de cómo estaba cada causa al cargarla. Al guardar, solo se marcan
@@ -472,6 +474,13 @@ function renderFicha(){
   let panel=st.tab==="datos"?panelDatos(c):st.tab==="avance"?panelAvance(c):st.tab==="docs"?panelDocs(c):st.tab==="honorarios"?panelHonorarios(c):panelPend(c);
   document.getElementById("app").innerHTML=`<div class="ficha">
     <div class="ficha-top"><div class="spine ${k}"></div>
+      <nav class="miga" aria-label="Dónde estás">
+        <button class="miga-l" onclick="navTo('causas')">Expedientes</button>
+        <span class="miga-s">›</span>
+        <span class="miga-a" title="${attr(c.caratula)}">${esc(cShort(c.caratula))}</span>
+        <span class="miga-s">›</span>
+        <span class="miga-a act">${esc(TAB_NOMBRES[st.tab]||'Datos')}</span>
+      </nav>
       <button class="volver" onclick="cerrarFicha()">‹ Volver al panel</button>
       <h2>${esc(c.caratula)}</h2><div class="badges">${badges}</div>
       ${c._compartida?`<div style="background:#EEF4FF;border:1px solid #C7D7FE;color:#1E40AF;border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13px">🔗 Causa compartida por <b>${esc(c._origen||'otro estudio')}</b> · ${c._permiso==='edicion'?'podés verla y editarla':'solo lectura'}</div>`:''}
@@ -962,7 +971,10 @@ function panelPend(c){
       <input type="date" class="pfecha ${p.fecha&&p.fecha<hoyKey()&&!p.done?'venc':''}" value="${attr(p.fecha||'')}" onchange="savePendFecha('${c.id}',${i},this.value)" title="Fecha (opcional)">
       <span class="picon" onclick="startEditPend('${c.id}',${i})" title="Editar">✎</span>
       <span class="pdel" onclick="delPend('${c.id}',${i})" title="Eliminar">×</span></div>`;
-  }).join(""):`<div class="vacio">Sin pendientes. Agregá uno abajo.</div>`}</div>
+  }).join(""):`<div class="vacio-guia">
+      <div class="vg-tit">Sin pendientes en esta causa</div>
+      <div class="vg-txt">Anotá acá lo que hay que hacer: presentar un escrito, pedir el expediente, llamar al cliente. Si le ponés fecha, aparece en el tablero de inicio y te avisa cuando se acerca.</div>
+    </div>`}</div>
   <div class="padd"><input id="np" placeholder="Escribir un nuevo pendiente y Enter…" onkeydown="if(event.key==='Enter')addPend('${c.id}')"><input type="date" id="npf" class="pfecha" title="Fecha (opcional)"><button onclick="addPend('${c.id}')">Agregar</button></div>`;
 }
 function clienteAvisos(){
@@ -1828,7 +1840,10 @@ function renderAudiencias(){
        <div class="calc-field"><label>Materia</label><input type="text" id="aud_mat" value="${attr(af.mat)}" oninput="afSet('mat',this.value)"></div>`;
   }
   const up=audiencias.slice().sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')));
-  const listHtml=up.length?up.map(audItem).join(''):`<div class="vacio" style="padding:12px 2px">Todavía no cargaste audiencias.</div>`;
+  const listHtml=up.length?up.map(audItem).join(''):`<div class="vacio-guia">
+      <div class="vg-tit">Todavía no cargaste audiencias</div>
+      <div class="vg-txt">Acá se anotan las audiencias del juzgado, las mediaciones y las citas con clientes. Las que marques como “asiste el cliente” aparecen también en su portal, así no hace falta recordárselo por teléfono.</div>
+    </div>`;
   cont.classList.add('wide');
   cont.innerHTML=`<div class="side-sectit">Audiencias</div>
     <div class="side-secsub">Aparecen en el calendario. Las citas con clientes también se ven en el portal del cliente.</div>
