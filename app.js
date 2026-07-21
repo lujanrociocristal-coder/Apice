@@ -3290,3 +3290,97 @@ function cliContactoHTML(){
     +(mail?('<a class="cc-btn sec" href="mailto:'+attr(mail)+'">'+esc(mail)+'</a>'):'')
     +'</div></div>';
 }
+
+/* ===== Buscador global (v46) =====
+   Antes había que saber en qué sección estaba cada cosa. Ahora se busca una
+   causa, un cliente o un expediente desde cualquier pantalla, y se entra
+   directo. Se abre con el botón de la barra o con Ctrl+K (Cmd+K en Mac).
+   Está pensado para el teclado: escribís, flechas, Enter. */
+function bgNorm(x){
+  return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function bgBuscar(q){
+  const n=bgNorm(q).trim();
+  if(!n)return [];
+  const partes=n.split(/\s+/);
+  const res=[];
+  (causas||[]).forEach(c=>{
+    const heno=bgNorm([c.caratula,c.cliente,c.expediente,c.juzgado,(c.materia||[]).join(' '),c.objeto].join(' '));
+    if(partes.every(p=>heno.indexOf(p)>=0)){
+      res.push({
+        id:c.id,
+        titulo:cShort(c.caratula),
+        sub:[c.cliente,c.expediente?('Exp. '+c.expediente):'',(ESTADOS[c.estado]||{}).l].filter(Boolean).join(' · '),
+        estado:c.estado
+      });
+    }
+  });
+  return res.slice(0,8);
+}
+function bgPintar(){
+  const inp=document.getElementById('bgInput');
+  const lista=document.getElementById('bgLista');
+  if(!inp||!lista)return;
+  const r=bgBuscar(inp.value);
+  window.__bgRes=r; window.__bgSel=0;
+  if(!inp.value.trim()){
+    lista.innerHTML='<div class="bg-tip">Escribí el nombre del cliente, la carátula o el número de expediente.</div>';
+    return;
+  }
+  if(!r.length){
+    lista.innerHTML='<div class="bg-tip">No encontré nada con eso. Probá con el apellido del cliente o parte de la carátula.</div>';
+    return;
+  }
+  lista.innerHTML=r.map((x,i)=>'<button class="bg-it'+(i===0?' sel':'')+'" data-i="'+i+'" onclick="bgIr('+i+')">'
+    +'<span class="bg-dot '+cc(x.estado)+'"></span>'
+    +'<span class="bg-tx"><b>'+esc(x.titulo)+'</b><i>'+esc(x.sub)+'</i></span></button>').join('');
+}
+function bgMover(d){
+  const r=window.__bgRes||[];
+  if(!r.length)return;
+  window.__bgSel=Math.max(0,Math.min(r.length-1,(window.__bgSel||0)+d));
+  [...document.querySelectorAll('.bg-it')].forEach((b,i)=>b.classList.toggle('sel',i===window.__bgSel));
+  const el=document.querySelector('.bg-it.sel'); if(el)el.scrollIntoView({block:'nearest'});
+}
+function bgIr(i){
+  const r=window.__bgRes||[];
+  const x=r[(typeof i==='number')?i:(window.__bgSel||0)];
+  if(!x)return;
+  cerrarBuscadorGlobal();
+  st.cliente=false;
+  abrirFicha(x.id);
+}
+function cerrarBuscadorGlobal(){
+  const ov=document.getElementById('bgOverlay');
+  if(ov)ov.remove();
+}
+function abrirBuscadorGlobal(){
+  if(document.getElementById('bgOverlay'))return;
+  const ov=document.createElement('div');
+  ov.id='bgOverlay';
+  ov.innerHTML='<div class="bg-caja">'
+    +'<input id="bgInput" autocomplete="off" placeholder="Buscar causa, cliente o expediente…">'
+    +'<div id="bgLista" class="bg-lista"></div>'
+    +'<div class="bg-pie">Enter para abrir · Esc para cerrar</div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){ if(e.target===ov)cerrarBuscadorGlobal(); });
+  document.body.appendChild(ov);
+  const inp=document.getElementById('bgInput');
+  inp.addEventListener('input',bgPintar);
+  inp.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){cerrarBuscadorGlobal();}
+    else if(e.key==='ArrowDown'){e.preventDefault();bgMover(1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();bgMover(-1);}
+    else if(e.key==='Enter'){e.preventDefault();bgIr();}
+  });
+  bgPintar();
+  setTimeout(function(){try{inp.focus();}catch(e){}},60);
+}
+if(typeof window!=='undefined'){
+  window.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&(e.key==='k'||e.key==='K')){
+      e.preventDefault();
+      if(typeof MODO_CLIENTE==='undefined'||!MODO_CLIENTE)abrirBuscadorGlobal();
+    }
+  });
+}
