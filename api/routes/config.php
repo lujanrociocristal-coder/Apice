@@ -17,7 +17,9 @@ function handle_config($method, $resto) {
     if ($method === 'POST')   return feriado_crear();
     if ($method === 'DELETE') return feriado_borrar($id);
   }
-  /* Correo de salida, para "olvidé mi contraseña" (v46). Solo la administradora. */
+  /* Correo de salida, para "olvide mi contrasena" (v46).
+     Es infraestructura de la PLATAFORMA, no de cada estudio: la casilla que
+     envia es una sola. Por eso solo la super-administradora puede tocarlo. */
   if ($sub === 'correo') {
     if ($method === 'GET')  return correo_ver();
     if ($method === 'PUT')  return correo_guardar();
@@ -103,7 +105,7 @@ function ajuste_guardar($clave, $valor) {
 }
 
 function correo_ver() {
-  require_admin();
+  require_superadmin();
   $pass = ajuste_leer('smtp_pass');
   json_ok([
     'host' => ajuste_leer('smtp_host') ?: 'smtp.hostinger.com',
@@ -114,7 +116,7 @@ function correo_ver() {
 }
 
 function correo_guardar() {
-  require_admin();
+  require_superadmin();
   $host = trim((string)field('host'));
   $port = (int)field('port');
   $user = trim((string)field('user'));
@@ -131,7 +133,7 @@ function correo_guardar() {
 
 /* Manda un correo de prueba a la persona que esta usando la app. */
 function correo_probar() {
-  $u = require_admin();
+  $u = require_superadmin();
   require_once __DIR__ . '/../lib/smtp.php';
   $destino = trim((string)field('email')) ?: $u['email'];
   if (!filter_var($destino, FILTER_VALIDATE_EMAIL)) json_error('El correo de destino no es válido.');

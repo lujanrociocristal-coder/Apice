@@ -2304,7 +2304,7 @@ function renderConfig(){
     <div class="cfg-grid">${fld('cfg_inact','Días sin actividad para marcar crítico',config.repInactiv,'')}${fld('cfg_venc','Días de vencimiento para marcar crítico',config.repVenc,'')}</div>
     <div class="cfg-note">Definen cuándo un expediente pasa a 🔴 crítico en Reportes y en EstrategIA.</div></div>`;
   const datos=`<div class="cfg-block"><div class="cfg-bh"><h3>Datos y seguridad</h3><span class="cfg-badge a">Activo</span></div>
-    <div class="cfg-acc"><button class="btn-sec" onclick="abrirCorreoConfig()">✉ Correo para recuperar contraseñas</button><button class="btn-sec" onclick="exportarDatos()">⭳ Exportar copia de seguridad (.json)</button><button class="btn-sec" onclick="exportarCausasCSV()">⭳ Exportar causas en planilla (.csv)</button></div>
+    <div class="cfg-acc">${esSuperAdmin()?'<button class="btn-sec" onclick="abrirCorreoConfig()">✉ Correo para recuperar contraseñas</button>':''}<button class="btn-sec" onclick="exportarDatos()">⭳ Exportar copia de seguridad (.json)</button><button class="btn-sec" onclick="exportarCausasCSV()">⭳ Exportar causas en planilla (.csv)</button></div>
     <div class="cfg-note">Tus datos se guardan en el <b>servidor del estudio</b> (compartidos con quienes trabajen con vos) y además queda una copia en este dispositivo como respaldo. Si alguna vez falla el guardado, la app te avisa y reintenta sola.<br><b>Copia de seguridad:</b> el .json incluye causas, movimientos, honorarios, clientes, agenda y Guía Judicial, más el listado de los documentos guardados en el servidor. Conviene descargarla cada tanto y guardarla fuera de la computadora.</div></div>`;
   const soon=(t,d)=>`<div class="cfg-soon"><div class="cfg-soon-h">${t}<span class="cfg-badge b">pronto</span></div><div class="cfg-soon-d">${d}</div></div>`;
   const bloquesB=`<div class="cfg-block"><div class="cfg-bh"><h3>Próximamente (versión conectada)</h3></div><div class="cfg-soon-grid">
@@ -3124,3 +3124,15 @@ async function abrirCorreoConfig(){
     }
   });
 }
+
+/* ¿Soy la super-administradora de la plataforma? (v46)
+   Lo define el servidor; acá solo se usa para no mostrar opciones que la
+   persona no va a poder usar. El control de verdad está en el backend. */
+let __soySuper=false;
+function esSuperAdmin(){ return !!__soySuper; }
+(async function(){
+  try{
+    const me=await fetch('/api/auth/me',{credentials:'same-origin'}).then(r=>r.json());
+    __soySuper=!!(me&&me.data&&Number(me.data.es_superadmin)===1);
+  }catch(e){}
+})();
