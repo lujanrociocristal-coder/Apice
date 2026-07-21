@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 /* ============================================================================
 * TAREA DIARIA (Cron) — envía notificaciones al celular con la app cerrada.

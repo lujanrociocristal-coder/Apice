@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 /* ============================================================================
  *  RESPALDO AUTOMATICO DE LA BASE  (cron-backup.php)
