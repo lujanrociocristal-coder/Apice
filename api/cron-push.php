@@ -14,7 +14,9 @@
    Desde internet solo funciona con la clave secreta de config.php; si no,
    responde 404 y no ejecuta nada. Evita que un tercero dispare los avisos. */
 if (php_sapi_name() !== 'cli') {
-  $cfgSeg = @include __DIR__ . '/config.php';
+  require_once __DIR__ . '/lib/db.php';
+  $rutaSeg = function_exists('config_path') ? config_path() : (__DIR__ . '/config.php');
+  $cfgSeg = @include $rutaSeg;
   $tokSeg = (is_array($cfgSeg) && !empty($cfgSeg['backup_token'])) ? $cfgSeg['backup_token'] : '';
   $dadoSeg = isset($_GET['token']) ? (string)$_GET['token'] : '';
   if ($tokSeg === '' || $dadoSeg === '' || !hash_equals($tokSeg, $dadoSeg)) {

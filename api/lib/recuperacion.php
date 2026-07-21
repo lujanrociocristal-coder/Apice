@@ -34,7 +34,9 @@ function recup_tabla($pdo) {
 }
 
 function recup_dominio() {
-  $cfg = @include __DIR__ . '/../config.php';
+  require_once __DIR__ . '/db.php';
+  $ruta = function_exists('config_path') ? config_path() : (__DIR__ . '/../config.php');
+  $cfg = @include $ruta;
   $d = (is_array($cfg) && !empty($cfg['app_domain'])) ? $cfg['app_domain'] : 'abogadoscatamarca.com';
   return preg_replace('#^https?://#', '', trim($d, '/'));
 }

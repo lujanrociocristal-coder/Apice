@@ -17,7 +17,12 @@
  * ========================================================================== */
 
 function smtp_config() {
-  $cfg = @include __DIR__ . '/../config.php';
+  /* La configuracion NO esta en public_html: vive en apice_privado/ (fuera de
+     la carpeta publica, para que nadie pueda descargarla). config_path() de
+     db.php sabe buscarla en todos los lugares posibles. */
+  require_once __DIR__ . '/db.php';
+  $ruta = function_exists('config_path') ? config_path() : (__DIR__ . '/../config.php');
+  $cfg = @include $ruta;
   if (!is_array($cfg)) return null;
   if (empty($cfg['smtp_host']) || empty($cfg['smtp_user']) || empty($cfg['smtp_pass'])) return null;
   return [

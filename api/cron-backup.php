@@ -21,7 +21,9 @@
 $esCLI = (php_sapi_name() === 'cli');
 
 if (!$esCLI) {
-  $cfg = @include __DIR__ . '/config.php';
+  require_once __DIR__ . '/lib/db.php';
+  $rutaCfg = function_exists('config_path') ? config_path() : (__DIR__ . '/config.php');
+  $cfg = @include $rutaCfg;
   $token = (is_array($cfg) && !empty($cfg['backup_token'])) ? $cfg['backup_token'] : '';
   $dado  = isset($_GET['token']) ? (string)$_GET['token'] : '';
   if ($token === '' || $dado === '' || !hash_equals($token, $dado)) {
