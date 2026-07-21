@@ -210,3 +210,120 @@
     };
   });
 })();
+
+
+/* ===========================================================================
+ *  RECUPERAR LA CONTRASENA  (v46)
+ *  - Agrega el enlace "Olvide mi contrasena" en la pantalla de ingreso.
+ *  - Si se entra con un enlace de recuperacion (?recuperar=CODIGO), muestra
+ *    la pantalla para elegir la contrasena nueva.
+ * =========================================================================== */
+(function () {
+  function overlay(html) {
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,20,30,.6);display:flex;align-items:center;justify-content:center;z-index:100002;padding:16px';
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:400px;width:100%;padding:26px;font-family:system-ui,sans-serif;color:#1C2433">' + html + '</div>';
+    document.body.appendChild(ov);
+    return ov;
+  }
+  var estiloBtn = 'width:100%;background:#1C2433;color:#fff;border:0;padding:13px;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer;margin-top:14px';
+  var estiloInp = 'width:100%;padding:12px;border:1px solid #D3D7DE;border-radius:9px;font-size:16px;box-sizing:border-box';
+
+  /* ---- Pedir el enlace ---- */
+  window.apiceRecuperar = function () {
+    var ov = overlay(
+      '<h2 style="font-size:19px;margin:0 0 6px">Recuperar contrase&ntilde;a</h2>'
+      + '<p style="font-size:14px;color:#6B7280;margin:0 0 16px">Escrib&iacute; tu correo y te mandamos un enlace para elegir una contrase&ntilde;a nueva.</p>'
+      + '<label for="recEmail" style="display:block;font-size:12px;color:#6B7280;margin-bottom:4px">Correo</label>'
+      + '<input id="recEmail" type="email" autocomplete="email" style="' + estiloInp + '">'
+      + '<div id="recMsg" style="font-size:13px;margin-top:12px;line-height:1.5"></div>'
+      + '<button id="recOk" style="' + estiloBtn + '">Enviarme el enlace</button>'
+      + '<button id="recCancel" style="width:100%;background:#EEF0F3;border:0;padding:12px;border-radius:9px;font-size:14px;cursor:pointer;margin-top:8px">Volver</button>'
+    );
+    var inp = ov.querySelector('#recEmail'), msg = ov.querySelector('#recMsg'), btn = ov.querySelector('#recOk');
+    setTimeout(function () { try { inp.focus(); } catch (e) {} }, 60);
+    ov.querySelector('#recCancel').addEventListener('click', function () { document.body.removeChild(ov); });
+    async function pedir() {
+      var em = (inp.value || '').trim();
+      if (!em) { msg.style.color = '#B42318'; msg.textContent = 'Escrib\u00ed tu correo.'; return; }
+      btn.disabled = true; btn.textContent = 'Enviando...';
+      try {
+        var r = await apiPost('/auth/olvide', { email: em });
+        msg.style.color = '#067647';
+        msg.textContent = (r && r.mensaje) ? r.mensaje : 'Listo. Revis\u00e1 tu correo.';
+        btn.style.display = 'none';
+        ov.querySelector('#recCancel').textContent = 'Cerrar';
+      } catch (e) {
+        msg.style.color = '#B42318';
+        msg.textContent = e.message || 'No se pudo enviar. Prob\u00e1 de nuevo en un rato.';
+        btn.disabled = false; btn.textContent = 'Enviarme el enlace';
+      }
+    }
+    btn.addEventListener('click', pedir);
+    inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') pedir(); });
+  };
+
+  /* ---- Elegir la contrasena nueva (viene del enlace del correo) ---- */
+  function pantallaNuevaClave(token) {
+    var ov = overlay(
+      '<h2 style="font-size:19px;margin:0 0 6px">Eleg&iacute; tu contrase&ntilde;a nueva</h2>'
+      + '<p style="font-size:14px;color:#6B7280;margin:0 0 16px">M&iacute;nimo 6 caracteres. Us&aacute; una que no uses en otro lado.</p>'
+      + '<label for="nc1" style="display:block;font-size:12px;color:#6B7280;margin-bottom:4px">Contrase&ntilde;a nueva</label>'
+      + '<input id="nc1" type="password" autocomplete="new-password" style="' + estiloInp + '">'
+      + '<label for="nc2" style="display:block;font-size:12px;color:#6B7280;margin:12px 0 4px">Repetila</label>'
+      + '<input id="nc2" type="password" autocomplete="new-password" style="' + estiloInp + '">'
+      + '<div id="ncMsg" style="font-size:13px;margin-top:12px;line-height:1.5"></div>'
+      + '<button id="ncOk" style="' + estiloBtn + '">Guardar y entrar</button>'
+    );
+    var a = ov.querySelector('#nc1'), b = ov.querySelector('#nc2'),
+        msg = ov.querySelector('#ncMsg'), btn = ov.querySelector('#ncOk');
+    setTimeout(function () { try { a.focus(); } catch (e) {} }, 60);
+    btn.addEventListener('click', async function () {
+      if ((a.value || '').length < 6) { msg.style.color = '#B42318'; msg.textContent = 'Tiene que tener al menos 6 caracteres.'; return; }
+      if (a.value !== b.value) { msg.style.color = '#B42318'; msg.textContent = 'Las dos contrase\u00f1as no coinciden.'; return; }
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      try {
+        await apiPost('/auth/restablecer', { token: token, password: a.value });
+        msg.style.color = '#067647';
+        msg.textContent = 'Listo. Ya pod\u00e9s ingresar con tu contrase\u00f1a nueva.';
+        setTimeout(function () { location.href = location.origin + location.pathname; }, 1600);
+      } catch (e) {
+        msg.style.color = '#B42318';
+        msg.textContent = e.message || 'El enlace no sirve o venci\u00f3. Ped\u00ed uno nuevo.';
+        btn.disabled = false; btn.textContent = 'Guardar y entrar';
+      }
+    });
+  }
+
+  window.addEventListener('load', function () {
+    /* Si viene del correo con el codigo, se muestra la pantalla directamente. */
+    try {
+      var m = (location.search || '').match(/[?&]recuperar=([A-Za-z0-9]+)/);
+      if (m && m[1]) { setTimeout(function () { pantallaNuevaClave(m[1]); }, 400); return; }
+    } catch (e) {}
+
+    /* Si no, se agrega el enlace en la pantalla de ingreso. */
+    var puesto = false;
+    var t = setInterval(function () {
+      if (puesto) { clearInterval(t); return; }
+      try {
+        var btns = Array.prototype.slice.call(document.querySelectorAll('button'));
+        var entrar = null;
+        for (var i = 0; i < btns.length; i++) {
+          var txt = (btns[i].innerText || '').trim().toLowerCase();
+          if (txt === 'ingresar' || txt.indexOf('ingresar') === 0) { entrar = btns[i]; break; }
+        }
+        if (!entrar || document.getElementById('lnkOlvide')) return;
+        var a = document.createElement('a');
+        a.id = 'lnkOlvide';
+        a.href = '#';
+        a.textContent = 'Olvid\u00e9 mi contrase\u00f1a';
+        a.style.cssText = 'display:block;text-align:center;margin-top:14px;font-size:13.5px;color:#3C6FA6;text-decoration:underline;cursor:pointer';
+        a.addEventListener('click', function (ev) { ev.preventDefault(); apiceRecuperar(); });
+        entrar.parentNode.insertBefore(a, entrar.nextSibling);
+        puesto = true;
+      } catch (e) {}
+    }, 700);
+    setTimeout(function () { clearInterval(t); }, 20000);
+  });
+})();

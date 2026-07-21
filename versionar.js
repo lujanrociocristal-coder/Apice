@@ -13,7 +13,7 @@ const path = require('path');
 
 const DIR = __dirname;
 const INDEX = path.join(DIR, 'index.html');
-const ARCHIVOS = ['styles.css', 'app.js', 'anim.js'];
+const ARCHIVOS = ['styles.css', 'app.js', 'anim.js', 'api.js'];
 
 const d = new Date();
 const p = n => String(n).padStart(2, '0');

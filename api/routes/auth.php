@@ -12,6 +12,16 @@
 function handle_auth($method, $resto) {
   $accion = $resto[0] ?? '';
 
+  /* ---- Recuperar la contraseña por correo (v46) ---- */
+  if ($accion === 'olvide' && $method === 'POST') {
+    require_once __DIR__ . '/../lib/recuperacion.php';
+    return recup_pedir(field('email'));
+  }
+  if ($accion === 'restablecer' && $method === 'POST') {
+    require_once __DIR__ . '/../lib/recuperacion.php';
+    return recup_restablecer(field('token'), field('password'));
+  }
+
   if ($accion === 'login' && $method === 'POST') {
     $email = strtolower(trim((string)field('email')));
     $pass  = (string)field('password');
