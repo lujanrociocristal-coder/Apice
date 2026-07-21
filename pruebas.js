@@ -73,21 +73,32 @@ const phps = [];
   }
 })(phpDir);
 chequeo('hay archivos PHP', phps.length > 0, phps.length + ' archivos');
-/* Quita comentarios y textos entre comillas antes de contar llaves: si no,
-   una expresion regular como \d{1,2} dentro de un texto da falsa alarma. */
-function phpSinTextos(t) {
-  return t
-    .replace(/\/\*[\s\S]*?\*\//g, '')      // comentarios /* */
-    .replace(/\/\/[^\n]*/g, '')            // comentarios //
-    .replace(/#[^\n]*/g, '')               // comentarios #
-    .replace(/'(?:\\.|[^'\\])*'/g, "''")   // textos entre comillas simples
-    .replace(/"(?:\\.|[^"\\])*"/g, '""');  // textos entre comillas dobles
+/* Cuenta las llaves REALES del codigo, recorriendo caracter por caracter.
+   Hace falta ser asi de prolijo: reemplazar con expresiones regulares daba
+   falsas alarmas (por ejemplo, un "//" dentro de un texto se tomaba como
+   comentario, o un \d{1,2} de una expresion regular contaba como llave). */
+function phpProfundidad(t) {
+  let prof = 0, i = 0;
+  const n = t.length;
+  while (i < n) {
+    const c = t[i], d = t[i + 1];
+    if (c === '/' && d === '*') { const f = t.indexOf('*/', i + 2); i = (f < 0 ? n : f + 2); continue; }
+    if ((c === '/' && d === '/') || c === '#') { const f = t.indexOf('\n', i); i = (f < 0 ? n : f + 1); continue; }
+    if (c === "'" || c === '"') {
+      const cierre = c; i++;
+      while (i < n) { if (t[i] === '\\') { i += 2; continue; } if (t[i] === cierre) { i++; break; } i++; }
+      continue;
+    }
+    if (c === '{') prof++;
+    else if (c === '}') prof--;
+    i++;
+  }
+  return prof;
 }
 phps.forEach(p => {
-  const t = phpSinTextos(fs.readFileSync(p, 'utf8'));
   const rel = path.relative(DIR, p).replace(/\\/g, '/');
-  const bal = (s, a, b) => (s.split(a).length - 1) === (s.split(b).length - 1);
-  chequeo('llaves balanceadas ' + rel, bal(t, '{', '}'));
+  const prof = phpProfundidad(fs.readFileSync(p, 'utf8'));
+  chequeo('llaves balanceadas ' + rel, prof === 0, prof !== 0 ? ('quedan ' + prof + ' sin cerrar') : '');
 });
 
 console.log('\n=== 6) Seguridad: no deben existir estos archivos ===');
