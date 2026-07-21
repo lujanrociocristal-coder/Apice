@@ -3228,13 +3228,27 @@ function cliUltimoHTML(sel){
     +'</div>';
 }
 
+/* Arma el número para el enlace de WhatsApp (v46).
+   WhatsApp exige el formato internacional: sin el +, sin espacios y CON el
+   código de país. Para celulares argentinos es 54 + 9 + característica + número.
+   Ejemplo: 3834388918 (Catamarca) -> 5493834388918
+   Se contemplan los errores de tipeo más comunes: el 0 de la característica
+   y el 15 del celular, que en el formato internacional NO van. */
+function waNumero(tel){
+  let n=String(tel||'').replace(/[^0-9]/g,'');
+  if(!n)return '';
+  if(n.indexOf('54')===0)return n;   // ya viene con código de país
+  if(n.indexOf('0')===0)n=n.slice(1); // sacar el 0 inicial
+  n=n.replace(/^(\d{2,4})15/,'$1');   // sacar el 15 que va después de la característica
+  return '549'+n;
+}
 function cliContactoHTML(){
   const e=__cliEstudio;
   if(!e)return '';
   const tel=(e.telefono||'').trim();
   const mail=(e.email||'').trim();
   if(!tel&&!mail)return '';
-  const soloNum=tel.replace(/[^0-9]/g,'');
+  const soloNum=waNumero(tel);
   return '<div class="cli-contacto">'
     +'<div class="cc-h">¿Tiene una consulta sobre su caso?</div>'
     +'<div class="cc-sub">Escríbanos cuando quiera. Preferimos que pregunte antes de quedarse con la duda.</div>'
