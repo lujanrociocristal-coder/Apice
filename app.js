@@ -530,7 +530,7 @@ function panelAvance(c){
     const impTag=b.imp?`<span class="tl-tag imp">impulso</span>`:"";
     return `<div class="tl-item ${actual?'actual':''}">
       <div class="tl-fecha">${esc(b.fecha)} ${tag}${impTag}<span class="mov-tools"><span class="picon imp ${b.imp?'on':''}" onclick="toggleImp('${c.id}',${i})" title="Marcar/desmarcar acto de impulso">⚖</span><span class="picon" onclick="editMov('${c.id}',${i})" title="Editar">✎</span><span class="pdel" onclick="delMov('${c.id}',${i})" title="Eliminar">×</span></span></div>
-      <div class="tl-txt">${esc(b.texto)}</div></div>`;
+      <div class="tl-txt">${glosarMarcar(esc(b.texto))}</div></div>`;
   }).join("")}</div>`;
 }
 /* ===== MÓDULO DOCUMENTOS (v20): carpetas + relevancia + visibilidad + acciones ===== */
@@ -1058,7 +1058,7 @@ function renderCliente(c){
         const docs=(sel.archivos||[]).map(a=>({fecha:a.fecha_doc?fmtFechaDoc(a.fecha_doc):'',texto:'📄 Documento cargado: '+(a.nombre||'documento')})).filter(d=>!yaTxt[d.texto]);
         const merged=base.concat(docs);
         merged.sort((x,y)=>(parseDMY(y.fecha)||0)-(parseDMY(x.fecha)||0));
-        return merged.map((b,i)=>{const actual=i===0;return `<div class="tl-item ${actual?'actual':''}"><div class="tl-fecha">${esc(b.fecha)} ${actual?'<span class="tl-tag act">último</span>':''}</div><div class="tl-txt">${esc(b.texto)}</div></div>`;}).join("");
+        return merged.map((b,i)=>{const actual=i===0;return `<div class="tl-item ${actual?'actual':''}"><div class="tl-fecha">${esc(b.fecha)} ${actual?'<span class="tl-tag act">último</span>':''}</div><div class="tl-txt">${glosarMarcar(esc(b.texto))}</div></div>`;}).join("");
       })()}</div>`;
   }
   document.getElementById("app").innerHTML=`<div class="ficha">${header}
@@ -2107,7 +2107,7 @@ function renderRepActividad(id){
   const mini=(ic,v,l)=>`<div class="rep-mini"><span class="rm-ic">${ic}</span><div><div class="rm-val">${v}</div><div class="rm-lab">${l}</div></div></div>`;
   const minis=`<div class="rep-minis">${mini('📄',docs.length,'Documentos')}${mini('✓',td.length,'Tareas hechas')}${mini('⏳',tp.length,'Tareas pendientes')}${mini('⚖',auds.length,'Audiencias próx.')}${mini('📅',pv?dmyCad(pv.d):'—','Próx. vencimiento')}${mini('🕐',dsa==null?'—':dsa+'d','Sin actividad')}</div>`;
   const salud=`<div class="salud ${s.nivel}"><div class="salud-score">${s.score}<small>/100</small></div><div class="salud-body"><div class="salud-lvl">${s.nivel==='verde'?'Buena salud procesal':s.nivel==='amar'?'Requiere seguimiento':'Atención urgente'}</div><ul class="salud-mot">${s.motivos.map(m=>`<li>${esc(m)}</li>`).join('')}</ul></div></div>`;
-  const timeline=`<div class="rep-block"><div class="rep-block-h"><h3>Línea de tiempo</h3><span class="rep-block-sub">${a30.length?'Últimos 30 días':'Últimos movimientos'}</span></div><div class="tl">${tl.length?tl.map((b,i)=>`<div class="tl-item ${i===0?'actual':''}"><div class="tl-fecha">${esc(b.fecha)}</div><div class="tl-txt">${esc(b.texto)}</div></div>`).join(''):'<div class="vacio">Sin movimientos.</div>'}</div></div>`;
+  const timeline=`<div class="rep-block"><div class="rep-block-h"><h3>Línea de tiempo</h3><span class="rep-block-sub">${a30.length?'Últimos 30 días':'Últimos movimientos'}</span></div><div class="tl">${tl.length?tl.map((b,i)=>`<div class="tl-item ${i===0?'actual':''}"><div class="tl-fecha">${esc(b.fecha)}</div><div class="tl-txt">${glosarMarcar(esc(b.texto))}</div></div>`).join(''):'<div class="vacio">Sin movimientos.</div>'}</div></div>`;
   const tareasB=`<div class="rep-block"><div class="rep-block-h"><h3>Estado de tareas</h3></div><div class="rep-tareas"><div><div class="rt-h ok">Completadas (${td.length})</div>${td.length?td.map(p=>`<div class="rt-it">✓ ${esc(p.t)}</div>`).join(''):'<div class="vacio sm">—</div>'}</div><div><div class="rt-h">Pendientes (${tp.length})</div>${tp.length?tp.map(p=>`<div class="rt-it">○ ${esc(p.t)}</div>`).join(''):'<div class="vacio sm">—</div>'}</div></div></div>`;
   const prox=`<div class="rep-block"><div class="rep-block-h"><h3>Próximos eventos</h3></div>${auds.length?`<div class="aud-list">${auds.map(audItem).join('')}</div>`:(pv?`<div class="rep-row-info" style="padding:4px 0"><div class="rri"><span>${esc(pv.txt)}</span><b>${dmyCad(pv.d)}</b></div></div>`:'<div class="vacio">Sin eventos próximos.</div>')}</div>`;
   const iaT=[];iaT.push('El expediente registró '+a30.length+' movimiento'+(a30.length!==1?'s':'')+' en los últimos 30 días.');if(pv)iaT.push('El próximo punto a vigilar es '+pv.txt.toLowerCase()+' del '+dmyCad(pv.d)+'.');iaT.push(s.nivel==='rojo'?('Requiere atención prioritaria: '+s.motivos.slice(0,2).join(' ')):(s.nivel==='amar'?'Conviene darle seguimiento en los próximos días.':'No se detectan riesgos procesales inmediatos.'));
@@ -3376,3 +3376,74 @@ if(typeof window!=='undefined'){
     }
   });
 }
+
+/* ===== Glosario para el cliente (v46) =====
+   Los terminos procesales son precisos pero opacos para quien no es abogado.
+   En la vista del cliente se realzan y, al tocarlos, explican que significan.
+   Las definiciones estan redactadas para que las entienda un cliente, no como
+   cita doctrinaria: salen bajo la firma del estudio, conviene revisarlas. */
+const GLOSARIO={
+  'oficio':'Un pedido por escrito que el juzgado le manda a otro organismo (un banco, un registro, una empresa) para pedirle informacion o que haga algo.',
+  'sentencia':'La decision del juez que resuelve el caso.',
+  'cedula':'Una notificacion en papel que se lleva al domicilio para comunicar formalmente algo del expediente.',
+  'mediacion':'Una instancia donde las partes intentan llegar a un acuerdo con la ayuda de un mediador, antes de seguir con el juicio.',
+  'homologacion':'Cuando el juez aprueba un acuerdo al que llegaron las partes y le da fuerza legal, como si fuera una sentencia.',
+  'prescripcion':'El paso del tiempo que, cumplido cierto plazo, puede hacer perder el derecho a reclamar.',
+  'sucesorio':'El tramite para que los bienes de una persona fallecida pasen legalmente a sus herederos.',
+  'sucesion':'El tramite para que los bienes de una persona fallecida pasen legalmente a sus herederos.',
+  'interlocutorio':'Una resolucion del juez que decide una cuestion durante el proceso, sin ser todavia la sentencia final.',
+  'interlocutoria':'Una resolucion del juez que decide una cuestion durante el proceso, sin ser todavia la sentencia final.',
+  'decreto':'Una decision breve del juzgado sobre el tramite, por ejemplo tener por presentado un escrito.',
+  'providencia':'Una decision breve del juzgado sobre el tramite, por ejemplo tener por presentado un escrito.',
+  'audiencia':'Una reunion en el juzgado donde las partes y el juez tratan el caso.',
+  'notificacion':'El acto formal por el cual se le comunica a una de las partes algo del expediente.',
+  'allanamiento':'Cuando la parte demandada acepta el reclamo en vez de discutirlo.',
+  'cautelar':'Una medida que se pide para proteger algo mientras dura el juicio, por ejemplo un embargo.',
+  'caducidad':'Si el expediente queda mucho tiempo sin movimiento, puede darse por terminado. Por eso se lo impulsa periodicamente.',
+  'traslado':'Cuando se le da a la otra parte la oportunidad de responder a un escrito presentado.',
+  'embargo':'Una medida que retiene bienes o dinero para asegurar el resultado del juicio.',
+  'alimentos':'La cuota destinada a cubrir los gastos de manutencion: comida, salud, educacion, vivienda.',
+  'filiacion':'El vinculo legal entre padres e hijos, y el tramite para que quede reconocido.',
+  'pericia':'El informe de un especialista (medico, contador, psicologo) que el juzgado pide para entender algo tecnico.',
+  'apelacion':'Cuando se pide que un tribunal superior revise una decision.'
+};
+/* Letras que cuentan como parte de una palabra (con acentos y ene). */
+var GLO_LET='A-Za-z\u00C0-\u017F';
+function glosarBase(x){
+  return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+/* Indice: cada termino se busca sin acentos, asi 'mediacion' encuentra 'mediacion' y 'mediacion' con tilde. */
+var GLO_DEF={};
+Object.keys(GLOSARIO).forEach(function(k){ GLO_DEF[glosarBase(k)]=GLOSARIO[k]; });
+var GLO_RE=new RegExp('(^|[^'+GLO_LET+'])((?:'+Object.keys(GLO_DEF).sort(function(a,b){return b.length-a.length;}).join('|')+')(?:es|s)?)(?![\\w])','gi');
+/* Marca los terminos dentro de un texto YA escapado.
+   Una sola pasada: si se hiciera termino por termino, las propias definiciones
+   insertadas volverian a marcarse (la de 'homologacion' contiene 'sentencia'). */
+function glosarMarcar(txt){
+  if(!txt) return txt;
+  var usados={};
+  return String(txt).replace(GLO_RE,function(m,pre,pal){
+    var base=glosarBase(pal).replace(/(es|s)$/,'');
+    var def=GLO_DEF[glosarBase(pal)]||GLO_DEF[base];
+    if(!def||usados[base]) return m;
+    usados[base]=true;
+    return pre+'<button type="button" class="glo" onclick="glosarVer(this)" aria-label="Que significa '+attr(pal)+'" data-t="'+attr(def)+'">'+pal+'</button>';
+  });
+}
+function glosarVer(btn){
+  var abierto=btn.nextSibling&&btn.nextSibling.className==='glo-pop';
+  var vs=document.querySelectorAll('.glo-pop');
+  Array.prototype.forEach.call(vs,function(p){p.remove();});
+  Array.prototype.forEach.call(document.querySelectorAll('.glo.abierto'),function(x){x.classList.remove('abierto');});
+  if(abierto) return;
+  var p=document.createElement('span');
+  p.className='glo-pop';
+  p.innerHTML='<b>'+esc(btn.textContent)+'</b>'+esc(btn.getAttribute('data-t')||'');
+  btn.classList.add('abierto');
+  btn.parentNode.insertBefore(p,btn.nextSibling);
+}
+document.addEventListener('click',function(ev){
+  if(ev.target&&ev.target.classList&&ev.target.classList.contains('glo')) return;
+  Array.prototype.forEach.call(document.querySelectorAll('.glo-pop'),function(p){p.remove();});
+  Array.prototype.forEach.call(document.querySelectorAll('.glo.abierto'),function(x){x.classList.remove('abierto');});
+});
