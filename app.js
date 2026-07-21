@@ -3215,16 +3215,13 @@ function cliUltimoHTML(sel){
   const u=todos[0];
   if(!u)return '<div class="cli-ultimo"><div class="cu-h">Lo último que pasó</div>'
     +'<div class="cu-txt">Todavía no hay movimientos cargados en su causa.</div></div>';
-  let cuando='';
-  const d=parseDMY(u.fecha);
-  if(d){
-    const dias=Math.floor((Date.now()-d)/86400000);
-    cuando = dias<=0?'hoy':(dias===1?'ayer':('hace '+dias+' días'));
-  }
+  /* Se muestra la fecha, pero NO "hace X días": el tiempo transcurrido en un
+     expediente depende del juzgado y no del estudio, y ponerlo a la vista
+     invita a un reclamo por algo que no siempre está en nuestras manos. */
   return '<div class="cli-ultimo">'
     +'<div class="cu-h">Lo último que pasó</div>'
     +'<div class="cu-txt">'+esc(u.texto)+'</div>'
-    +'<div class="cu-pie">'+esc(u.fecha||'')+(cuando?(' · '+cuando):'')+'</div>'
+    +(u.fecha?('<div class="cu-pie">'+esc(u.fecha)+'</div>'):'')
     +'</div>';
 }
 
