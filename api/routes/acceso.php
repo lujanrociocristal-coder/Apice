@@ -256,6 +256,24 @@ function acceso_portal() {
     }
   }
 
+  /* Datos de contacto del estudio (v46): el cliente tiene que poder
+     comunicarse sin salir a buscar el teléfono en otro lado. */
+  $estudio = null;
+  if ($estudios) {
+    $eidC = array_key_first($estudios);
+    $ste = db()->prepare('SELECT nombre, telefono, email, domicilio FROM estudios WHERE id = ?');
+    $ste->execute([$eidC]);
+    $e = $ste->fetch();
+    if ($e) {
+      $estudio = [
+        'nombre'    => $e['nombre'],
+        'telefono'  => $e['telefono'],
+        'email'     => $e['email'],
+        'domicilio' => $e['domicilio'],
+      ];
+    }
+  }
+
   // valorIUS del estudio (para mostrar pesos). Toma el del primer estudio.
   $valorIUS = 0;
   if ($estudios) {
@@ -271,6 +289,7 @@ function acceso_portal() {
     'valorIUS'   => $valorIUS,
     'causas'     => $causas,
     'audiencias' => $audiencias,
+    'estudio'    => $estudio,
   ]);
 }
 

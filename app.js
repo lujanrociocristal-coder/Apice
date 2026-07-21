@@ -1039,13 +1039,15 @@ function renderCliente(c){
       ${(citas.length||auds.length)?`<div class="cli-citas">${citas.map(citaCard).join('')}${auds.map(audCard).join('')}</div>`:`<div class="vacio">Todavía no hay citas ni audiencias agendadas para usted.</div>`}`;
   }else{
     panel=`<div class="cli-estado ${k}"><span class="dot ${k}"></span>${etapa}</div>
+      ${cliUltimoHTML(sel)}
       <div class="campos" style="margin-top:6px">
-        <div class="campo full"><div class="ck">Carátula</div><div class="cv">${esc(sel.caratula)}</div></div>
+        <div class="campo full"><div class="ck">Carátula <span class="ck-ayuda">— así figura su caso en el juzgado</span></div><div class="cv">${esc(sel.caratula)}</div></div>
         <div class="campo"><div class="ck">Tipo de trámite</div><div class="cv">${sel.materia.join(" · ")}</div></div>
-        <div class="campo"><div class="ck">Expediente</div><div class="cv mono">${esc(sel.expediente||'En preparación')}</div></div>
-        <div class="campo full"><div class="ck">Juzgado</div><div class="cv">${esc(sel.juzgado)}</div></div>
+        <div class="campo"><div class="ck">N° de expediente <span class="ck-ayuda">— el número con el que se identifica</span></div><div class="cv mono">${esc(sel.expediente||'Todavía no asignado')}</div></div>
+        <div class="campo full"><div class="ck">Juzgado <span class="ck-ayuda">— dónde tramita</span></div><div class="cv">${esc(sel.juzgado)}</div></div>
       </div>
       <div class="bloque-titulo">Movimientos de su causa</div>
+      <div class="cli-nota-mov">Cada línea es una actuación del expediente, de la más reciente a la más antigua. Si algún término no se entiende, consultenos: está para eso.</div>
       <div class="tl">${(function(){
         const base=(sel.bitacora||[]).map(b=>({fecha:b.fecha,texto:b.texto}));
         const yaTxt={};base.forEach(b=>{yaTxt[b.texto]=true;});
@@ -1061,7 +1063,8 @@ function renderCliente(c){
     <div class="panel">
       ${MODO_CLIENTE?'':`<div class="cliente-aviso">${iWarn}<div>Vista simulada del cliente. Ve solo lo suyo, en lenguaje simple, sin estrategia ni notas internas.</div></div>`}
       ${cliAvisosHTML()}
-      ${panel}</div></div>`;
+      ${panel}
+      ${cliContactoHTML()}</div></div>`;
 }
 function modalContent(){
   const m=st.modal;
@@ -3016,6 +3019,7 @@ async function initCliente(me){
   try{const r=await fetch('/api/acceso/portal',{credentials:'same-origin'});const j=await r.json();if(j&&j.ok)d=j.data;}catch(e){}
   causas=(d&&d.causas)||[];
   audiencias=(d&&d.audiencias)||[];
+  __cliEstudio=(d&&d.estudio)||null;
   if(d&&typeof d.valorIUS==='number'&&d.valorIUS>0)config.valorIUS=d.valorIUS;
   if(d&&d.nombre)__cliNombre=d.nombre;
   st.cliente=true;st.cliCausa=null;st.cliTab='datos';
@@ -3194,3 +3198,49 @@ function esSuperAdmin(){ return !!__soySuper; }
 
   window.addEventListener('load',function(){ setTimeout(sembrar,800); });
 })();
+
+/* ===== Portal del cliente: que se entienda sin saber derecho (v46) =====
+   La duda de todo cliente es siempre la misma: "¿qué pasó y qué sigue?".
+   Antes tenía que deducirlo de una lista de movimientos en lenguaje jurídico.
+   Ahora lo primero que ve es la última novedad en claro, y abajo cómo
+   comunicarse. */
+let __cliEstudio=null;
+
+function cliUltimoHTML(sel){
+  const bit=(sel&&sel.bitacora)||[];
+  const arch=(sel&&sel.archivos)||[];
+  const todos=bit.map(b=>({fecha:b.fecha,texto:b.texto}))
+    .concat(arch.map(a=>({fecha:a.fecha_doc?fmtFechaDoc(a.fecha_doc):'',texto:'Se incorporó el documento "'+(a.nombre||'documento')+'"'})));
+  todos.sort((x,y)=>(parseDMY(y.fecha)||0)-(parseDMY(x.fecha)||0));
+  const u=todos[0];
+  if(!u)return '<div class="cli-ultimo"><div class="cu-h">Lo último que pasó</div>'
+    +'<div class="cu-txt">Todavía no hay movimientos cargados en su causa.</div></div>';
+  let cuando='';
+  const d=parseDMY(u.fecha);
+  if(d){
+    const dias=Math.floor((Date.now()-d)/86400000);
+    cuando = dias<=0?'hoy':(dias===1?'ayer':('hace '+dias+' días'));
+  }
+  return '<div class="cli-ultimo">'
+    +'<div class="cu-h">Lo último que pasó</div>'
+    +'<div class="cu-txt">'+esc(u.texto)+'</div>'
+    +'<div class="cu-pie">'+esc(u.fecha||'')+(cuando?(' · '+cuando):'')+'</div>'
+    +'</div>';
+}
+
+function cliContactoHTML(){
+  const e=__cliEstudio;
+  if(!e)return '';
+  const tel=(e.telefono||'').trim();
+  const mail=(e.email||'').trim();
+  if(!tel&&!mail)return '';
+  const soloNum=tel.replace(/[^0-9]/g,'');
+  return '<div class="cli-contacto">'
+    +'<div class="cc-h">¿Tiene una consulta sobre su caso?</div>'
+    +'<div class="cc-sub">Escríbanos cuando quiera. Preferimos que pregunte antes de quedarse con la duda.</div>'
+    +'<div class="cc-btns">'
+    +(soloNum?('<a class="cc-btn" href="https://wa.me/'+soloNum+'" target="_blank" rel="noopener">Escribir por WhatsApp</a>'):'')
+    +(tel?('<a class="cc-btn sec" href="tel:'+attr(tel)+'">Llamar '+esc(tel)+'</a>'):'')
+    +(mail?('<a class="cc-btn sec" href="mailto:'+attr(mail)+'">'+esc(mail)+'</a>'):'')
+    +'</div></div>';
+}
