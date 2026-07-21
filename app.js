@@ -3204,7 +3204,23 @@ function esSuperAdmin(){ return !!__soySuper; }
    Antes tenía que deducirlo de una lista de movimientos en lenguaje jurídico.
    Ahora lo primero que ve es la última novedad en claro, y abajo cómo
    comunicarse. */
-let __cliEstudio=null;
+let __cliEstudio=null;   // datos del estudio cuando entra un cliente real
+let __miEstudio=null;    // datos de MI estudio, para la vista previa
+
+/* Carga los datos del estudio (nombre, teléfono, correo) una sola vez.
+   Se usa para que la "Vista de cliente" muestre el bloque de contacto igual
+   que lo vería el cliente. */
+async function cargarMiEstudio(){
+  try{
+    const r=await fetch('/api/config',{credentials:'same-origin'});
+    const j=await r.json();
+    if(j&&j.data)__miEstudio={
+      nombre:j.data.nombre, telefono:j.data.telefono,
+      email:j.data.email, domicilio:j.data.domicilio
+    };
+  }catch(e){}
+}
+if(typeof window!=='undefined')window.addEventListener('load',function(){setTimeout(cargarMiEstudio,1200);});
 
 function cliUltimoHTML(sel){
   const bit=(sel&&sel.bitacora)||[];
@@ -3240,7 +3256,11 @@ function waNumero(tel){
   return '549'+n;
 }
 function cliContactoHTML(){
-  const e=__cliEstudio;
+  /* Con un cliente real, los datos vienen del portal. En la "Vista de cliente"
+     (la que usa la abogada para previsualizar) hay que tomarlos del propio
+     estudio: si no, la vista previa no mostraría lo mismo que ve el cliente,
+     que es justamente para lo que sirve. */
+  const e=__cliEstudio||__miEstudio;
   if(!e)return '';
   const tel=(e.telefono||'').trim();
   const mail=(e.email||'').trim();
