@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
  *  APICE - PUENTE CON EL SERVIDOR (api.js)
  *
  *  Que hace, en simple:
@@ -76,8 +76,8 @@
   // onbEnter / cerrarSesion para reemplazar.
   window.addEventListener('load', function () {
 
-    // ÁPICE NO es de acceso público: se oculta el "Creá una cuenta" y el botón
-    // de Google. Solo se ingresa con email y contraseña que crea la administradora.
+    // ÃPICE NO es de acceso pÃºblico: se oculta el "CreÃ¡ una cuenta" y el botÃ³n
+    // de Google. Solo se ingresa con email y contraseÃ±a que crea la administradora.
     try {
       var estilo = document.createElement('style');
       estilo.textContent = '.onb-switch{display:none!important}.onb-google{display:none!important}.onb-or{display:none!important}';
@@ -90,8 +90,8 @@
       window.onbMode = function () { if (typeof onbState !== 'undefined') { onbState.mode = 'login'; } if (typeof renderOnboarding === 'function') renderOnboarding(); };
     } catch (e) {}
 
-    // Si la persona entró con una clave temporal, le pedimos crear una nueva
-    // antes de dejarla pasar. Devuelve true si la cambió, false si canceló.
+    // Si la persona entrÃ³ con una clave temporal, le pedimos crear una nueva
+    // antes de dejarla pasar. Devuelve true si la cambiÃ³, false si cancelÃ³.
     function pedirNuevaClave(claveActual) {
       return new Promise(function (resolve) {
         var ov = document.createElement('div');
@@ -112,7 +112,7 @@
           var nueva = input.value;
           if (!nueva || nueva.length < 6) { msgEl.textContent = 'La contrasena debe tener al menos 6 caracteres.'; return; }
           try {
-            await apiPost('/auth/cambiar-clave', { actual: claveActual, nueva: nueva });
+            await window.APICE.post('/auth/cambiar-clave', { actual: claveActual, nueva: nueva });
             document.body.removeChild(ov);
             resolve(true);
           } catch (e) {
@@ -132,25 +132,25 @@
       var pw = elPass ? elPass.value : '';
       if (!em || !pw) { alert('Completa tu correo y contrasena para continuar.'); return; }
 
-      // Aceptación de términos: obligatoria la PRIMERA vez en este dispositivo.
-      // Si ya la aceptó antes acá, no se la volvemos a exigir en cada ingreso.
+      // AceptaciÃ³n de tÃ©rminos: obligatoria la PRIMERA vez en este dispositivo.
+      // Si ya la aceptÃ³ antes acÃ¡, no se la volvemos a exigir en cada ingreso.
       var acc = document.getElementById('onb_acepta');
       var yaAcepto = false; try { yaAcepto = !!localStorage.getItem('apice_terms_ok'); } catch (e) {}
-      if (acc && !acc.checked && !yaAcepto) { alert('Para continuar tenés que leer y aceptar los Términos y la Política de Privacidad (tildá la casilla).'); return; }
+      if (acc && !acc.checked && !yaAcepto) { alert('Para continuar tenÃ©s que leer y aceptar los TÃ©rminos y la PolÃ­tica de Privacidad (tildÃ¡ la casilla).'); return; }
 
       var state = (typeof onbState !== 'undefined') ? onbState : {};
       var perfil = state.profile || 'abogado';
 
-      // Clientes y profesionales ingresan con email + contraseña. El rol lo
+      // Clientes y profesionales ingresan con email + contraseÃ±a. El rol lo
       // determina el servidor; si es cliente, la app abre el Portal del cliente.
       var modo = state.mode || 'login';
       var sesion = null;
       try {
         if (modo === 'register') {
           var nombre = em.split('@')[0];
-          sesion = await apiPost('/auth/register', { nombre: nombre, email: em, password: pw, estudio: ('Estudio de ' + nombre) });
+          sesion = await window.APICE.post('/auth/register', { nombre: nombre, email: em, password: pw, estudio: ('Estudio de ' + nombre) });
         } else {
-          sesion = await apiPost('/auth/login', { email: em, password: pw });
+          sesion = await window.APICE.post('/auth/login', { email: em, password: pw });
         }
       } catch (e) {
         alert(e.message === 'NO_SESION' ? 'Email o contrasena incorrectos.' : (e.message || 'No se pudo ingresar.'));
@@ -160,19 +160,19 @@
       // Si la clave era temporal, pedir una nueva antes de entrar.
       if (sesion && Number(sesion.debe_cambiar_clave) === 1) {
         var ok = await pedirNuevaClave(pw);
-        if (!ok) return; // canceló: se queda en la pantalla de ingreso
+        if (!ok) return; // cancelÃ³: se queda en la pantalla de ingreso
       }
 
       // Registrar la aceptacion de terminos/privacidad (queda guardada con fecha).
       try {
-        await apiPost('/auth/aceptar', { perfil: perfil, documentos: ['terminos', 'privacidad', 'cookies'], metodo: method });
+        await window.APICE.post('/auth/aceptar', { perfil: perfil, documentos: ['terminos', 'privacidad', 'cookies'], metodo: method });
       } catch (e) { /* no bloquea el ingreso */ }
       try { localStorage.setItem('apice_terms_ok', '1'); } catch (e) {}
 
       // Marcar el onboarding como aceptado SIN pisar la config real del estudio.
-      // IMPORTANTE: leemos la config que YA está en el servidor y solo le
-      // agregamos el "onboarding aceptado". Así no se pierden el valor del IUS,
-      // los feriados ni ningún ajuste que hayas guardado antes.
+      // IMPORTANTE: leemos la config que YA estÃ¡ en el servidor y solo le
+      // agregamos el "onboarding aceptado". AsÃ­ no se pierden el valor del IUS,
+      // los feriados ni ningÃºn ajuste que hayas guardado antes.
       try {
         var real = await window.storage.get('gestor_cfg_v9');
         var cfgObj = (real && real.value) ? JSON.parse(real.value) : {};
@@ -182,7 +182,7 @@
           version: (typeof ONB_VERSION !== 'undefined' ? ONB_VERSION : 1)
         };
         await window.storage.set('gestor_cfg_v9', JSON.stringify(cfgObj));
-      } catch (e) { /* si falla, igual entra; init cargará la config del servidor */ }
+      } catch (e) { /* si falla, igual entra; init cargarÃ¡ la config del servidor */ }
 
       // Con la sesion ya activa, la app vuelve a cargar los datos del estudio.
       location.reload();
@@ -191,7 +191,7 @@
     // Cerrar sesion de verdad (cierra en el servidor y vuelve al ingreso).
     var cerrarOriginal = window.cerrarSesion;
     window.cerrarSesion = async function () {
-      try { await apiPost('/auth/logout'); } catch (e) {}
+      try { await window.APICE.post('/auth/logout'); } catch (e) {}
       if (typeof cerrarOriginal === 'function') { try { cerrarOriginal(); } catch (e) {} }
       location.reload();
     };
@@ -248,7 +248,7 @@
       if (!em) { msg.style.color = '#B42318'; msg.textContent = 'Escrib\u00ed tu correo.'; return; }
       btn.disabled = true; btn.textContent = 'Enviando...';
       try {
-        var r = await apiPost('/auth/olvide', { email: em });
+        var r = await window.APICE.post('/auth/olvide', { email: em });
         msg.style.color = '#067647';
         msg.textContent = (r && r.mensaje) ? r.mensaje : 'Listo. Revis\u00e1 tu correo.';
         btn.style.display = 'none';
@@ -283,7 +283,7 @@
       if (a.value !== b.value) { msg.style.color = '#B42318'; msg.textContent = 'Las dos contrase\u00f1as no coinciden.'; return; }
       btn.disabled = true; btn.textContent = 'Guardando...';
       try {
-        await apiPost('/auth/restablecer', { token: token, password: a.value });
+        await window.APICE.post('/auth/restablecer', { token: token, password: a.value });
         msg.style.color = '#067647';
         msg.textContent = 'Listo. Ya pod\u00e9s ingresar con tu contrase\u00f1a nueva.';
         setTimeout(function () { location.href = location.origin + location.pathname; }, 1600);
