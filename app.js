@@ -442,7 +442,7 @@ function renderExpedientes(){
       : `<div class="grid">${g.map(card).join("")}</div>`;
     h+=`</div>`;
   });
-  h+=`<div class="footer">Prototipo A · v27 · los cambios se guardan automáticamente en este dispositivo.</div>`;
+  h+=`<div class="footer">ÁPICE · los cambios se guardan solos en el servidor del estudio.</div>`;
   document.getElementById("app").innerHTML=h;
   const b=document.getElementById("buscar");
   if(b)b.oninput=()=>{st.busqueda=b.value;const p=b.selectionStart;renderExpedientes();const nb=document.getElementById("buscar");nb.focus();nb.setSelectionRange(p,p);};
@@ -487,7 +487,7 @@ function renderFicha(){
       </div></div>
     <div class="tabs">${tabBtn("datos","Datos de la causa")}${tabBtn("avance","Avance progresivo")}${tabBtn("docs","Documentación")}${tabBtn("pend","Pendientes")}${tabBtn("honorarios","Honorarios")}</div>
     <div class="panel">${panel}</div></div>
-  <div class="footer">Prototipo A · v26 · los cambios se guardan automáticamente</div>`;
+  <div class="footer">ÁPICE · los cambios se guardan solos en el servidor del estudio.</div>`;
 }
 const tabBtn=(id,l)=>`<button class="tab ${st.tab===id?'on':''}" onclick="setTab('${id}')">${l}</button>`;
 function alertasBox(c){
@@ -568,12 +568,12 @@ function panelDocs(c){
       </div>
       <div id="docChips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
-        <select onchange="docFiltVis(this.value)" style="padding:8px 10px;border:1px solid var(--linea);border-radius:8px;font-size:13px;background:#fff">
+        <select aria-label="Filtrar documentos por visibilidad para el cliente" onchange="docFiltVis(this.value)" style="padding:8px 10px;border:1px solid var(--linea);border-radius:8px;font-size:13px;background:#fff">
           <option value="">Todos</option>
           <option value="si" ${docSt.fVis==='si'?'selected':''}>Visible al cliente</option>
           <option value="no" ${docSt.fVis==='no'?'selected':''}>Solo interno</option>
         </select>
-        <input type="text" id="docq" placeholder="Buscar por nombre…" value="${attr(docSt.q)}" oninput="docBuscar(this.value)" style="flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--linea);border-radius:8px;font-size:13px">
+        <input type="text" id="docq" aria-label="Buscar documentos por nombre" placeholder="Buscar por nombre…" value="${attr(docSt.q)}" oninput="docBuscar(this.value)" style="flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--linea);border-radius:8px;font-size:13px">
       </div>
       <div id="archivosLista" style="margin-top:14px;font-size:13px;color:var(--mut)">Cargando documentos…</div>
     </div>
@@ -658,6 +658,7 @@ function archRow(cid,a){
     +'<span style="font-size:11px;font-weight:600;color:'+car.c+';background:'+car.c+'18;padding:3px 9px;border-radius:20px">'+car.l+'</span>'
     +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+(a.fecha_doc?(' · 📅 '+esc(fmtFechaDoc(a.fecha_doc))):'')+'</span>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
+    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarFechaArchivo('+a.id+',\''+cid+'\',\''+(a.fecha_doc||'')+'\')">Fecha</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+cid+'\',\''+nomJs+'\')">Renombrar</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarArchivo('+a.id+',\''+cid+'\')">Eliminar</button>'
@@ -745,6 +746,38 @@ async function archivoAccion(id,method,body){
   if(body){opt.headers={'Content-Type':'application/json'};opt.body=JSON.stringify(body);}
   const r=await fetch('/api/archivos/'+id,opt);const j=await r.json();
   if(!j||j.ok===false)throw new Error((j&&j.error)||'Error');return j.data;
+}
+/* Cambiar la FECHA de un documento ya cargado (v46).
+   Sirve para corregir documentos viejos o los que se subieron antes de que
+   existiera el campo de fecha. Al guardar, la lista se reordena sola. */
+function cambiarFechaArchivo(id,causaId,fechaActual){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+  const hoy=(typeof hoyKey==='function')?hoyKey():'';
+  const val=(fechaActual&&/^\d{4}-\d{2}-\d{2}/.test(fechaActual))?fechaActual.slice(0,10):hoy;
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:360px;width:100%;padding:22px;font-family:system-ui,sans-serif;color:#1C2433">'
+    +'<h2 style="font-size:17px;margin:0 0 6px">Fecha del documento</h2>'
+    +'<p style="font-size:13px;color:#6B7280;margin:0 0 14px">Es la fecha real del documento, no la de la subida. Los documentos se ordenan por esta fecha.</p>'
+    +'<label for="fdInput" style="display:block;font-size:12px;color:#6B7280;margin-bottom:4px">Fecha</label>'
+    +'<input id="fdInput" type="date" value="'+val+'" style="width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:15px;box-sizing:border-box">'
+    +'<div id="fdMsg" style="color:#8a2828;font-size:12px;margin-top:8px"></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
+    +'<button id="fdCancel" style="background:#EEF0F3;border:0;padding:11px 16px;border-radius:9px;font-size:14px;cursor:pointer">Cancelar</button>'
+    +'<button id="fdOk" style="background:#1C2433;color:#fff;border:0;padding:11px 18px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">Guardar</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  const inp=ov.querySelector('#fdInput');
+  setTimeout(function(){try{inp.focus();}catch(e){}},50);
+  ov.querySelector('#fdCancel').addEventListener('click',function(){document.body.removeChild(ov);});
+  ov.querySelector('#fdOk').addEventListener('click',async function(){
+    const f=(inp.value||'').trim();
+    if(!f){ov.querySelector('#fdMsg').textContent='Elegí una fecha.';return;}
+    try{
+      await archivoAccion(id,'PUT',{fecha_doc:f});
+      document.body.removeChild(ov);
+      cargarArchivos(causaId);
+    }catch(e){ ov.querySelector('#fdMsg').textContent='No se pudo guardar: '+e.message; }
+  });
 }
 async function renombrarArchivo(id,causaId,actual){
   const nuevo=prompt('Nuevo nombre del documento:',actual);if(nuevo===null)return;
@@ -894,36 +927,10 @@ function docAccion(k,id,i){
 }
 function setDocCarp(id,i,k){const c=get(id);const d=c.documentos[i];docHist(d,'Movido a la carpeta '+CARPETAS[k].l);d.carpeta=k;persist();closeModal();renderFicha();}
 function setDocRelev(id,i,r){const c=get(id);const d=c.documentos[i];docHist(d,'Relevancia cambiada a '+RELEV[r].l);d.relevancia=r;persist();closeModal();renderFicha();}
-function guardarDoc(id){
-  const c=get(id);const el=document.getElementById('sd_n');const n=(el?el.value:'').trim();
-  if(!n){alert('Poné el nombre del documento.');return;}
-  const carpeta=document.getElementById('sd_carp').value;
-  const relevancia=document.getElementById('sd_rel').value;
-  const visible=document.getElementById('sd_vis').checked;
-  const fIso=(document.getElementById('sd_fecha')||{}).value||'';
-  const fecha=fIso?isoToDMY(fIso):docHoy();
-  c.documentos.unshift({n,tipo:docTipo(n),fecha,usuario:'Rocío Luján',carpeta,relevancia,visible,etiquetas:[],u:null,historial:[{fecha,txt:'Documento cargado'}]});
-  c.bitacora.unshift({fecha,texto:'📄 Documento cargado: '+n,nuevo:true});
-  c.bitacora.sort((a,b)=>(parseDMY(b.fecha)||0)-(parseDMY(a.fecha)||0));
-  syncUltimo(c);
-  persist();closeModal();renderFicha();
-}
-function mSubirDoc(c){
-  return `<div class="modal"><h3>Subir documento</h3>
-   <div class="msub">Elegí el origen del archivo. La captura real (cámara, escáner, galería) se activa en la app conectada; acá quedan registrados los datos del documento.</div>
-   <div class="up-opts">
-     <button class="up-opt" onclick="document.getElementById('sd_n').focus()">📄 Seleccionar archivo</button>
-     <button class="up-opt" onclick="document.getElementById('sd_n').focus()">📷 Tomar fotografía</button>
-     <button class="up-opt" onclick="document.getElementById('sd_n').focus()">🖨️ Escanear documento</button>
-     <button class="up-opt" onclick="document.getElementById('sd_n').focus()">🖼️ Subir desde galería</button>
-     <button class="up-opt" onclick="document.getElementById('sd_n').focus()">📕 Subir PDF</button></div>
-   <div class="field"><label>Nombre del documento *</label><input id="sd_n" placeholder="Ej. Sentencia de Primera Instancia.pdf"></div>
-   <div class="field"><label>Fecha del documento</label><input type="date" id="sd_fecha" value="${hoyKey()}"></div>
-   <div class="field"><label>Carpeta</label><select id="sd_carp">${CARP_ORDEN.map(k=>`<option value="${k}">${CARPETAS[k].l}</option>`).join('')}</select></div>
-   <div class="field"><label>Relevancia procesal</label><select id="sd_rel"><option value="critica">Crítica</option><option value="relevante">Relevante</option><option value="tramite" selected>Trámite</option></select></div>
-   <div class="field cbx"><label><input type="checkbox" id="sd_vis"> Visible para el cliente</label></div>
-   <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn-prim" onclick="guardarDoc('${c.id}')">Agregar documento</button></div></div>`;
-}
+/* Los documentos se cargan SOLO desde "+ Agregar documento" (agregarDocOverlay),
+   que sube el archivo real al servidor. El formulario de demostracion que existia
+   en paralelo (mSubirDoc/guardarDoc) se elimino en v46: no tenia como abrirse y
+   duplicaba el flujo, lo que generaba confusion (por ejemplo, con la fecha). */
 function mMoverDoc(c,i){const d=c.documentos[i];
   return `<div class="modal"><h3>Mover a carpeta</h3><div class="msub">${esc(d.n)}</div>
    <div class="mov-folders">${CARP_ORDEN.map(k=>`<button class="mov-f ${d.carpeta===k?'on':''}" onclick="setDocCarp('${c.id}',${i},'${k}')"><span class="fdot" style="background:${CARPETAS[k].c}"></span>${CARPETAS[k].l}</button>`).join('')}</div>
@@ -1066,7 +1073,6 @@ function modalContent(){
   if(m.tipo==='avances')return mAvances();
   if(m.tipo==='verificar')return mVerificar();
   if(m.tipo==='resolver')return mResolver(get(m.id),m.idx);
-  if(m.tipo==='subirdoc')return mSubirDoc(get(m.id));
   if(m.tipo==='movdoc')return mMoverDoc(get(m.id),m.i);
   if(m.tipo==='relevdoc')return mRelevDoc(get(m.id),m.i);
   if(m.tipo==='histdoc')return mHistDoc(get(m.id),m.i);

@@ -1259,3 +1259,25 @@
   #avisoVersion.on{display:flex}
   #avisoVersion button{border:0;background:#3FC8BD;color:#0d2b2a;font:inherit;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
   #avisoVersion button.sec{background:rgba(255,255,255,.15);color:#fff}
+
+  /* ===== Accesibilidad y uso en celular (v46) ===== */
+  /* Foco visible para quien navega con teclado (antes casi no se veia). */
+  a:focus-visible, button:focus-visible, input:focus-visible,
+  select:focus-visible, textarea:focus-visible{
+    outline:3px solid #3FC8BD; outline-offset:2px; border-radius:6px;
+  }
+  /* Area de toque comoda en celular: los botones chicos de las listas
+     quedaban dificiles de acertar con el dedo. */
+  @media (max-width:640px){
+    .btn-sec, .btn-add, .btn-prim, .btn-ghost{
+      min-height:42px; font-size:13px; padding:9px 13px;
+    }
+    .dpk-item{ min-height:46px; }
+    #syncAviso, #avisoVersion{ bottom:12px; font-size:12.5px; padding:11px 13px; }
+    /* Evita el zoom automatico de iOS al enfocar un campo (pasa con <16px). */
+    input, select, textarea{ font-size:16px; }
+  }
+  /* Respeta a quien pidio menos animaciones en su sistema. */
+  @media (prefers-reduced-motion:reduce){
+    *, *::before, *::after{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
