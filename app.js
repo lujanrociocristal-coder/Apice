@@ -3438,7 +3438,11 @@ function glosarVer(btn){
   if(abierto) return;
   var p=document.createElement('span');
   p.className='glo-pop';
-  p.innerHTML='<b>'+esc(btn.textContent)+'</b>'+esc(btn.getAttribute('data-t')||'');
+  /* La aclaracion final no es decorativa: evita que el cliente tome una
+     explicacion general como asesoramiento sobre su propia causa, y deja
+     asentado que la respuesta concreta la da el estudio. */
+  p.innerHTML='<b>'+esc(btn.textContent)+'</b>'+esc(btn.getAttribute('data-t')||'')+
+    '<i class="glo-nota">Explicacion general del termino. Como juega en su causa en particular, consultenos.</i>';
   btn.classList.add('abierto');
   btn.parentNode.insertBefore(p,btn.nextSibling);
 }

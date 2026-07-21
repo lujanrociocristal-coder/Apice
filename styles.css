@@ -1357,5 +1357,6 @@
   animation:gloIn .16s ease-out;
 }
 .glo-pop b{ display:block; color:#1C2433; font-weight:600; margin-bottom:2px; text-transform:capitalize; }
+.glo-nota{ display:block; margin-top:6px; font-size:12px; font-style:normal; color:#6B7A8D; }
 @keyframes gloIn{ from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:none} }
 @media (prefers-reduced-motion:reduce){ .glo-pop{animation:none} }
