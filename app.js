@@ -32,8 +32,7 @@ function normalize(){causas.forEach(c=>{
   }
 });}
 function seedCausas(){causas=JSON.parse(JSON.stringify(CAUSAS));normalize();}
-/* Nombres de las pestañas, para la miga de navegación (v46). */
-const TAB_NOMBRES={datos:'Datos',avance:'Movimientos',docs:'Documentos',honorarios:'Honorarios',pendientes:'Pendientes'};
+
 /* ===== Detección de cambios por causa (v46) =====
    Evita que dos personas del estudio se pisen: cada navegador guarda una
    "huella" de cómo estaba cada causa al cargarla. Al guardar, solo se marcan
@@ -474,13 +473,6 @@ function renderFicha(){
   let panel=st.tab==="datos"?panelDatos(c):st.tab==="avance"?panelAvance(c):st.tab==="docs"?panelDocs(c):st.tab==="honorarios"?panelHonorarios(c):panelPend(c);
   document.getElementById("app").innerHTML=`<div class="ficha">
     <div class="ficha-top"><div class="spine ${k}"></div>
-      <nav class="miga" aria-label="Dónde estás">
-        <button class="miga-l" onclick="navTo('causas')">Expedientes</button>
-        <span class="miga-s">›</span>
-        <span class="miga-a" title="${attr(c.caratula)}">${esc(cShort(c.caratula))}</span>
-        <span class="miga-s">›</span>
-        <span class="miga-a act">${esc(TAB_NOMBRES[st.tab]||'Datos')}</span>
-      </nav>
       <button class="volver" onclick="cerrarFicha()">‹ Volver al panel</button>
       <h2>${esc(c.caratula)}</h2><div class="badges">${badges}</div>
       ${c._compartida?`<div style="background:#EEF4FF;border:1px solid #C7D7FE;color:#1E40AF;border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13px">🔗 Causa compartida por <b>${esc(c._origen||'otro estudio')}</b> · ${c._permiso==='edicion'?'podés verla y editarla':'solo lectura'}</div>`:''}

@@ -1301,16 +1301,7 @@
   .cli-contacto .cc-btn.sec{background:#EEF0F3;color:var(--tinta)}
   @media (max-width:640px){ .cli-contacto .cc-btn{flex:1;text-align:center;min-height:42px;line-height:22px} }
 
-  /* ===== Miga de navegación: saber siempre dónde estás (v46) ===== */
-  .miga{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12px;
-    color:var(--mut);margin-bottom:10px}
-  .miga-l{background:none;border:0;padding:0;font:inherit;color:#3C6FA6;cursor:pointer;
-    text-decoration:none;font-weight:600}
-  .miga-l:hover{text-decoration:underline}
-  .miga-s{color:var(--linea);font-size:13px}
-  .miga-a{color:var(--mut);max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .miga-a.act{color:var(--tinta);font-weight:600}
-  @media (max-width:640px){ .miga{font-size:11.5px} .miga-a{max-width:130px} }
+                @media (max-width:640px){   }
 
   /* ===== Pantallas vacías que enseñan (v46) ===== */
   .vacio-guia{background:#FAFBFC;border:1px dashed var(--linea);border-radius:11px;
