@@ -204,7 +204,15 @@ const SBNAV=[
  {id:'config',ic:'⚙',l:'Configuración'}
 ];
 function activeNav(){if(st.vista==='ficha')return 'causas';return st.nav||'dashboard';}
-function updateAvatar(){const a=document.getElementById('sbAv');if(!a)return;a.innerHTML=config.avatar?('<img src="'+config.avatar+'" alt="avatar">'):'RL';}
+function inicialesDe(nombre){const p=String(nombre||'').replace(/^(Dr|Dra|Dr\.|Dra\.)\s+/i,'').trim().split(/\s+/).filter(Boolean);if(!p.length)return '·';return ((p[0][0]||'')+(p.length>1?(p[p.length-1][0]||''):'')).toUpperCase();}
+function updateAvatar(){const a=document.getElementById('sbAv');if(!a)return;const ini=inicialesDe((window.__me&&window.__me.nombre)||(config.perfil&&config.perfil.abogada)||'');a.innerHTML=config.avatar?('<img src="'+config.avatar+'" alt="logo">'):esc(ini);}
+/* Nombre y rol de la barra: del usuario logueado (no fijo). */
+function updateSidebarUser(){
+  const me=window.__me||{};
+  const nom=document.querySelector('.sb-un'), rol=document.querySelector('.sb-ur');
+  if(nom&&me.nombre)nom.textContent=me.nombre;
+  if(rol)rol.textContent=(me.rol==='cliente')?'Cliente':(me.es_superadmin?'Administradora':(me.estudio_tipo==='estudio'?'Estudio':'Abogada'));
+}
 function onAvatarPick(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{config.avatar=r.result;saveConfig();updateAvatar();};r.readAsDataURL(f);}
 function renderSidebar(){
   const el=document.getElementById('sbNav');if(!el)return;const act=activeNav();
@@ -2072,8 +2080,8 @@ function expSalud(c){
   const dsa=diasDesde(ultActFecha(c));
   if(dsa!=null&&dsa>inact){score-=40;hard=true;motivos.push('Más de '+inact+' días sin actividad ('+dsa+' días).');}
   else if(dsa!=null&&dsa>Math.round(inact/2)){score-=14;motivos.push(dsa+' días sin actividad.');}
-  const r=calcCaducidad(c);
-  if(r&&typeof r.diasRest==='number'){if(r.diasRest<0){score-=45;hard=true;motivos.push('Plazo de caducidad de instancia vencido.');}else if(r.diasRest<=vlim){score-=30;hard=true;motivos.push('Vencimiento de plazo en '+r.diasRest+' días.');}else if(r.diasRest<=45){score-=12;motivos.push('Vencimiento de plazo en '+r.diasRest+' días.');}}
+  if(jurMod('caducidad')){const r=calcCaducidad(c);
+  if(r&&typeof r.diasRest==='number'){if(r.diasRest<0){score-=45;hard=true;motivos.push('Plazo de caducidad de instancia vencido.');}else if(r.diasRest<=vlim){score-=30;hard=true;motivos.push('Vencimiento de plazo en '+r.diasRest+' días.');}else if(r.diasRest<=45){score-=12;motivos.push('Vencimiento de plazo en '+r.diasRest+' días.');}}}
   const audProx=audiencias.some(a=>a.causaId===c.id&&a.fecha>=hoyKey()&&(new Date(a.fecha+'T00:00:00')-new Date())<=7*86400000);
   if(audProx)motivos.push('Audiencia dentro de los próximos 7 días.');
   const tp=(c.pendientes||[]).filter(p=>!p.done).length;
@@ -2237,7 +2245,10 @@ function renderReportes(){
 }
 /* ===== MÓDULO CONFIGURACIÓN (v25) ===== */
 function cfgDefaults(){
-  if(!config.perfil)config.perfil={estudio:'Estudio Jurídico Rocío Luján',abogada:'Dra. Rocío Cristal Luján',matricula:'',fuero:'Familia',domicilio:'Catamarca, Provincia de Catamarca',cuit:'',telefono:'',email:''};
+  /* Perfil por defecto EN BLANCO para estudios nuevos: cada estudio carga su
+     nombre, fuero y domicilio. El nombre del profesional se toma del usuario
+     logueado (el que se puso en el alta), no de un nombre fijo. */
+  if(!config.perfil){const me=window.__me||{};config.perfil={estudio:'',abogada:me.nombre||'',matricula:'',fuero:'',domicilio:'',cuit:'',telefono:'',email:me.email||''};}
   if(config.repInactiv==null)config.repInactiv=30;
   if(config.repVenc==null)config.repVenc=15;
   if(config.alertaDias==null)config.alertaDias=10;
@@ -2248,9 +2259,8 @@ function cfgDefaults(){
   if(config.pin===undefined)config.pin=null;
   if(config.reciboSeq==null)config.reciboSeq=1;
   if(!config.escalaHon)config.escalaHon={};
-  if(!config.profesionales){const pp=config.perfil||{};config.profesionales=[{nombre:pp.abogada||'Dra. Roc\u00edo Cristal Luj\u00e1n',mp:pp.matricula||'2686',cuit:pp.cuit||''}];}
+  if(!config.profesionales){const pp=config.perfil||{};const me=window.__me||{};config.profesionales=[{nombre:pp.abogada||me.nombre||'',mp:pp.matricula||'',cuit:pp.cuit||''}];}
   if(config.perfil&&config.perfil.estudio==='Estudio Jur\u00eddico Roc\u00edo Luj\u00e1n')config.perfil.estudio='Estudio Jur\u00eddico';
-  if(config.perfil&&!config.perfil.matricula)config.perfil.matricula='2686';
   /* Jurisdicci\u00f3n (v47): define qu\u00e9 m\u00f3dulos ve el estudio. Por defecto 'catamarca'
      = TODO encendido, id\u00e9ntico a como funciona hoy. Cualquier estudio existente
      (incluida esta app) queda en catamarca autom\u00e1ticamente: cero cambio. */
@@ -2264,8 +2274,8 @@ function cfgDefaults(){
    El helper jurMod(nombre) es la "llave de luz": si el estudio no usa ese
    m\u00f3dulo, la funci\u00f3n que lo dibuja no lo muestra. En Catamarca siempre true. */
 const JUR_PRESETS={
-  catamarca:{caducidad:true, arancel:true, calcplazos:true, guiaSembrada:true, materiasSembradas:true, citasLegales:true},
-  generica :{caducidad:false, arancel:false, calcplazos:false, guiaSembrada:false, materiasSembradas:false, citasLegales:false}
+  catamarca:{caducidad:true, arancel:true, calcplazos:true, guiaSembrada:true, materiasSembradas:true, citasLegales:true, feriadosProvinciales:true},
+  generica :{caducidad:false, arancel:false, calcplazos:false, guiaSembrada:false, materiasSembradas:false, citasLegales:false, feriadosProvinciales:false}
 };
 function jurActual(){return (config&&config.jurisdiccion)||'catamarca';}
 function jurMod(nombre){
@@ -2275,7 +2285,7 @@ function jurMod(nombre){
 /* Etiqueta de la unidad de honorarios del estudio (IUS por defecto). */
 function unidadHon(){return (config&&config.unidadHon)||'IUS';}
 function cfgAvatar(){const el=document.getElementById('avatarInput');if(el)el.click();}
-function abogados(){const pl=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);if(pl.length)return pl;const a=(config&&config.abogados&&config.abogados.length)?config.abogados.slice():[];if(!a.length)a.push((config&&config.perfil&&config.perfil.abogada)||'Dra. Rocío Cristal Luján');return a;}
+function abogados(){const pl=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);if(pl.length)return pl;const a=(config&&config.abogados&&config.abogados.length)?config.abogados.slice():[];if(!a.length){const nm=(config&&config.perfil&&config.perfil.abogada)||(window.__me&&window.__me.nombre)||'';if(nm)a.push(nm);}return a;}
 function descargarJSON(nombre,obj){try{const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=nombre;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}catch(e){alert('La exportación funciona en el navegador (no en la vista previa).');}}
 /* Copia de seguridad COMPLETA (v46): suma la Guía Judicial y el listado de
    documentos guardados en el servidor, para que el respaldo sirva de verdad. */
@@ -2342,16 +2352,23 @@ function renderConfig(){
     ${profRowsHTML()}
     <button class="btn-sec" style="margin-top:10px" onclick="profAddRow()">+ Agregar profesional</button>
     <div class="cfg-note" style="margin-top:10px">Estos datos se usan en encabezados, escritos y reportes.</div></div>`;
+  const U=unidadHon();
   const valores=`<div class="cfg-block"><div class="cfg-bh"><h3>Honorarios y valores</h3><span class="cfg-badge a">Activo</span></div>
-    <div class="cfg-grid"><div class="field"><label>Valor del IUS (en pesos)</label><input id="cfg_ius" type="text" inputmode="decimal" value="${attr(fmtMiles(config.valorIUS))}" oninput="numInput(this)" onblur="numBlur(this)" placeholder="Ej: 46.000 o 46.000,50"></div>${fld('cfg_iusf','Última actualización',config.iusFecha,'dd/mm/aaaa')}</div>
-    <div class="cfg-note">El IUS se usa para calcular y mostrar los honorarios en pesos (Ley 5724).</div></div>`;
+    <div class="cfg-grid"><div class="field"><label>Valor del ${esc(U)} (en pesos)</label><input id="cfg_ius" type="text" inputmode="decimal" value="${attr(fmtMiles(config.valorIUS))}" oninput="numInput(this)" onblur="numBlur(this)" placeholder="Ej: 46.000 o 46.000,50"></div>${fld('cfg_iusf','Última actualización',config.iusFecha,'dd/mm/aaaa')}</div>
+    <div class="cfg-note">El ${esc(U)} se usa para calcular y mostrar los honorarios en pesos${jurMod('arancel')?' (Ley 5724)':''}.</div></div>`;
   const escala=`<div class="cfg-block"><div class="cfg-bh"><h3>Escala de honorarios sugerida</h3><span class="cfg-badge a">Activo</span></div>
     <div class="cfg-note" style="margin-bottom:10px">Valores <b>orientativos</b> en IUS por materia, que vos definís y editás. En el convenio aparecen solo como sugerencia: el monto final siempre lo fijás vos.</div>
     ${escRowsHTML()}
     <button class="btn-sec" style="margin-top:10px" onclick="escAddRow()">+ Agregar materia</button></div>`;
-  const plazos=`<div class="cfg-block"><div class="cfg-bh"><h3>Plazos y caducidad</h3><span class="cfg-badge a">Activo</span></div>
+  /* En Catamarca: "Plazos y caducidad" con feria de julio y alerta de vencimiento.
+     En genérica: solo "Feriados y días inhábiles" (el editor de feriados), sin
+     feria judicial de Catamarca ni alerta de caducidad. */
+  const plazos=jurMod('caducidad')
+    ? `<div class="cfg-block"><div class="cfg-bh"><h3>Plazos y caducidad</h3><span class="cfg-badge a">Activo</span></div>
     <div class="cfg-grid">${fld('cfg_fjd','Feria de julio — desde',config.feriaJulioDesde,'','date')}${fld('cfg_fjh','Feria de julio — hasta',config.feriaJulioHasta,'','date')}${fld('cfg_alerta','Avisar el vencimiento con (días de anticipación)',config.alertaDias,'')}</div>${ferEditorHTML()}
-    <div class="cfg-note">La feria de enero ya se considera automáticamente. La de julio cambia cada año, por eso se configura acá.</div></div>`;
+    <div class="cfg-note">La feria de enero ya se considera automáticamente. La de julio cambia cada año, por eso se configura acá.</div></div>`
+    : `<div class="cfg-block"><div class="cfg-bh"><h3>Feriados y días inhábiles</h3><span class="cfg-badge a">Activo</span></div>
+    <div class="cfg-note" style="margin-bottom:10px">Cargá los feriados nacionales y los provinciales de tu jurisdicción. Se usan en el calendario.</div>${ferEditorHTML()}</div>`;
   const reglas=`<div class="cfg-block"><div class="cfg-bh"><h3>Reglas de los reportes (semáforo)</h3><span class="cfg-badge a">Activo</span></div>
     <div class="cfg-grid">${fld('cfg_inact','Días sin actividad para marcar crítico',config.repInactiv,'')}${fld('cfg_venc','Días de vencimiento para marcar crítico',config.repVenc,'')}</div>
     <div class="cfg-note">Definen cuándo un expediente pasa a 🔴 crítico en Reportes y en EstrategIA.</div></div>`;
@@ -2383,7 +2400,7 @@ function renderConfig(){
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
     <div class="main-head"><div><div class="eyebrow">Ajustes</div><h1>Configuración</h1><div class="mh-sub">Personalizá ÁPICE para tu estudio.</div></div>
       <button class="btn-add" id="cfgSaveBtn" onclick="guardarConfig()">Guardar cambios</button></div>
-    ${perfil}${valores}${escala}${plazos}${reglas}${datos}${legales}${seg}${bloquesB}${cuenta}</div>`;
+    ${perfil}${valores}${jurMod('arancel')?escala:''}${plazos}${reglas}${datos}${legales}${seg}${bloquesB}${cuenta}</div>`;
   if(esSuperAdmin())cargarEstadoBackup();
 }
 /* Consulta el estado del respaldo automatico y lo muestra en Configuracion.
@@ -2729,7 +2746,13 @@ function FERIADOS_DEFAULT(){return [
  {nombre:'Inmaculada Concepción',tipo:'nacional',anual:true,fecha:'2024-12-08'},
  {nombre:'Navidad',tipo:'nacional',anual:true,fecha:'2024-12-25'}
 ];}
-function ferMigrate(){if(!Array.isArray(config.feriados)||!config.feriados.length||typeof config.feriados[0]==='string')config.feriados=FERIADOS_DEFAULT();}
+function ferMigrate(){if(!Array.isArray(config.feriados)||!config.feriados.length||typeof config.feriados[0]==='string'){
+  let base=FERIADOS_DEFAULT();
+  /* En jurisdicción genérica NO se cargan los feriados provinciales de
+     Catamarca: cada estudio suma los suyos desde Configuración. */
+  if(!jurMod('feriadosProvinciales'))base=base.filter(f=>f.tipo!=='provincial');
+  config.feriados=base;
+}}
 function ferTipoLabel(t){return t==='provincial'?'Provincial':'Nacional';}
 function ferAdd(){const f=document.getElementById('fer_fecha'),n=document.getElementById('fer_nombre'),tp=document.getElementById('fer_tipo'),an=document.getElementById('fer_anual');const fecha=f?f.value:'';if(!fecha){alert('Elegí la fecha del feriado.');return;}config.feriados=config.feriados||[];config.feriados.push({nombre:(n&&n.value.trim())||'Feriado',tipo:(tp&&tp.value)||'nacional',anual:an?an.checked:true,fecha});config.feriados.sort((a,b)=>(a.fecha.slice(5)).localeCompare(b.fecha.slice(5)));saveConfig();renderConfig();}
 function ferDel(i){config.feriados.splice(i,1);saveConfig();renderConfig();}
@@ -2810,7 +2833,7 @@ function renderDirectorio(){
     <div class="gj-head"><h1>Guía Judicial</h1>
       <div class="gj-head-acc"><div class="search gj-search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="dirBuscar" placeholder="Buscar…" value="${attr(dirSt.q)}"></div>
       <button class="btn-add" onclick="dirEdit('')">+ Crear organismo</button></div></div>
-    <div class="gj-info"><span class="gj-info-ic">ℹ</span><div><b>Datos orientativos:</b> verificá siempre la nómina oficial antes de presentar escritos. Última actualización: Junio 2026.</div></div>
+    ${jurMod('guiaSembrada')?`<div class="gj-info"><span class="gj-info-ic">ℹ</span><div><b>Datos orientativos:</b> verificá siempre la nómina oficial antes de presentar escritos. Última actualización: Junio 2026.</div></div>`:''}
     <div class="gj-chips">${chips}</div>
     <div class="gj-grid">${cards}</div>
   </div>`;
@@ -3093,11 +3116,11 @@ async function initCliente(me){
   if(causas.length){st.actual=causas[0].id;st.vista='ficha';renderCliente(causas[0]);}
   else{document.getElementById('app').innerHTML='<div class="ficha"><div class="ficha-top cli-top"><button class="volver" onclick="cerrarSesion()">Cerrar sesión</button><div class="cli-portal-h"><div class="cli-brand"><img class="logo" src="'+LOGO+'"><div><div class="clab">Portal del cliente</div><h2 style="padding-left:0">'+esc(__cliNombre)+'</h2></div></div></div></div><div class="panel"><div class="vacio">Todavía no tenés causas habilitadas. El estudio te dará acceso cuando corresponda.</div></div></div>';}
 }
-async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}
+async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data){window.__me=mm.data;}if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}
   marcarCausasGuardadas(causas.filter(function(c){return !c._compartida;}));try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;/* Cargar la jurisdicción del servidor ANTES de sembrar la Guía Judicial:
    así un estudio genérico no recibe los juzgados de Catamarca. */
 try{const _cf=await window.APICE.get('/config');if(_cf){if(_cf.jurisdiccion)config.jurisdiccion=_cf.jurisdiccion;if(_cf.unidad_hon)config.unidadHon=_cf.unidad_hon;}}catch(e){}
-const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else if(jurMod('guiaSembrada'))seedDir();dirMigrateNames();dirMigrateCats();if(!config.avatar)config.avatar=LOGO;cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
+const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else if(jurMod('guiaSembrada'))seedDir();dirMigrateNames();dirMigrateCats();cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();updateSidebarUser();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 
 /* ===== Aviso de version nueva (v46) =====
