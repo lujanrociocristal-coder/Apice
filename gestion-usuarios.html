@@ -89,6 +89,17 @@
           </div>
           <div><label>Unidad de honorarios</label><input id="ne_unidad" value="IUS" placeholder="IUS / Jus / UMA"></div>
         </div>
+        <div class="row" style="margin-top:0">
+          <div><label>Período de prueba</label>
+            <select id="ne_prueba" style="width:100%;padding:10px 12px;border:1px solid var(--linea2);border-radius:9px;font-size:14px">
+              <option value="0" selected>Sin prueba (cuenta activa)</option>
+              <option value="7">Prueba de 7 días</option>
+              <option value="14">Prueba de 14 días</option>
+              <option value="30">Prueba de 30 días</option>
+            </select>
+          </div>
+          <div></div>
+        </div>
         <div class="nota" style="margin-top:6px"><b>Individual:</b> una sola abogada, no puede sumar colegas (sí sus clientes). <b>Estudio:</b> puede sumar otras abogadas de la firma.<br><b>Jurisdicción:</b> Catamarca activa caducidad, arancel y calculadora de plazos. Genérica los oculta (para estudios de otras provincias). El abogado no ve que existen dos versiones.</div>
         <button class="btn-main" onclick="crearEstudio()">Crear y generar clave temporal</button>
         <div id="ne_msg"></div>
@@ -271,8 +282,17 @@ async function cargarEstudios(){
       const otro = ind ? 'estudio' : 'individual';
       const lblBtn = ind ? 'Convertir en estudio' : 'Convertir en individual';
       const nomJs = esc(e.nombre).replace(/'/g,"");
-      h += '<tr><td>'+esc(e.nombre)+'<div style="font-size:11px;color:#6B7280;margin-top:2px">'+esc(e.email_admin||'(sin correo)')+'</div></td><td>'+tag+'</td><td>'+(e.abogadas||0)+'</td><td>'+(e.clientes||0)+'</td>'
+      // Estado de prueba
+      let pruebaHtml = '';
+      if(e.prueba_hasta){
+        const lim = new Date(e.prueba_hasta+'T00:00:00');
+        const dias = Math.round((lim - new Date(new Date().toDateString()))/86400000);
+        if(dias < 0) pruebaHtml = '<div style="font-size:11px;margin-top:2px;color:#B42318;font-weight:600">⛔ Prueba vencida ('+lim.toLocaleDateString('es-AR')+')</div>';
+        else pruebaHtml = '<div style="font-size:11px;margin-top:2px;color:#B54708">⏳ Prueba: '+dias+' día'+(dias!==1?'s':'')+' (vence '+lim.toLocaleDateString('es-AR')+')</div>';
+      }
+      h += '<tr><td>'+esc(e.nombre)+'<div style="font-size:11px;color:#6B7280;margin-top:2px">'+esc(e.email_admin||'(sin correo)')+'</div>'+pruebaHtml+'</td><td>'+tag+'</td><td>'+(e.abogadas||0)+'</td><td>'+(e.clientes||0)+'</td>'
          + '<td><div class="acc">'
+         + (e.prueba_hasta ? '<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#067647;border-color:#6CE9A6" onclick="activarCuenta('+e.id+',\''+nomJs+'\')">✓ Activar cuenta</button>' : '')
          + '<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="editarNombreEstudio('+e.id+',\''+nomJs+'\')">Editar nombre</button>'
          + '<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarTipoEstudio('+e.id+',\''+otro+'\')">'+lblBtn+'</button>'
          + '<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarEstudio('+e.id+',\''+nomJs+'\')">Eliminar</button>'
@@ -281,6 +301,12 @@ async function cargarEstudios(){
     h += '</tbody></table>';
     cont.innerHTML = h;
   }catch(e){ cont.innerHTML = '<div class="msg err">'+esc(e.message)+'</div>'; }
+}
+
+async function activarCuenta(id, nombre){
+  if(!confirm('¿Activar como cuenta definitiva el estudio "'+nombre+'"? Se quita el período de prueba y conserva TODOS sus datos.')) return;
+  try{ await api('/usuarios/estudio/'+id,'PUT',{prueba:'activar'}); cargarEstudios(); }
+  catch(e){ alert(e.message); }
 }
 
 async function cambiarTipoEstudio(id, tipo){
@@ -321,9 +347,10 @@ async function crearEstudio(){
   const email   = document.getElementById('ne_email').value.trim();
   const jurisdiccion = document.getElementById('ne_juris').value;
   const unidad_hon   = document.getElementById('ne_unidad').value.trim() || 'IUS';
+  const prueba_dias  = parseInt(document.getElementById('ne_prueba').value,10)||0;
   if(!estudio || !nombre || !email){ msg('ne_msg','Completá todos los campos.',false); return; }
   try{
-    const r = await api('/usuarios/estudio','POST',{estudio, nombre, email, tipo, jurisdiccion, unidad_hon});
+    const r = await api('/usuarios/estudio','POST',{estudio, nombre, email, tipo, jurisdiccion, unidad_hon, prueba_dias});
     claveBox('ne_msg', r.clave_temporal, nombre + ' (' + estudio + ')');
     document.getElementById('ne_estudio').value=''; document.getElementById('ne_nombre').value=''; document.getElementById('ne_email').value='';
     cargarEstudios();

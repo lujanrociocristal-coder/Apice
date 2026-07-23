@@ -1295,6 +1295,15 @@
   .cli-ultimo .cu-pie{font-size:12px;color:var(--mut);margin-top:7px}
   .ck-ayuda{font-weight:400;text-transform:none;letter-spacing:0;color:var(--mut);font-size:11px}
 /* Indicador de respaldo automatico (solo super-admin, en Configuracion). */
+/* Cuenta de prueba: banner y pantalla de bloqueo (v48). */
+.prueba-banner{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:99990;background:#FEF6EE;border:1px solid #F5C08A;color:#92600A;border-radius:999px;padding:8px 16px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.prueba-fin{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#1C2433}
+.prueba-fin .pf-card{background:#fff;border-radius:16px;max-width:440px;width:100%;padding:32px 28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.prueba-fin .pf-ic{font-size:44px;margin-bottom:8px}
+.prueba-fin h1{font-family:var(--serif,Georgia);font-size:24px;color:#1C2433;margin:0 0 12px}
+.prueba-fin p{font-size:15px;line-height:1.6;color:#3A4757;margin:0 0 22px}
+.prueba-fin .pf-btn{display:inline-block;background:#3FC8BD;color:#0d2b2a;font-weight:700;text-decoration:none;padding:13px 22px;border-radius:10px;font-size:15px}
+.prueba-fin .pf-salir{display:block;width:100%;margin-top:12px;background:transparent;border:0;color:#6B7A8D;font-size:13px;cursor:pointer}
 .cfg-backup{display:flex;align-items:center;gap:9px;background:#F4F9FE;border:1px solid #C7D7FE;border-radius:9px;padding:10px 13px;margin:2px 0 12px;font-size:13.5px;color:#2A3646}
 .cfg-backup.ok{background:#ECFDF3;border-color:#A6F4C5}
 .cfg-backup.warn{background:#FEF6EE;border-color:#F5C08A}
