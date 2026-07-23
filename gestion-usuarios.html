@@ -271,7 +271,7 @@ async function cargarEstudios(){
       const otro = ind ? 'estudio' : 'individual';
       const lblBtn = ind ? 'Convertir en estudio' : 'Convertir en individual';
       const nomJs = esc(e.nombre).replace(/'/g,"");
-      h += '<tr><td>'+esc(e.nombre)+'</td><td>'+tag+'</td><td>'+(e.abogadas||0)+'</td><td>'+(e.clientes||0)+'</td>'
+      h += '<tr><td>'+esc(e.nombre)+'<div style="font-size:11px;color:#6B7280;margin-top:2px">'+esc(e.email_admin||'(sin correo)')+'</div></td><td>'+tag+'</td><td>'+(e.abogadas||0)+'</td><td>'+(e.clientes||0)+'</td>'
          + '<td><div class="acc">'
          + '<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="editarNombreEstudio('+e.id+',\''+nomJs+'\')">Editar nombre</button>'
          + '<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarTipoEstudio('+e.id+',\''+otro+'\')">'+lblBtn+'</button>'
