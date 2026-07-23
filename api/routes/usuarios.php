@@ -126,6 +126,7 @@ function usuario_eliminar($id) {
 function estudios_listar() {
   require_superadmin();
   $sql = 'SELECT e.id, e.nombre, e.tipo, e.creado_en,
+                 (SELECT u.email FROM usuarios u WHERE u.estudio_id = e.id AND u.es_admin = 1 ORDER BY u.id ASC LIMIT 1) AS email_admin,
                  (SELECT COUNT(*) FROM usuarios u WHERE u.estudio_id = e.id AND u.rol = "profesional") AS abogadas,
                  (SELECT COUNT(*) FROM usuarios u WHERE u.estudio_id = e.id AND u.rol = "cliente")     AS clientes
           FROM estudios e ORDER BY e.creado_en DESC';
