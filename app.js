@@ -193,10 +193,10 @@ const SBNAV=[
  {id:'causas',ic:'📁',l:'Expedientes'},
  {id:'calendario',ic:'📅',l:'Calendario'},
  {id:'audiencias',ic:'⚖',l:'Audiencias'},
- {id:'caducidad',ic:'⏰',l:'Caducidad'},
- {id:'calcplazos',ic:'🧮',l:'Calc. de plazos'},
+ {id:'caducidad',ic:'⏰',l:'Caducidad',mod:'caducidad'},
+ {id:'calcplazos',ic:'🧮',l:'Calc. de plazos',mod:'calcplazos'},
  {id:'tareas',ic:'✓',l:'Tareas'},
- {id:'honorarios',ic:'$',l:'Honorarios'},
+ {id:'honorarios',ic:'$',l:'Honorarios',mod:'arancel'},
  {id:'clientes',ic:'👥',l:'Clientes'},
  {id:'directorio',ic:'🏛',l:'Guía Judicial'},
  {id:'reportes',ic:'📈',l:'Reportes'},
@@ -208,13 +208,17 @@ function updateAvatar(){const a=document.getElementById('sbAv');if(!a)return;a.i
 function onAvatarPick(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{config.avatar=r.result;saveConfig();updateAvatar();};r.readAsDataURL(f);}
 function renderSidebar(){
   const el=document.getElementById('sbNav');if(!el)return;const act=activeNav();
-  el.innerHTML=SBNAV.map(it=>it.sep?'<div class="sb-sep"></div>':
+  el.innerHTML=SBNAV.filter(it=>!it.mod||jurMod(it.mod)).map(it=>it.sep?'<div class="sb-sep"></div>':
     it.notif?
     `<button class="sb-item sb-item-notif ${act===it.id?'on':''}" id="sbNotif" onclick="navTo('${it.id}')"><span class="sbi-ic">${it.ic}</span>${it.l}<span class="sbn-badge" id="sbnBadge"></span></button>`
     :`<button class="sb-item ${act===it.id?'on':''}" onclick="navTo('${it.id}')"><span class="sbi-ic">${it.ic}</span>${it.l}${it.soon?'<span class="sb-soon">pronto</span>':''}</button>`).join('');
   if(typeof updateNotifBell==='function')updateNotifBell();
 }
 function navTo(n){
+  /* Guardia de jurisdicción: si el módulo no está activo (genérica), no se
+     entra a esa sección; se manda al inicio. En Catamarca no aplica. */
+  const modDe={caducidad:'caducidad',calcplazos:'calcplazos',honorarios:'arancel'};
+  if(modDe[n]&&!jurMod(modDe[n]))n='dashboard';
   st.nav=n;st.vista='tablero';st.cliente=false;st.actual=null;st.cliVer=null;if(typeof repSt!=='undefined')repSt.exp=null;
   if(['calendario','audiencias','tareas','honorarios'].includes(n))sideSt.sec=n;
   if(window.innerWidth<=860)document.body.classList.remove('sb-open');
@@ -373,7 +377,7 @@ function renderInicio(){
   // ---- Próximos 7 días ----
   const prox=[];
   audProx.forEach(a=>{const c=a.causaId?get(a.causaId):null;prox.push({f:a.fecha,h:a.hora||"",html:`<button class="p7-row" onclick="${a.causaId?("abrirFicha('"+a.causaId+"')"):"navTo('audiencias')"}"><span class="p7-date">${a.fecha.slice(8,10)}/${a.fecha.slice(5,7)}</span><div class="p7-main"><div class="p7-car">${a.tipo==="juzgado"?(c?esc(cShort(c.caratula)):"Audiencia"):("Mediación · "+esc(a.materia||""))}</div><div class="p7-sub">⚖ Audiencia${a.hora?(" · "+esc(a.hora)+" hs"):""} ${a.cliAsiste?'<span class="p7-tag">asiste el cliente</span>':''}</div></div></button>`});});
-  cadProx.forEach(x=>{const iso=ferYMD(x.k.venc);prox.push({f:iso,h:"",html:`<button class="p7-row" onclick="abrirFicha('${x.c.id}')"><span class="p7-date amar">${iso.slice(8,10)}/${iso.slice(5,7)}</span><div class="p7-main"><div class="p7-car">${esc(cShort(x.c.caratula))}</div><div class="p7-sub">⏰ Caducidad por vencer · ${x.k.diasRest} días</div></div></button>`});});
+  if(jurMod('caducidad'))cadProx.forEach(x=>{const iso=ferYMD(x.k.venc);prox.push({f:iso,h:"",html:`<button class="p7-row" onclick="abrirFicha('${x.c.id}')"><span class="p7-date amar">${iso.slice(8,10)}/${iso.slice(5,7)}</span><div class="p7-main"><div class="p7-car">${esc(cShort(x.c.caratula))}</div><div class="p7-sub">⏰ Caducidad por vencer · ${x.k.diasRest} días</div></div></button>`});});
   tProx.forEach(o=>{prox.push({f:o.p.fecha,h:"",html:`<button class="p7-row" onclick="abrirFicha('${o.c.id}')"><span class="p7-date">${o.p.fecha.slice(8,10)}/${o.p.fecha.slice(5,7)}</span><div class="p7-main"><div class="p7-car">${esc(cShort(o.c.caratula))}</div><div class="p7-sub">📌 Tarea · ${esc(o.p.t)}</div></div></button>`});});
   prox.sort((a,b)=>((a.f||"")+(a.h||"")).localeCompare((b.f||"")+(b.h||"")));
   const proxCard=`<div class="mdcard"><div class="mdcard-h"><h3>Próximos 7 días</h3></div><div class="p7-list">${prox.length?prox.map(x=>x.html).join(''):`<div class="md-empty">No se viene nada en los próximos 7 días. 🟢</div>`}</div></div>`;
@@ -409,7 +413,7 @@ function renderInicio(){
       </div>
     </div>
     <div class="md2-grid">
-      <div class="md2-col-l">${hoyHero}${plzCard}${proxCard}</div>
+      <div class="md2-col-l">${hoyHero}${jurMod('caducidad')?plzCard:''}${proxCard}</div>
       <div class="md2-col-r">${atenCard}${activasCard}${audCard}</div>
     </div>
   </div>`;
@@ -515,7 +519,7 @@ function panelDatos(c){
 }
 function panelAvance(c){
   const hoyISO=new Date().toISOString().slice(0,10);
-  return `${caducidadCard(c)}<div class="bloque-titulo">Línea de tiempo — del movimiento más reciente al inicio</div>
+  return `${jurMod('caducidad')?caducidadCard(c):''}<div class="bloque-titulo">Línea de tiempo — del movimiento más reciente al inicio</div>
   <div class="mov-add">
     <input type="date" id="nm_fecha" value="${hoyISO}" title="Fecha del movimiento">
     <input type="text" id="nm_texto" placeholder="Describir el movimiento nuevo (ej. consulta presencial: …)" onkeydown="if(event.key==='Enter')addMov('${c.id}')">
@@ -532,9 +536,10 @@ function panelAvance(c){
       </div></div>`;
     }
     let tag=actual?`<span class="tl-tag act">actual</span>`:ini?`<span class="tl-tag ini">inicio</span>`:"";
-    const impTag=b.imp?`<span class="tl-tag imp">impulso</span>`:"";
+    const impTag=(jurMod('caducidad')&&b.imp)?`<span class="tl-tag imp">impulso</span>`:"";
+    const impBtn=jurMod('caducidad')?`<span class="picon imp ${b.imp?'on':''}" onclick="toggleImp('${c.id}',${i})" title="Marcar/desmarcar acto de impulso">⚖</span>`:"";
     return `<div class="tl-item ${actual?'actual':''}">
-      <div class="tl-fecha">${esc(b.fecha)} ${tag}${impTag}<span class="mov-tools"><span class="picon imp ${b.imp?'on':''}" onclick="toggleImp('${c.id}',${i})" title="Marcar/desmarcar acto de impulso">⚖</span><span class="picon" onclick="editMov('${c.id}',${i})" title="Editar">✎</span><span class="pdel" onclick="delMov('${c.id}',${i})" title="Eliminar">×</span></span></div>
+      <div class="tl-fecha">${esc(b.fecha)} ${tag}${impTag}<span class="mov-tools">${impBtn}<span class="picon" onclick="editMov('${c.id}',${i})" title="Editar">✎</span><span class="pdel" onclick="delMov('${c.id}',${i})" title="Eliminar">×</span></span></div>
       <div class="tl-txt">${glosarMarcar(esc(b.texto))}</div></div>`;
   }).join("")}</div>`;
 }
@@ -1463,7 +1468,7 @@ function renderCalc(){
   h+='<div class="calc-note">Herramienta orientativa según la Ley N° 5724 de Catamarca. No reemplaza la regulación judicial.</div>';
   body.innerHTML=h;
 }
-function calcInit(){calcSt.open=window.innerWidth>=1200;document.body.classList.toggle('calc-open',calcSt.open);renderSide();}
+function calcInit(){calcSt.open=jurMod('arancel')&&window.innerWidth>=1200;document.body.classList.toggle('calc-open',calcSt.open);renderSide();}
 function syncUltimo(c){if(c.bitacora.length){const b=c.bitacora[0];c.ultimoMov={fecha:b.fecha,texto:b.texto,nuevo:b.nuevo};}}
 function addMov(id){const c=get(id);const fEl=document.getElementById('nm_fecha');const tEl=document.getElementById('nm_texto');const t=(tEl.value||'').trim();if(!t){tEl.focus();return;}const fecha=isoToDMY(fEl.value);c.bitacora.unshift({fecha,texto:t,nuevo:true});syncUltimo(c);persist();renderFicha();}
 function editMov(id,i){st.editMov={id,i};renderFicha();setTimeout(()=>{const e=document.getElementById('me_texto');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},20);}
@@ -1699,7 +1704,7 @@ function pagosInformados(){const out=[];causas.forEach(c=>{((c.honorarios&&c.hon
 function irAHonorarios(cid){st.actual=cid;st.vista='ficha';st.tab='honorarios';st.cliente=false;window.scrollTo(0,0);render();}
 function irACausa(cid){st.actual=cid;st.vista='ficha';st.tab='datos';st.cliente=false;window.scrollTo(0,0);render();}
 /* Causas con caducidad de instancia próxima o vencida. */
-function caducidadesProximas(){const out=[];causas.forEach(c=>{if(c.estado==='finalizada'||c.estado==='suspenso')return;const r=calcCaducidad(c);if(r&&r.venc&&!r.nocaduca&&!r.sinImpulso&&!r.pausa&&['venc','rojo','amar'].indexOf(r.nivel)>=0){out.push({cid:c.id,caratula:cShort(c.caratula),cliente:c.cliente,venc:r.venc,dias:r.diasRest,nivel:r.nivel});}});out.sort((a,b)=>a.dias-b.dias);return out;}
+function caducidadesProximas(){if(!jurMod('caducidad'))return [];const out=[];causas.forEach(c=>{if(c.estado==='finalizada'||c.estado==='suspenso')return;const r=calcCaducidad(c);if(r&&r.venc&&!r.nocaduca&&!r.sinImpulso&&!r.pausa&&['venc','rojo','amar'].indexOf(r.nivel)>=0){out.push({cid:c.id,caratula:cShort(c.caratula),cliente:c.cliente,venc:r.venc,dias:r.diasRest,nivel:r.nivel});}});out.sort((a,b)=>a.dias-b.dias);return out;}
 /* Clientes/causas con saldo impago hace más de 30 días. */
 function morosos(){const v=+config.valorIUS||0;const out=[];causas.forEach(c=>{if(c.estado==='finalizada')return;const h=c.honorarios||{};const tot=+h.ius||0;if(tot<=0)return;const pag=(h.pagos||[]).filter(p=>p.confirmado!==false).reduce((a,p)=>a+(+p.ius||0),0);const sal=tot-pag;if(sal<=0)return;const fechas=(h.pagos||[]).filter(p=>p.confirmado!==false).map(p=>parseDMY(p.fecha)).filter(Boolean).sort((a,b)=>b-a);const ult=fechas[0]||parseDMY(((c.bitacora||[]).slice(-1)[0]||{}).fecha);const ds=diasDesde(ult);if(ds!=null&&ds>30)out.push({cid:c.id,caratula:cShort(c.caratula),cliente:c.cliente,sal:sal*v,ult:ult,ds:ds});});out.sort((a,b)=>b.ds-a.ds);return out;}
 function urgentesHoyManana(){const hk=hoyKey();const d=new Date();d.setDate(d.getDate()+1);const mk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');return audiencias.filter(a=>a.fecha===hk||a.fecha===mk).sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')));}

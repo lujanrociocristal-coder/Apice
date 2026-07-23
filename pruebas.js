@@ -69,6 +69,10 @@ chequeo('jurMod enciende ante la duda (protege Catamarca)', /p\[nombre\]\s*!==\s
 /* El preset catamarca NO puede tener ningun modulo apagado. */
 const mCat = app.match(/catamarca\s*:\s*\{([^}]*)\}/);
 chequeo('preset catamarca no apaga ningun modulo', !!mCat && mCat[1].indexOf('false') < 0);
+const mGen = app.match(/generica\s*:\s*\{([^}]*)\}/);
+chequeo('preset generica apaga los modulos locales', !!mGen && mGen[1].indexOf('false') >= 0);
+chequeo('el menu filtra por jurisdiccion', /SBNAV\.filter\(it=>!it\.mod\|\|jurMod\(it\.mod\)\)/.test(app));
+chequeo('navTo protege secciones apagadas', /modDe\[n\]&&!jurMod\(modDe\[n\]\)/.test(app));
 
 console.log('\n=== 5) Backend PHP ===');
 const phpDir = path.join(DIR, 'api');
