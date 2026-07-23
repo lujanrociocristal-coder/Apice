@@ -61,6 +61,15 @@ const app = leer('app.js') || '';
   ['aviso de version nueva', 'function chequearVersionNueva'],
 ].forEach(([nombre, marca]) => chequeo(nombre, app.indexOf(marca) >= 0));
 
+/* === Jurisdiccion (v47): proteger a Catamarca === */
+chequeo('existe el preset de jurisdiccion', /const JUR_PRESETS\s*=/.test(app));
+chequeo('jurisdiccion por defecto = catamarca', /config\.jurisdiccion\s*=\s*'catamarca'/.test(app));
+chequeo('unidad de honorarios por defecto = IUS', /config\.unidadHon\s*=\s*'IUS'/.test(app));
+chequeo('jurMod enciende ante la duda (protege Catamarca)', /p\[nombre\]\s*!==\s*false/.test(app));
+/* El preset catamarca NO puede tener ningun modulo apagado. */
+const mCat = app.match(/catamarca\s*:\s*\{([^}]*)\}/);
+chequeo('preset catamarca no apaga ningun modulo', !!mCat && mCat[1].indexOf('false') < 0);
+
 console.log('\n=== 5) Backend PHP ===');
 const phpDir = path.join(DIR, 'api');
 const phps = [];

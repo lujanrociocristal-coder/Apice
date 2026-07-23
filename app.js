@@ -2246,7 +2246,29 @@ function cfgDefaults(){
   if(!config.profesionales){const pp=config.perfil||{};config.profesionales=[{nombre:pp.abogada||'Dra. Roc\u00edo Cristal Luj\u00e1n',mp:pp.matricula||'2686',cuit:pp.cuit||''}];}
   if(config.perfil&&config.perfil.estudio==='Estudio Jur\u00eddico Roc\u00edo Luj\u00e1n')config.perfil.estudio='Estudio Jur\u00eddico';
   if(config.perfil&&!config.perfil.matricula)config.perfil.matricula='2686';
+  /* Jurisdicci\u00f3n (v47): define qu\u00e9 m\u00f3dulos ve el estudio. Por defecto 'catamarca'
+     = TODO encendido, id\u00e9ntico a como funciona hoy. Cualquier estudio existente
+     (incluida esta app) queda en catamarca autom\u00e1ticamente: cero cambio. */
+  if(config.jurisdiccion==null)config.jurisdiccion='catamarca';
+  /* Unidad de honorarios: etiqueta que se muestra (IUS/Jus/UMA/pesos).
+     Default 'IUS' para que la app Catamarca se vea igual. */
+  if(config.unidadHon==null)config.unidadHon='IUS';
 }
+/* ===== Perfiles de jurisdicci\u00f3n (v47) =====
+   Cada preset dice qu\u00e9 m\u00f3dulos est\u00e1n activos. Catamarca = todo true.
+   El helper jurMod(nombre) es la "llave de luz": si el estudio no usa ese
+   m\u00f3dulo, la funci\u00f3n que lo dibuja no lo muestra. En Catamarca siempre true. */
+const JUR_PRESETS={
+  catamarca:{caducidad:true, arancel:true, calcplazos:true, guiaSembrada:true, materiasSembradas:true, citasLegales:true},
+  generica :{caducidad:false, arancel:false, calcplazos:false, guiaSembrada:false, materiasSembradas:false, citasLegales:false}
+};
+function jurActual(){return (config&&config.jurisdiccion)||'catamarca';}
+function jurMod(nombre){
+  const p=JUR_PRESETS[jurActual()]||JUR_PRESETS.catamarca;
+  return p[nombre]!==false;   // ante la duda, ENCENDIDO (protege a Catamarca)
+}
+/* Etiqueta de la unidad de honorarios del estudio (IUS por defecto). */
+function unidadHon(){return (config&&config.unidadHon)||'IUS';}
 function cfgAvatar(){const el=document.getElementById('avatarInput');if(el)el.click();}
 function abogados(){const pl=(config.profesionales||[]).map(p=>p.nombre).filter(Boolean);if(pl.length)return pl;const a=(config&&config.abogados&&config.abogados.length)?config.abogados.slice():[];if(!a.length)a.push((config&&config.perfil&&config.perfil.abogada)||'Dra. Rocío Cristal Luján');return a;}
 function descargarJSON(nombre,obj){try{const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=nombre;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}catch(e){alert('La exportación funciona en el navegador (no en la vista previa).');}}
