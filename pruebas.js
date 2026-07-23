@@ -73,6 +73,9 @@ const mGen = app.match(/generica\s*:\s*\{([^}]*)\}/);
 chequeo('preset generica apaga los modulos locales', !!mGen && mGen[1].indexOf('false') >= 0);
 chequeo('el menu filtra por jurisdiccion', /SBNAV\.filter\(it=>!it\.mod\|\|jurMod\(it\.mod\)\)/.test(app));
 chequeo('navTo protege secciones apagadas', /modDe\[n\]&&!jurMod\(modDe\[n\]\)/.test(app));
+chequeo('materias arrancan vacias en generico', /jurMod\('materiasSembradas'\)\?MATERIAS_BASE:\[\]/.test(app));
+chequeo('Guia no se siembra en generico', /jurMod\('guiaSembrada'\)\)?\s*(?:\{)?try?\{?seedDir|else if\(jurMod\('guiaSembrada'\)\)seedDir/.test(app));
+chequeo('jurisdiccion se carga antes de sembrar', app.indexOf("await window.APICE.get('/config')")>=0);
 
 console.log('\n=== 5) Backend PHP ===');
 const phpDir = path.join(DIR, 'api');
