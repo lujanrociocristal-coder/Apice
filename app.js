@@ -2431,13 +2431,13 @@ const CIMA={
  docs:{m:["En el expediente entrá a **Documentación** → **+ Subir documento**.","Elegí la carpeta (Prueba, Escritos, Actuaciones, Resoluciones, Sentencias o Cliente) y la relevancia (Crítica ⭐⭐⭐, Relevante o Trámite)."],o:[{t:"👁 ¿Lo ve el cliente?",go:"docvis"},{t:"📱 Subir desde el celular",go:"docmob"},{t:"↩ Menú",menu:true}]},
  docvis:{m:["El **interruptor verde** de cada documento decide si el cliente lo ve en su portal: verde = lo ve y descarga; gris = privado.","Sin carpetas de Drive: lo cambiás con un toque."],o:[{t:"↩ Menú",menu:true}]},
  docmob:{m:["Desde el celular, **+ Subir documento** te deja **Tomar fotografía, Escanear o subir de la Galería**.","Ideal para cargar una cédula o un escrito en el momento."],o:[{t:"↩ Menú",menu:true}]},
- agenda:{m:["Dos formas: en **Audiencias** cargás tipo, fecha y hora; o en **Calendario**, %clic% en un día y 'Agendar'."],o:[{t:"🔔 Avisar al cliente",go:"agcli"},{t:"⚖ Plazos de caducidad",go:"cad"},{t:"↩ Menú",menu:true}]},
+ agenda:{m:["Dos formas: en **Audiencias** cargás tipo, fecha y hora; o en **Calendario**, %clic% en un día y 'Agendar'."],o:[{t:"🔔 Avisar al cliente",go:"agcli"},{t:"⚖ Plazos de caducidad",go:"cad",mod:"caducidad"},{t:"↩ Menú",menu:true}]},
  agcli:{m:["Al cargar la audiencia, marcá **'El cliente debe asistir'**.","Se enciende la campana **🔔 Avisos** y el día queda marcado en el calendario con la hora. No se te escapa ninguna."],o:[{t:"Llevame a Audiencias",nav:"audiencias"},{t:"↩ Menú",menu:true}]},
  cad:{m:["En el expediente marcá con el **⚖** el último acto de impulso.","ÁPICE calcula el plazo de caducidad (Ley 2339 de Catamarca) y te muestra un semáforo para actuar a tiempo."],o:[{t:"Ver panel de Caducidad",nav:"caducidad"},{t:"↩ Menú",menu:true}]},
- hon:{m:["En **Honorarios** definís el valor del IUS y usás la calculadora (Ley 5724). Registrás pagos y ves saldos."],o:[{t:"📊 ¿Cuánto me deben?",go:"rephon"},{t:"🚦 ¿Qué expedientes atender?",go:"repexp"},{t:"↩ Menú",menu:true}]},
+ hon:{m:["En cada expediente, en la pestaña **Honorarios**, definís el valor de tu unidad de honorarios, registrás los pagos y ves el saldo.","Los recibos y el libro quedan numerados solos."],o:[{t:"📊 ¿Cuánto me deben?",go:"rephon"},{t:"🚦 ¿Qué expedientes atender?",go:"repexp"},{t:"↩ Menú",menu:true}]},
  rephon:{m:["En **Reportes → Honorarios** ves por cobrar, cobrado y pendiente, y quién te abonó y cuándo.","La foto de los ingresos del estudio, de un vistazo."],o:[{t:"Llevame a Reportes",nav:"reportes"},{t:"↩ Menú",menu:true}]},
  repexp:{m:["En **Reportes → Mis Expedientes**, ÁPICE clasifica solo en 🔴 Críticos, 🟠 Seguimiento y 🟢 Controlados, con la salud de cada causa.","Sabés a qué prestarle atención hoy."],o:[{t:"Ver EstrategIA",nav:"estrategia"},{t:"Llevame a Reportes",nav:"reportes"},{t:"↩ Menú",menu:true}]},
- sos:{m:["Contame qué pasa y te doy una mano:"],o:[{t:"No encuentro un expediente",go:"sos1"},{t:"¿Esto lo ve el cliente?",go:"docvis"},{t:"¿Por qué está en rojo?",go:"sos2"},{t:"Cambiar el valor del IUS",go:"sos3"},{t:"¿Mis datos están seguros?",go:"sos4"},{t:"💬 Soporte humano",human:true}]},
+ sos:{m:["Contame qué pasa y te doy una mano:"],o:[{t:"No encuentro un expediente",go:"sos1"},{t:"¿Esto lo ve el cliente?",go:"docvis"},{t:"¿Por qué está en rojo?",go:"sos2"},{t:"Cambiar el valor de la unidad de honorarios",go:"sos3"},{t:"¿Mis datos están seguros?",go:"sos4"},{t:"💬 Soporte humano",human:true}]},
  sos1:{m:["Usá el buscador en Inicio o Expedientes: por carátula, cliente, número o materia.","También está el botón **Filtros** para acotar por estado o materia."],o:[{t:"Llevame a Expedientes",nav:"causas"},{t:"↩ Menú",menu:true}]},
  sos2:{m:["Es el semáforo de salud: rojo = plazo cerca o vencido, audiencia próxima, o más de 30 días sin movimiento.","Podés ajustar esos límites en **Configuración → Reglas de los reportes**."],o:[{t:"↩ Menú",menu:true}]},
  sos3:{m:["Andá a **Configuración → Honorarios y valores** y cambiá el valor del IUS. Se actualiza en toda la app."],o:[{t:"Llevame a Configuración",nav:"config"},{t:"↩ Menú",menu:true}]},
@@ -2473,8 +2473,11 @@ function cimaSet(open){
   if(open)renderCima();
 }
 function cimaReset(){cimaSt.log=[];cimaSt.node='root';cimaBot('root');renderCima();}
+/* Opciones visibles del nodo: oculta las que dependen de un módulo apagado
+   (ej. "Plazos de caducidad" no aparece en jurisdicción genérica). */
+function cimaOpts(node){return (node.o||[]).filter(o=>!o.mod||jurMod(o.mod));}
 function cimaPick(i){
-  const node=CIMA[cimaSt.node]||CIMA.root;const o=node.o[i];if(!o)return;
+  const node=CIMA[cimaSt.node]||CIMA.root;const o=cimaOpts(node)[i];if(!o)return;
   cimaPush('user',esc(o.t));
   if(o.nav){cimaSt.node='root';cimaPush('bot','Te llevo ahí. Cuando quieras, seguimos. ✦');navTo(o.nav);cimaBot('root');if(cimaIsMobile())cimaSet(false);else{cimaSt.open=true;renderCima();}return;}
   const go=o.menu?'root':(o.human?'human':o.go);
@@ -2484,7 +2487,7 @@ function renderCima(){
   const body=document.getElementById('cimaBody');if(!body)return;
   const node=CIMA[cimaSt.node]||CIMA.root;
   const bubbles=cimaSt.log.map(e=>`<div class="cima-row ${e.who}"><div class="cima-bub ${e.who}">${e.html}</div></div>`).join('');
-  const opts=`<div class="cima-opts">${node.o.map((o,i)=>`<button class="cima-opt" onclick="cimaPick(${i})">${esc(o.t)}</button>`).join('')}</div>`;
+  const opts=`<div class="cima-opts">${cimaOpts(node).map((o,i)=>`<button class="cima-opt" onclick="cimaPick(${i})">${esc(o.t)}</button>`).join('')}</div>`;
   body.innerHTML=bubbles+opts;
   body.scrollTop=body.scrollHeight;
 }
