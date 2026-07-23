@@ -19,7 +19,7 @@ let st={vista:"tablero",nav:"dashboard",filtrosOpen:false,actual:null,busqueda:"
 /* ===== PERSISTENCIA ===== */
 function normalize(){causas.forEach(c=>{
   c.pendientes=c.pendientes.map(p=>typeof p==='string'?{t:p,done:false}:p);
-  c.documentos=(c.documentos||[]).map(d=>d.carpeta?d:({n:d.n,tipo:docTipo(d.n),fecha:'',usuario:'Rocío Luján',carpeta:inferCarpeta(d.n),relevancia:'tramite',visible:(d.v==='cli'),etiquetas:[],u:d.u||null,historial:[]}));
+  c.documentos=(c.documentos||[]).map(d=>d.carpeta?d:({n:d.n,tipo:docTipo(d.n),fecha:'',usuario:'',carpeta:inferCarpeta(d.n),relevancia:'tramite',visible:(d.v==='cli'),etiquetas:[],u:d.u||null,historial:[]}));
   if(c.actorPat===undefined)c.actorPat=(c.clienteEs==='pasiva')?'':(c.letrada||'');
   if(c.demandadoPat===undefined)c.demandadoPat=(c.clienteEs==='pasiva')?(c.letrada||''):'';
   if(c.clienteCalidad===undefined)c.clienteCalidad='';
@@ -1525,7 +1525,7 @@ function guardarNueva(){const g=id=>{const el=document.getElementById(id);return
   causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:[g("n_mat")||"Sucesión"],
     caratula:car,cliente:cliName||"A completar",expediente:exp,cuij:null,objeto:g("n_obj")||"A completar.",
     fuero:g("n_fuero")||"A definir",juzgado:g("n_juz")||"A definir al presentar",juez:g("n_juez")||"—",secretaria:g("n_sec")||"—",dirJuzId:(document.getElementById("n_dirjuz")||{}).value||null,
-    letrada:g("n_let")||"Dra. Rocío Cristal Luján",clienteEs:"activa",actorRol:"Actora",actor:g("n_par")||"A completar",actorPat:g("n_let")||"Dra. Rocío Cristal Luján",demandadoRol:"Demandado",demandado:"A completar",demandadoPat:"",clienteCalidad:"por derecho propio",posicion:"—",
+    letrada:g("n_let")||nombreProfesional(),clienteEs:"activa",actorRol:"Actora",actor:g("n_par")||"A completar",actorPat:g("n_let")||nombreProfesional(),demandadoRol:"Demandado",demandado:"A completar",demandadoPat:"",clienteCalidad:"por derecho propio",posicion:"—",
     ultimoMov:{fecha:hoy(),texto:txtUlt},
     bitacora:[{fecha:hoy(),texto:txtAlta,inicio:true}],
     documentos:[],pendientes:pend,
@@ -1776,7 +1776,7 @@ async function notificarUrgentes(){
     try{localStorage.setItem('apice_notif_vistos',JSON.stringify(vistos));}catch(e){}
   }catch(e){}
 }
-function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas()+pagosInformados().length+caducidadesProximas().length+morosos().length+compartidasConmigo().length+(iusDesactualizado()?1:0)+__avAuto.docs+__avAuto.clis;b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
+function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas()+pagosInformados().length+caducidadesProximas().length+morosos().length+compartidasConmigo().length+((jurMod('arancel')&&iusDesactualizado())?1:0)+__avAuto.docs+__avAuto.clis;b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
 function renderAvisos(){
   const list=notifs();const hk=hoyKey();
   const cards=list.map(a=>{
@@ -1828,7 +1828,7 @@ function renderAvisos(){
       <div class="avi-meta">${esc(cShort(c.caratula))}</div></div>
       <button class="btn-sec" onclick="irACausa('${c.id}')">Abrir</button></div>`).join('');
   const compSec=comps.length?`<div class="avi-sec"><div class="avi-sec-h">Causas compartidas con vos <span class="avi-n">${comps.length}</span></div><div class="avi-list">${compCards}</div></div>`:'';
-  const iusSec=iusDesactualizado()?`<div class="avi-sec"><div class="avi-sec-h">Valor del IUS</div><div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div></div>`:'';
+  const iusSec=(jurMod('arancel')&&iusDesactualizado())?`<div class="avi-sec"><div class="avi-sec-h">Valor del IUS</div><div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div></div>`:'';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
     <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Todo lo que requiere tu atención, reunido en un solo lugar.</div></div></div>
     ${('Notification' in window)?(Notification.permission!=='granted'?`<div class="avi-sec"><div class="avi-row"><span>📱 Activá las notificaciones en este dispositivo para recibir en el celular los avisos urgentes —vencimientos de plazos y audiencias de hoy/mañana— con el logo de ÁPICE.</span><button class="btn-sec" onclick="activarNotificaciones()">🔔 Activar avisos en el celular</button></div></div>`:`<div class="avi-sec"><div class="avi-row"><span>✅ Notificaciones activadas en este dispositivo. Vas a recibir en el celular los avisos urgentes (vencimientos y audiencias de hoy/mañana).</span><button class="btn-sec" onclick="probarPush()">Probar aviso</button></div></div>`):''}
@@ -2070,7 +2070,10 @@ function repTareasPend(){return causas.reduce((a,c)=>a+(c.pendientes||[]).filter
 function vencProximos(dias){let n=0;causas.forEach(c=>{if(c.estado==='finalizada')return;const r=calcCaducidad(c);if(r&&typeof r.diasRest==='number'&&r.diasRest<=dias)n++;});const hk=hoyKey();const lim=new Date();lim.setDate(lim.getDate()+dias);audiencias.forEach(a=>{if(a.fecha&&a.fecha>=hk){const d=new Date(a.fecha+'T00:00:00');if(d<=lim)n++;}});return n;}
 function actividad30(){let movs=0;const exp=new Set();causas.forEach(c=>{(c.bitacora||[]).forEach(b=>{const d=parseDMY(b.fecha);if(d&&diasDesde(d)<=30){movs++;exp.add(c.id);}});});return {movs,exp:exp.size};}
 function honTotales(){let tot=0,pag=0;causas.forEach(c=>{tot+=repTotIus(c);pag+=repPagIus(c);});const sal=Math.max(0,tot-pag);const v=vIus();return {totIus:tot,pagIus:pag,salIus:sal,tot:tot*v,pag:pag*v,sal:sal*v};}
-function responsable(c){return c.letrada||'Dra. Rocío Luján';}
+/* Nombre del profesional a usar cuando una causa no tiene letrada asignada.
+   Sale del perfil del estudio o del usuario logueado, NUNCA de un nombre fijo. */
+function nombreProfesional(){return (config&&config.perfil&&config.perfil.abogada)||(window.__me&&window.__me.nombre)||'';}
+function responsable(c){return c.letrada||nombreProfesional();}
 function proxVenc(c){let best=null;const r=calcCaducidad(c);if(r&&r.venc)best={d:r.venc,txt:'Caducidad'};const hk=hoyKey();audiencias.filter(a=>a.causaId===c.id&&a.fecha>=hk).forEach(a=>{const d=new Date(a.fecha+'T00:00:00');if(!best||d<best.d)best={d,txt:'Audiencia'+(a.hora?(' '+a.hora+' hs'):'')};});return best;}
 function expSalud(c){
   if(c.estado==='finalizada')return {score:100,nivel:'verde',motivos:['Causa finalizada.']};
@@ -2887,7 +2890,7 @@ function dirPickShow(pfx){dirPickFilter(pfx);}
 function dirPickChoose(pfx,id){const j=dirJuzList().find(x=>x.id===id);if(!j)return;const setv=function(sfx,v){const el=document.getElementById(pfx+sfx);if(el&&v!=null)el.value=v;};const hid=document.getElementById(pfx+'_dirjuz');if(hid)hid.value=id;setv('_juz',j.nombre);const jz=edJuezName(j.rol);if(jz)setv('_juez',jz);const fu=document.getElementById(pfx+'_fuero');if(fu&&!(fu.value||'').trim()){const f=dirGuessFuero(j.nombre);if(f)fu.value=f;}const sec=document.getElementById(pfx+'_dirsec');if(sec)sec.innerHTML='<option value="">— Elegí secretaría —</option>'+(j.integrantes||[]).map(function(s){return '<option value="'+attr(edSecName(s))+'">'+esc(s)+'</option>';}).join('');const inp=document.getElementById(pfx+'_dirq');if(inp)inp.value=j.nombre;const cont=document.getElementById(pfx+'_dirlist');if(cont)cont.innerHTML='<div class="dpk-ok">✓ Juzgado elegido. Ahora elegí la secretaría abajo.</div>';}
 function dirPickSec(pfx,val){const el=document.getElementById(pfx+'_sec');if(el)el.value=val;}
 /* ===== RECIBOS DE PAGO (v43) ===== */
-function estudioDatos(){const p=config.perfil||{};return {nombre:p.abogada||'Dra. Rocío Cristal Luján',estudio:p.estudio||'',mp:p.matricula||'2686',cuit:p.cuit||'',dom:p.domicilio||''};}
+function estudioDatos(){const p=config.perfil||{};return {nombre:p.abogada||nombreProfesional(),estudio:p.estudio||'',mp:p.matricula||'',cuit:p.cuit||'',dom:p.domicilio||''};}
 function numLetras(n){n=Math.floor(Math.abs(+n||0));if(n===0)return 'cero';
   const U=['','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
   const D=['','','','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
