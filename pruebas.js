@@ -76,6 +76,11 @@ chequeo('navTo protege secciones apagadas', /modDe\[n\]&&!jurMod\(modDe\[n\]\)/.
 chequeo('materias arrancan vacias en generico', /jurMod\('materiasSembradas'\)\?MATERIAS_BASE:\[\]/.test(app));
 chequeo('Guia no se siembra en generico', /jurMod\('guiaSembrada'\)\)?\s*(?:\{)?try?\{?seedDir|else if\(jurMod\('guiaSembrada'\)\)seedDir/.test(app));
 chequeo('jurisdiccion se carga antes de sembrar', app.indexOf("await window.APICE.get('/config')")>=0);
+/* === Cuenta de prueba (v48) === */
+chequeo('pantalla de prueba vencida', app.indexOf('function mostrarPruebaVencida')>=0);
+chequeo('banner de dias de prueba', app.indexOf('function injectPruebaBanner')>=0);
+chequeo('aviso de pruebas a la super-admin', app.indexOf('function avisarPruebasSuper')>=0);
+chequeo('la super-admin nunca se bloquea por prueba', /es_superadmin/.test(app));
 
 console.log('\n=== 5) Backend PHP ===');
 const phpDir = path.join(DIR, 'api');

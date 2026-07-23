@@ -80,6 +80,25 @@ function handle_auth($method, $resto) {
   if ($accion === 'me' && $method === 'GET') {
     $u = current_user();
     if (!$u) json_ok(['logueada' => false]);
+    /* Estado de la cuenta de prueba (v48). La super-administradora NUNCA se
+       bloquea. Los datos jamás se borran: vencer solo impide el ingreso. */
+    $pruebaHasta = null; $pruebaDias = null; $pruebaVencida = false;
+    if ((int)$u['es_superadmin'] !== 1) {
+      try {
+        asegurar_cols_jurisdiccion(db());
+        $sp = db()->prepare('SELECT prueba_hasta FROM estudios WHERE id = ?');
+        $sp->execute([(int)$u['estudio_id']]);
+        $ph = $sp->fetchColumn();
+        if ($ph) {
+          $pruebaHasta = $ph;
+          $hoy = new DateTime('today');
+          $lim = new DateTime($ph);
+          $diff = (int)$hoy->diff($lim)->format('%r%a');
+          $pruebaDias = $diff;                 // días restantes (negativo si venció)
+          $pruebaVencida = ($diff < 0);
+        }
+      } catch (Throwable $e) {}
+    }
     json_ok([
       'logueada' => true,
       'id' => (int)$u['id'], 'nombre' => $u['nombre'], 'email' => $u['email'],
@@ -88,6 +107,9 @@ function handle_auth($method, $resto) {
       'es_superadmin' => (int)$u['es_superadmin'],
       'estudio_tipo' => $u['estudio_tipo'],
       'debe_cambiar_clave' => (int)$u['debe_cambiar_clave'],
+      'prueba_hasta' => $pruebaHasta,
+      'prueba_dias' => $pruebaDias,
+      'prueba_vencida' => $pruebaVencida,
     ]);
   }
 

@@ -3122,11 +3122,48 @@ async function initCliente(me){
   if(causas.length){st.actual=causas[0].id;st.vista='ficha';renderCliente(causas[0]);}
   else{document.getElementById('app').innerHTML='<div class="ficha"><div class="ficha-top cli-top"><button class="volver" onclick="cerrarSesion()">Cerrar sesión</button><div class="cli-portal-h"><div class="cli-brand"><img class="logo" src="'+LOGO+'"><div><div class="clab">Portal del cliente</div><h2 style="padding-left:0">'+esc(__cliNombre)+'</h2></div></div></div></div><div class="panel"><div class="vacio">Todavía no tenés causas habilitadas. El estudio te dará acceso cuando corresponda.</div></div></div>';}
 }
-async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data){window.__me=mm.data;}if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}
+/* ===== Cuenta de prueba (v48) =====
+   Pantalla de bloqueo cuando la prueba venció. Los datos NO se borran:
+   siguen en el servidor. Al activar la cuenta, la abogada entra con todo. */
+function mostrarPruebaVencida(me){
+  document.body.classList.remove('sb-open');
+  const sb=document.getElementById('sidebar');if(sb)sb.style.display='none';
+  const tg=document.getElementById('sbToggle');if(tg)tg.style.display='none';
+  const app=document.getElementById('app');if(!app)return;
+  app.innerHTML='<div class="prueba-fin"><div class="pf-card">'
+    +'<div class="pf-ic">⏳</div>'
+    +'<h1>Tu prueba de ÁPICE venció</h1>'
+    +'<p>El período de prueba de tu estudio terminó. <b>Tus datos están guardados y a salvo</b>: no se borró nada. Para seguir usando ÁPICE, escribinos y activamos tu cuenta.</p>'
+    +'<a class="pf-btn" href="https://wa.me/'+ (waNumero&&typeof waNumero==="function"?waNumero("3834288918"):"5493834288918") +'?text='+encodeURIComponent('Hola, quiero activar mi cuenta de ÁPICE ('+(me&&me.email||'')+').')+'" target="_blank" rel="noopener">Escribir para activar</a>'
+    +'<button class="pf-salir" onclick="cerrarSesion()">Cerrar sesión</button>'
+    +'</div></div>';
+}
+/* Aviso a la super-administradora: pruebas por vencer o vencidas (v48). */
+async function avisarPruebasSuper(){
+  if(!(window.__me&&window.__me.es_superadmin))return;
+  let es=[];try{es=await window.APICE.get('/usuarios/estudios')||[];}catch(e){return;}
+  const porVencer=[];
+  (es||[]).forEach(e=>{if(!e.prueba_hasta)return;const lim=new Date(e.prueba_hasta+'T00:00:00');const d=Math.round((lim-new Date(new Date().toDateString()))/86400000);if(d<=3)porVencer.push({nombre:e.nombre,d:d});});
+  if(!porVencer.length)return;
+  const b=document.createElement('div');b.className='prueba-banner';b.style.cursor='pointer';b.style.background='#FEF3F2';b.style.borderColor='#FDA29B';b.style.color='#B42318';
+  b.innerHTML='<span>⚠ '+porVencer.length+' estudio(s) de prueba por vencer. Revisá <b>Usuarios y claves</b>.</span>';
+  b.onclick=function(){location.href='/gestion-usuarios.html';};
+  document.body.appendChild(b);
+}
+/* Aviso "te quedan X días" mientras la prueba está vigente. */
+function injectPruebaBanner(){
+  const me=window.__me;if(!me||me.prueba_dias==null||me.prueba_dias<0)return;
+  if(document.getElementById('pruebaBanner'))return;
+  const d=me.prueba_dias;
+  const b=document.createElement('div');b.id='pruebaBanner';b.className='prueba-banner';
+  b.innerHTML='<span>⏳ Estás usando ÁPICE en modo prueba: te queda'+(d!==1?'n':'')+' <b>'+d+' día'+(d!==1?'s':'')+'</b>.</span>';
+  document.body.appendChild(b);
+}
+async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data){window.__me=mm.data;}if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);if(mm&&mm.data&&mm.data.prueba_vencida)return mostrarPruebaVencida(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}
   marcarCausasGuardadas(causas.filter(function(c){return !c._compartida;}));try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;/* Cargar la jurisdicción del servidor ANTES de sembrar la Guía Judicial:
    así un estudio genérico no recibe los juzgados de Catamarca. */
 try{const _cf=await window.APICE.get('/config');if(_cf){if(_cf.jurisdiccion)config.jurisdiccion=_cf.jurisdiccion;if(_cf.unidad_hon)config.unidadHon=_cf.unidad_hon;}}catch(e){}
-const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else if(jurMod('guiaSembrada'))seedDir();dirMigrateNames();dirMigrateCats();cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();updateSidebarUser();injectCima();try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
+const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else if(jurMod('guiaSembrada'))seedDir();dirMigrateNames();dirMigrateCats();cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();updateSidebarUser();injectCima();try{injectPruebaBanner();}catch(e){}try{avisarPruebasSuper();}catch(e){}try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 
 /* ===== Aviso de version nueva (v46) =====

@@ -125,7 +125,14 @@ function usuario_eliminar($id) {
 
 function estudios_listar() {
   require_superadmin();
-  $sql = 'SELECT e.id, e.nombre, e.tipo, e.creado_en,
+  asegurar_cols_jurisdiccion(db());
+  $extra = '';
+  try {
+    // ¿existe la columna? si no, se omite para no romper la lista.
+    $c = db()->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME='estudios' AND COLUMN_NAME='prueba_hasta'")->fetchColumn();
+    if ((int)$c > 0) $extra = ', e.jurisdiccion, e.prueba_hasta';
+  } catch (Throwable $e) {}
+  $sql = 'SELECT e.id, e.nombre, e.tipo, e.creado_en' . $extra . ',
                  (SELECT u.email FROM usuarios u WHERE u.estudio_id = e.id AND u.es_admin = 1 ORDER BY u.id ASC LIMIT 1) AS email_admin,
                  (SELECT COUNT(*) FROM usuarios u WHERE u.estudio_id = e.id AND u.rol = "profesional") AS abogadas,
                  (SELECT COUNT(*) FROM usuarios u WHERE u.estudio_id = e.id AND u.rol = "cliente")     AS clientes
@@ -148,6 +155,18 @@ function estudio_editar($id) {
   }
   if (field('tipo', '__NO__') !== '__NO__') {
     $sets[] = 'tipo = ?'; $vals[] = (field('tipo') === 'individual' ? 'individual' : 'estudio');
+  }
+  /* Prueba (v48): 'prueba' = 'activar' quita la prueba (cuenta definitiva);
+     'prueba_dias' 7/14/30 renueva el plazo desde hoy. Los datos NO se tocan. */
+  if (field('prueba', '__NO__') !== '__NO__' && field('prueba') === 'activar') {
+    asegurar_cols_jurisdiccion(db());
+    $sets[] = 'prueba_hasta = NULL';
+  } elseif (field('prueba_dias', '__NO__') !== '__NO__') {
+    $d = (int)field('prueba_dias');
+    if (in_array($d, [7, 14, 30], true)) {
+      asegurar_cols_jurisdiccion(db());
+      $sets[] = 'prueba_hasta = ?'; $vals[] = date('Y-m-d', strtotime("+$d days"));
+    }
   }
   if (!$sets) json_error('No hay nada para actualizar.');
   $vals[] = $id;
@@ -188,12 +207,15 @@ function estudio_crear() {
   $juris = field('jurisdiccion') === 'generica' ? 'generica' : 'catamarca';
   $unidad = trim((string)field('unidad_hon'));
   if ($unidad === '') $unidad = ($juris === 'generica') ? 'Jus' : 'IUS';
+  /* Período de prueba (v48): 0 = sin prueba (cuenta activa). 7/14/30 = días. */
+  $dias = (int)field('prueba_dias');
+  $prueba = in_array($dias, [7, 14, 30], true) ? date('Y-m-d', strtotime("+$dias days")) : null;
   $temp = generar_clave_temporal();
   $pdo = db();
   asegurar_cols_jurisdiccion($pdo);
   $pdo->beginTransaction();
-  $pdo->prepare('INSERT INTO estudios (nombre, tipo, jurisdiccion, unidad_hon) VALUES (?,?,?,?)')
-      ->execute([$estudio, $tipo, $juris, $unidad]);
+  $pdo->prepare('INSERT INTO estudios (nombre, tipo, jurisdiccion, unidad_hon, prueba_hasta) VALUES (?,?,?,?,?)')
+      ->execute([$estudio, $tipo, $juris, $unidad, $prueba]);
   $eid = (int)$pdo->lastInsertId();
   // La abogada invitada es la ADMINISTRADORA de su propio estudio (es_admin=1),
   // pero NO super-administradora.

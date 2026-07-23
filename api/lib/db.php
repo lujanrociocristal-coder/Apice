@@ -55,12 +55,17 @@ function asegurar_cols_jurisdiccion($pdo) {
   try {
     $cols = $pdo->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS
       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'estudios'
-      AND COLUMN_NAME IN ('jurisdiccion','unidad_hon')")->fetchAll(PDO::FETCH_COLUMN);
+      AND COLUMN_NAME IN ('jurisdiccion','unidad_hon','prueba_hasta')")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('jurisdiccion', $cols, true)) {
       $pdo->exec("ALTER TABLE estudios ADD COLUMN jurisdiccion VARCHAR(20) NOT NULL DEFAULT 'catamarca'");
     }
     if (!in_array('unidad_hon', $cols, true)) {
       $pdo->exec("ALTER TABLE estudios ADD COLUMN unidad_hon VARCHAR(12) NOT NULL DEFAULT 'IUS'");
+    }
+    /* prueba_hasta: fecha límite de la cuenta de prueba. NULL = cuenta activa
+       (sin prueba). Los estudios que ya existen quedan en NULL: nunca vencen. */
+    if (!in_array('prueba_hasta', $cols, true)) {
+      $pdo->exec("ALTER TABLE estudios ADD COLUMN prueba_hasta DATE NULL DEFAULT NULL");
     }
   } catch (Throwable $e) { /* silencioso: los defaults protegen a Catamarca */ }
 }
