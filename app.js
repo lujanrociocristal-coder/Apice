@@ -2329,6 +2329,7 @@ function renderConfig(){
     <div class="cfg-grid">${fld('cfg_inact','Días sin actividad para marcar crítico',config.repInactiv,'')}${fld('cfg_venc','Días de vencimiento para marcar crítico',config.repVenc,'')}</div>
     <div class="cfg-note">Definen cuándo un expediente pasa a 🔴 crítico en Reportes y en EstrategIA.</div></div>`;
   const datos=`<div class="cfg-block"><div class="cfg-bh"><h3>Datos y seguridad</h3><span class="cfg-badge a">Activo</span></div>
+    ${esSuperAdmin()?'<div id="cfgBackup" class="cfg-backup"><span class="cfgb-ic">💾</span><span class="cfgb-tx">Respaldo automático del sistema: <b>comprobando…</b></span></div>':''}
     <div class="cfg-acc">${esSuperAdmin()?'<button class="btn-sec" onclick="abrirCorreoConfig()">✉ Correo para recuperar contraseñas</button>':''}<button class="btn-sec" onclick="exportarDatos()">⭳ Exportar copia de seguridad (.json)</button><button class="btn-sec" onclick="exportarCausasCSV()">⭳ Exportar causas en planilla (.csv)</button></div>
     <div class="cfg-note">Tus datos se guardan en el <b>servidor del estudio</b> (compartidos con quienes trabajen con vos) y además queda una copia en este dispositivo como respaldo. Si alguna vez falla el guardado, la app te avisa y reintenta sola.<br><b>Copia de seguridad:</b> el .json incluye causas, movimientos, honorarios, clientes, agenda y Guía Judicial, más el listado de los documentos guardados en el servidor. Conviene descargarla cada tanto y guardarla fuera de la computadora.</div></div>`;
   const soon=(t,d)=>`<div class="cfg-soon"><div class="cfg-soon-h">${t}<span class="cfg-badge b">pronto</span></div><div class="cfg-soon-d">${d}</div></div>`;
@@ -2356,6 +2357,23 @@ function renderConfig(){
     <div class="main-head"><div><div class="eyebrow">Ajustes</div><h1>Configuración</h1><div class="mh-sub">Personalizá ÁPICE para tu estudio.</div></div>
       <button class="btn-add" id="cfgSaveBtn" onclick="guardarConfig()">Guardar cambios</button></div>
     ${perfil}${valores}${escala}${plazos}${reglas}${datos}${legales}${seg}${bloquesB}${cuenta}</div>`;
+  if(esSuperAdmin())cargarEstadoBackup();
+}
+/* Consulta el estado del respaldo automatico y lo muestra en Configuracion.
+   Solo super-admin. No dispara el respaldo: solo informa el ultimo que corrio. */
+async function cargarEstadoBackup(){
+  const box=document.getElementById('cfgBackup');if(!box)return;
+  const tx=box.querySelector('.cfgb-tx');
+  try{
+    const r=await window.APICE.get('/config/backup');
+    if(!r||!r.hay){box.classList.add('warn');tx.innerHTML='Respaldo automático del sistema: <b>todavía no hay copias registradas</b>.';return;}
+    const d=new Date(r.fecha);
+    const fecha=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()+' a las '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    const horas=(Date.now()-d.getTime())/3600000;
+    box.classList.toggle('warn',horas>30);   // deberia correr cada 24 h
+    box.classList.toggle('ok',horas<=30);
+    tx.innerHTML='Último respaldo automático: <b>'+fecha+'</b> · '+r.copias+' copia(s) guardada(s)'+(horas>30?' · <b style="color:#B54708">revisá: la última es de hace más de un día</b>':'');
+  }catch(e){box.classList.add('warn');tx.innerHTML='Respaldo automático: <b>no se pudo consultar el estado</b>.';}
 }
 /* ===== CHATBOT DE SOPORTE "CIMA" (v27) — árbol de decisión, sin IA ===== */
 const CIMA={

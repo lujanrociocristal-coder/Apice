@@ -1294,6 +1294,11 @@
   .cli-ultimo .cu-txt{font-size:15px;line-height:1.5;color:var(--tinta)}
   .cli-ultimo .cu-pie{font-size:12px;color:var(--mut);margin-top:7px}
   .ck-ayuda{font-weight:400;text-transform:none;letter-spacing:0;color:var(--mut);font-size:11px}
+/* Indicador de respaldo automatico (solo super-admin, en Configuracion). */
+.cfg-backup{display:flex;align-items:center;gap:9px;background:#F4F9FE;border:1px solid #C7D7FE;border-radius:9px;padding:10px 13px;margin:2px 0 12px;font-size:13.5px;color:#2A3646}
+.cfg-backup.ok{background:#ECFDF3;border-color:#A6F4C5}
+.cfg-backup.warn{background:#FEF6EE;border-color:#F5C08A}
+.cfg-backup .cfgb-ic{font-size:16px;flex:none}
 
 /* ===== Armonizar la vista del cliente (v46) =====
    Solo dentro de .ficha-cli: no toca la vista de la abogada. */

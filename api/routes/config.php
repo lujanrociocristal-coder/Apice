@@ -25,6 +25,12 @@ function handle_config($method, $resto) {
     if ($method === 'PUT')  return correo_guardar();
     if ($method === 'POST') return correo_probar();
   }
+  /* Estado del respaldo automatico (v46). Es infraestructura de la PLATAFORMA
+     (la copia es de TODA la base, de todos los estudios), por eso solo la
+     super-administradora lo consulta. */
+  if ($sub === 'backup') {
+    if ($method === 'GET') return backup_estado();
+  }
   if ($method === 'GET') return config_ver();
   if ($method === 'PUT') return config_editar();
   json_error('Método no permitido.', 405);
@@ -82,6 +88,34 @@ function feriado_borrar($id) {
  *  La contrasena se guarda en la base y NUNCA se devuelve al navegador:
  *  solo se informa si esta cargada o no.
  * ========================================================================== */
+/* ===========================================================================
+ *  ESTADO DEL RESPALDO AUTOMATICO  (v46)
+ *  Lee la carpeta privada de respaldos (fuera de public_html) y devuelve la
+ *  fecha del mas reciente. No expone los archivos: solo la fecha, el tamano y
+ *  cuantas copias hay. La ejecuta el cron; esto solo INFORMA.
+ * ========================================================================== */
+function backup_estado() {
+  require_superadmin();
+  /* Misma carpeta que usa api/cron-backup.php: al lado de public_html.
+     Desde api/routes/ hay que subir tres niveles (routes -> api -> public_html
+     -> raiz del dominio). */
+  $dir = dirname(__DIR__, 3) . '/apice_backups';
+  $files = array_merge(
+    glob($dir . '/apice-*.sql.gz') ?: [],
+    glob($dir . '/apice-*.sql') ?: []
+  );
+  if (!$files) { json_ok(['hay' => false]); return; }
+  usort($files, function ($a, $b) { return filemtime($b) - filemtime($a); });
+  $ultimo = $files[0];
+  json_ok([
+    'hay'       => true,
+    'fecha'     => date('c', filemtime($ultimo)),
+    'archivo'   => basename($ultimo),
+    'tamano_kb' => round(filesize($ultimo) / 1024, 1),
+    'copias'    => count($files),
+  ]);
+}
+
 function correo_tabla() {
   db()->exec("CREATE TABLE IF NOT EXISTS ajustes (
     clave VARCHAR(60) NOT NULL,
