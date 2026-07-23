@@ -37,7 +37,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=202607211436">
+<link rel="stylesheet" href="styles.css?v=202607231110">
 </head>
 <body>
 
@@ -70,8 +70,6 @@
 <script>if(sessionStorage.getItem('apxSeen')){var _sp=document.getElementById('apiceSplash');if(_sp)_sp.style.display='none';}</script>
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo"><img id="sbLogo" alt="ÁPICE"></div>
-  <button class="sb-buscar" id="sbBuscar" onclick="abrirBuscadorGlobal()" title="Buscar (Ctrl+K)"><span>🔍</span>Buscar causa o cliente<kbd>Ctrl K</kbd></button>
-  <button class="sb-notif" id="sbNotif" onclick="navTo('avisos')"><span class="sbn-bell">🔔</span>Avisos<span class="sbn-badge" id="sbnBadge"></span></button>
   <nav class="sb-nav" id="sbNav"></nav>
   <div class="sb-user"><button class="sb-av" id="sbAv" onclick="document.getElementById('avatarInput').click()" title="Cambiar foto o logo del estudio">RL</button><div class="sb-ui"><div class="sb-un">Rocío Luján</div><div class="sb-ur">Abogada</div></div><input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="onAvatarPick(event)"></div>
 </aside>
@@ -79,8 +77,8 @@
 <button class="sb-toggle" id="sbToggle" onclick="toggleSidebar()" aria-label="Menú">☰</button>
 <div class="sb-backdrop" id="sbBackdrop" onclick="toggleSidebar(false)"></div>
 <!-- APICE Prototipo B: puente con el servidor (login real + datos compartidos). Carga ANTES del codigo de la app. -->
-<script src="api.js?v=202607211436"></script>
-<script src="app.js?v=202607211436"></script>
-<script src="anim.js?v=202607211436"></script>
+<script src="api.js?v=202607231110"></script>
+<script src="app.js?v=202607231110"></script>
+<script src="anim.js?v=202607231110"></script>
 </body>
 </html>

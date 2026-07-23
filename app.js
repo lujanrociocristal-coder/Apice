@@ -189,6 +189,7 @@ function visibles(arr){
 /* ===== Barra lateral + navegación + dashboard (v18) ===== */
 const SBNAV=[
  {id:'dashboard',ic:'▦',l:'Mi día'},
+ {id:'avisos',ic:'🔔',l:'Avisos',notif:true},
  {id:'causas',ic:'📁',l:'Expedientes'},
  {id:'calendario',ic:'📅',l:'Calendario'},
  {id:'audiencias',ic:'⚖',l:'Audiencias'},
@@ -208,7 +209,10 @@ function onAvatarPick(e){const f=e.target.files&&e.target.files[0];if(!f)return;
 function renderSidebar(){
   const el=document.getElementById('sbNav');if(!el)return;const act=activeNav();
   el.innerHTML=SBNAV.map(it=>it.sep?'<div class="sb-sep"></div>':
-    `<button class="sb-item ${act===it.id?'on':''}" onclick="navTo('${it.id}')"><span class="sbi-ic">${it.ic}</span>${it.l}${it.soon?'<span class="sb-soon">pronto</span>':''}</button>`).join('');
+    it.notif?
+    `<button class="sb-item sb-item-notif ${act===it.id?'on':''}" id="sbNotif" onclick="navTo('${it.id}')"><span class="sbi-ic">${it.ic}</span>${it.l}<span class="sbn-badge" id="sbnBadge"></span></button>`
+    :`<button class="sb-item ${act===it.id?'on':''}" onclick="navTo('${it.id}')"><span class="sbi-ic">${it.ic}</span>${it.l}${it.soon?'<span class="sb-soon">pronto</span>':''}</button>`).join('');
+  if(typeof updateNotifBell==='function')updateNotifBell();
 }
 function navTo(n){
   st.nav=n;st.vista='tablero';st.cliente=false;st.actual=null;st.cliVer=null;if(typeof repSt!=='undefined')repSt.exp=null;
@@ -398,6 +402,7 @@ function renderInicio(){
         <div class="md2-sub">Hoy: <b>${audHoy.length}</b> audiencia(s) · <b>${tHoy.length+tVenc.length}</b> tarea(s) · <b>${aten}</b> aviso(s) <span class="md2-daytag ${inhabil?'off':'on'}">● ${inhabil?'Día inhábil':'Día hábil'}</span></div>
       </div>
       <div class="md2-actions">
+        <button class="md2-btn buscar" onclick="abrirBuscadorGlobal()" title="Buscar (Ctrl+K)"><span class="md2-lupa">🔍</span> Buscar causa o cliente</button>
         <button class="md2-btn primary" onclick="openModal({tipo:'agregar'})">+ Nueva causa</button>
         <button class="md2-btn out" onclick="navTo('audiencias')">+ Audiencia</button>
         <button class="md2-btn out" onclick="openModal({tipo:'tarearapida'})">+ Tarea</button>
@@ -994,7 +999,7 @@ function renderCliente(c){
     ${hermanas.length>1&&sel?`<button class="btn-sec" style="margin-top:12px" onclick="cliVerCausas()">‹ Mis causas (${hermanas.length})</button>`:''}</div>`;
   if(!sel){
     const cards=hermanas.map(x=>{const kk=cc(x.estado);return `<button class="cli-causa-card" onclick="cliAbrir('${x.id}')"><div class="spine ${kk}"></div><span class="mat ${kk}">${esc(x.materia[0])}</span><h3>${esc(x.caratula)}</h3><div class="cli-estado ${kk}" style="margin:8px 0 0"><span class="dot ${kk}"></span>${ESTADOS[x.estado].l}</div></button>`;}).join("");
-    document.getElementById("app").innerHTML=`<div class="ficha">${header}
+    document.getElementById("app").innerHTML=`<div class="ficha ficha-cli">${header}
       <div class="panel">
         ${MODO_CLIENTE?`<div class="cliente-aviso">${iWarn}<div>Hola, ${esc(nombre)}. Tenés <b>${hermanas.length} causas</b> en el estudio. Tocá una para ver su estado, documentos, honorarios y agenda.</div></div>`:`<div class="cliente-aviso">${iWarn}<div>Simulación de la Capa 4. ${esc(nombre)} tiene <b>${hermanas.length} causas</b> en el estudio. En el prototipo B entra con su usuario y ve directamente esta pantalla para elegir cuál mirar.</div></div>`}
         ${cliAvisosHTML()}
@@ -1061,7 +1066,7 @@ function renderCliente(c){
         return merged.map((b,i)=>{const actual=i===0;return `<div class="tl-item ${actual?'actual':''}"><div class="tl-fecha">${esc(b.fecha)} ${actual?'<span class="tl-tag act">último</span>':''}</div><div class="tl-txt">${glosarMarcar(esc(b.texto))}</div></div>`;}).join("");
       })()}</div>`;
   }
-  document.getElementById("app").innerHTML=`<div class="ficha">${header}
+  document.getElementById("app").innerHTML=`<div class="ficha ficha-cli">${header}
     <div class="cli-causa-tit"><div class="spine ${k}"></div>${esc(sel.caratula)}</div>
     <div class="tabs">${cliTabBtn("datos","Mi causa")}${cliTabBtn("docs","Documentos")}${cliTabBtn("hon","Honorarios")}${cliTabBtn("agenda","Mi agenda")}</div>
     <div class="panel">

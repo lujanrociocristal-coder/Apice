@@ -49,5 +49,9 @@
   // Al entrar: se muestra una vez por sesión del navegador (sin sonido: los navegadores lo bloquean sin gesto).
   if(!sessionStorage.getItem("apxSeen")){ sessionStorage.setItem("apxSeen","1"); if(document.readyState!=="loading")apiceIntro(false); else window.addEventListener("load",function(){apiceIntro(false);}); }
   // Tocar el logo (barra lateral / bienvenida / bloqueo) la repite con sonido.
-  document.addEventListener("click",function(e){ var t=e.target; if(t&&t.closest&&t.closest(".sb-logo, .onb-logo, .lock-logo")){ apiceIntro(true); } });
+  document.addEventListener("click",function(e){ var t=e.target; if(t&&t.closest&&t.closest(".sb-logo, .onb-logo, .lock-logo")){ apiceIntro(true);
+    /* El logo de la barra, ademas de la animacion, vuelve al inicio (Mi dia).
+       Los logos de login/bloqueo solo animan: ahi todavia no hay app cargada. */
+    if(t.closest(".sb-logo") && typeof window.navTo==="function"){ window.navTo("dashboard"); }
+  } });
 })();
