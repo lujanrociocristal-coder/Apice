@@ -80,7 +80,16 @@
           <div><label>Abogada administradora</label><input id="ne_nombre" placeholder="Dra. Ana Pérez"></div>
           <div><label>Email</label><input id="ne_email" type="email" placeholder="ana@email.com"></div>
         </div>
-        <div class="nota" style="margin-top:6px"><b>Individual:</b> una sola abogada, no puede sumar colegas (sí sus clientes). <b>Estudio:</b> puede sumar otras abogadas de la firma.</div>
+        <div class="row" style="margin-top:0">
+          <div><label>Jurisdicción</label>
+            <select id="ne_juris" onchange="onJurisChange()" style="width:100%;padding:10px 12px;border:1px solid var(--linea2);border-radius:9px;font-size:14px">
+              <option value="catamarca" selected>Catamarca (versión completa)</option>
+              <option value="generica">Genérica / otra provincia (versión adaptada)</option>
+            </select>
+          </div>
+          <div><label>Unidad de honorarios</label><input id="ne_unidad" value="IUS" placeholder="IUS / Jus / UMA"></div>
+        </div>
+        <div class="nota" style="margin-top:6px"><b>Individual:</b> una sola abogada, no puede sumar colegas (sí sus clientes). <b>Estudio:</b> puede sumar otras abogadas de la firma.<br><b>Jurisdicción:</b> Catamarca activa caducidad, arancel y calculadora de plazos. Genérica los oculta (para estudios de otras provincias). El abogado no ve que existen dos versiones.</div>
         <button class="btn-main" onclick="crearEstudio()">Crear y generar clave temporal</button>
         <div id="ne_msg"></div>
       </div>
@@ -297,14 +306,24 @@ async function eliminarEstudio(id, nombre){
   catch(e){ alert(e.message); }
 }
 
+/* Al elegir jurisdicción, sugiere la unidad de honorarios habitual. */
+function onJurisChange(){
+  const j = document.getElementById('ne_juris').value;
+  const u = document.getElementById('ne_unidad');
+  if(j==='catamarca') u.value='IUS';
+  else if(u.value==='IUS'||!u.value.trim()) u.value='Jus';
+}
+
 async function crearEstudio(){
   const tipo    = document.getElementById('ne_tipo').value;
   const estudio = document.getElementById('ne_estudio').value.trim();
   const nombre  = document.getElementById('ne_nombre').value.trim();
   const email   = document.getElementById('ne_email').value.trim();
+  const jurisdiccion = document.getElementById('ne_juris').value;
+  const unidad_hon   = document.getElementById('ne_unidad').value.trim() || 'IUS';
   if(!estudio || !nombre || !email){ msg('ne_msg','Completá todos los campos.',false); return; }
   try{
-    const r = await api('/usuarios/estudio','POST',{estudio, nombre, email, tipo});
+    const r = await api('/usuarios/estudio','POST',{estudio, nombre, email, tipo, jurisdiccion, unidad_hon});
     claveBox('ne_msg', r.clave_temporal, nombre + ' (' + estudio + ')');
     document.getElementById('ne_estudio').value=''; document.getElementById('ne_nombre').value=''; document.getElementById('ne_email').value='';
     cargarEstudios();

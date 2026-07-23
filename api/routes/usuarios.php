@@ -182,20 +182,29 @@ function estudio_crear() {
   if ($chk->fetch()) json_error('Ya existe una cuenta con ese email.');
 
   $tipo = field('tipo') === 'individual' ? 'individual' : 'estudio';
+  /* Jurisdicción (v47): la elige la super-administradora al dar el alta.
+     'catamarca' = versión completa; 'generica' = versión adaptada. */
+  $juris = field('jurisdiccion') === 'generica' ? 'generica' : 'catamarca';
+  $unidad = trim((string)field('unidad_hon'));
+  if ($unidad === '') $unidad = ($juris === 'generica') ? 'Jus' : 'IUS';
   $temp = generar_clave_temporal();
   $pdo = db();
+  asegurar_cols_jurisdiccion($pdo);
   $pdo->beginTransaction();
-  $pdo->prepare('INSERT INTO estudios (nombre, tipo) VALUES (?,?)')->execute([$estudio, $tipo]);
+  $pdo->prepare('INSERT INTO estudios (nombre, tipo, jurisdiccion, unidad_hon) VALUES (?,?,?,?)')
+      ->execute([$estudio, $tipo, $juris, $unidad]);
   $eid = (int)$pdo->lastInsertId();
   // La abogada invitada es la ADMINISTRADORA de su propio estudio (es_admin=1),
   // pero NO super-administradora.
   $pdo->prepare('INSERT INTO usuarios (estudio_id, nombre, email, password_hash, rol, es_admin, debe_cambiar_clave)
                  VALUES (?,?,?,?,?,1,1)')
       ->execute([$eid, $nombre, $email, hash_password($temp), 'profesional']);
-  // Copiar feriados globales a su estudio.
-  $pdo->prepare('INSERT INTO feriados (estudio_id, fecha, anual, nombre, tipo)
-                 SELECT ?, fecha, anual, nombre, tipo FROM feriados WHERE estudio_id IS NULL')
-      ->execute([$eid]);
+  // Copiar feriados globales a su estudio. En genérica, SOLO los nacionales
+  // (los provinciales de Catamarca no aplican en otra provincia).
+  $sqlFer = 'INSERT INTO feriados (estudio_id, fecha, anual, nombre, tipo)
+             SELECT ?, fecha, anual, nombre, tipo FROM feriados WHERE estudio_id IS NULL';
+  if ($juris === 'generica') $sqlFer .= " AND tipo = 'nacional'";
+  $pdo->prepare($sqlFer)->execute([$eid]);
   $pdo->commit();
 
   json_ok(['estudio_id' => $eid, 'clave_temporal' => $temp], 201);

@@ -47,6 +47,24 @@ function db() {
   return $pdo;
 }
 
+/* Asegura que la tabla estudios tenga las columnas de jurisdicción (v47).
+ * Es idempotente y defensivo: si las columnas ya existen no hace nada; si
+ * falla, no rompe (la lectura usa 'catamarca'/'IUS' por defecto). Los
+ * estudios que ya existen quedan en 'catamarca', o sea SIN cambio. */
+function asegurar_cols_jurisdiccion($pdo) {
+  try {
+    $cols = $pdo->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'estudios'
+      AND COLUMN_NAME IN ('jurisdiccion','unidad_hon')")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('jurisdiccion', $cols, true)) {
+      $pdo->exec("ALTER TABLE estudios ADD COLUMN jurisdiccion VARCHAR(20) NOT NULL DEFAULT 'catamarca'");
+    }
+    if (!in_array('unidad_hon', $cols, true)) {
+      $pdo->exec("ALTER TABLE estudios ADD COLUMN unidad_hon VARCHAR(12) NOT NULL DEFAULT 'IUS'");
+    }
+  } catch (Throwable $e) { /* silencioso: los defaults protegen a Catamarca */ }
+}
+
 /* Devuelve toda la configuración (por si algún endpoint la necesita). */
 function cfg() {
   static $c = null;

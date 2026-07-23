@@ -3281,10 +3281,19 @@ async function cargarMiEstudio(){
   try{
     const r=await fetch('/api/config',{credentials:'same-origin'});
     const j=await r.json();
-    if(j&&j.data)__miEstudio={
-      nombre:j.data.nombre, telefono:j.data.telefono,
-      email:j.data.email, domicilio:j.data.domicilio
-    };
+    if(j&&j.data){
+      __miEstudio={
+        nombre:j.data.nombre, telefono:j.data.telefono,
+        email:j.data.email, domicilio:j.data.domicilio
+      };
+      /* Jurisdicción y unidad de honorarios REALES del estudio (v47).
+         La manda el servidor; si viene, manda sobre el default. Un estudio
+         Catamarca recibe 'catamarca'/'IUS' -> sin cambio. */
+      let cambio=false;
+      if(j.data.jurisdiccion && config.jurisdiccion!==j.data.jurisdiccion){config.jurisdiccion=j.data.jurisdiccion;cambio=true;}
+      if(j.data.unidad_hon && config.unidadHon!==j.data.unidad_hon){config.unidadHon=j.data.unidad_hon;cambio=true;}
+      if(cambio && typeof render==='function')render();   // re-aplica el gateo de módulos
+    }
   }catch(e){}
 }
 if(typeof window!=='undefined')window.addEventListener('load',function(){setTimeout(cargarMiEstudio,1200);});

@@ -38,9 +38,20 @@ function handle_config($method, $resto) {
 
 function config_ver() {
   $u = require_login();
-  $st = db()->prepare('SELECT id, nombre, domicilio, telefono, email, cuit, valor_ius, recibo_seq, logo_url FROM estudios WHERE id = ?');
-  $st->execute([$u['estudio_id']]);
-  json_ok($st->fetch());
+  asegurar_cols_jurisdiccion(db());
+  try {
+    $st = db()->prepare('SELECT id, nombre, domicilio, telefono, email, cuit, valor_ius, recibo_seq, logo_url, jurisdiccion, unidad_hon FROM estudios WHERE id = ?');
+    $st->execute([$u['estudio_id']]);
+    json_ok($st->fetch());
+  } catch (Throwable $e) {
+    /* Si por lo que sea las columnas nuevas no están, se devuelve lo de
+       siempre + defaults de Catamarca. Nunca rompe la app existente. */
+    $st = db()->prepare('SELECT id, nombre, domicilio, telefono, email, cuit, valor_ius, recibo_seq, logo_url FROM estudios WHERE id = ?');
+    $st->execute([$u['estudio_id']]);
+    $row = $st->fetch();
+    if (is_array($row)) { $row['jurisdiccion'] = 'catamarca'; $row['unidad_hon'] = 'IUS'; }
+    json_ok($row);
+  }
 }
 
 function config_editar() {
