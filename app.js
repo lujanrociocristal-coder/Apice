@@ -1010,6 +1010,12 @@ function renderCliente(c){
   }
   const k=cc(sel.estado);
   const etapa=sel.estado==="tramite"?"En trámite — tu causa está en curso":sel.estado==="preparacion"?"En preparación — estamos armando tu caso":sel.estado==="suspenso"?"En pausa — a la espera de avanzar":"Finalizada — proceso concluido";
+  /* Leyenda breve segun el estado (textos "que esperar", aprobados por la abogada).
+     No prometen plazos ni anuncian el proximo paso: solo explican el estado. */
+  const etapaCap=sel.estado==="tramite"?"Tu causa está en curso. El estudio la impulsa y registra cada actuación acá a medida que ocurre.":
+    sel.estado==="suspenso"?"Tu causa está en una etapa de pausa procesal. Puede depender de un plazo, de una instancia previa o de la respuesta de un tercero. El estudio la retoma en cuanto corresponde. Para más información, comunicate con el estudio.":
+    sel.estado==="preparacion"?"Estamos armando tu caso: reunimos la documentación y definimos la estrategia antes de presentar.":
+    "El proceso concluyó. Si tenés dudas sobre el resultado o los pasos que siguen, escribinos.";
   const tab=st.cliTab||"datos";
   const cliTabBtn=(id,l)=>`<button class="tab ${tab===id?'on':''}" onclick="setCliTab('${id}')">${l}</button>`;
   let panel;
@@ -1048,15 +1054,19 @@ function renderCliente(c){
       ${(citas.length||auds.length)?`<div class="cli-citas">${citas.map(citaCard).join('')}${auds.map(audCard).join('')}</div>`:`<div class="vacio">Todavía no hay citas ni audiencias agendadas para usted.</div>`}`;
   }else{
     panel=`<div class="cli-estado ${k}"><span class="dot ${k}"></span>${etapa}</div>
+      <div class="cli-estado-cap">${esc(etapaCap)}</div>
       ${cliUltimoHTML(sel)}
-      <div class="campos" style="margin-top:6px">
+      <details class="cli-comoavanza"><summary>Cómo avanza una causa judicial</summary>
+        <p>Un expediente no avanza de forma continua: tiene tramos de actividad y tramos de espera. La espera también es parte del trámite — mientras el juzgado resuelve, mientras se notifica a la otra parte, mientras un organismo contesta un oficio. Esos tiempos los fija el juzgado.</p>
+        <p>Si querés saber en qué etapa está la tuya, escribinos.</p></details>
+      <div class="campos cli-campos" style="margin-top:6px">
         <div class="campo full"><div class="ck">Carátula <span class="ck-ayuda">— así figura su caso en el juzgado</span></div><div class="cv">${esc(sel.caratula)}</div></div>
         <div class="campo"><div class="ck">Tipo de trámite</div><div class="cv">${sel.materia.join(" · ")}</div></div>
         <div class="campo"><div class="ck">N° de expediente <span class="ck-ayuda">— el número con el que se identifica</span></div><div class="cv mono">${esc(sel.expediente||'Todavía no asignado')}</div></div>
         <div class="campo full"><div class="ck">Juzgado <span class="ck-ayuda">— dónde tramita</span></div><div class="cv">${esc(sel.juzgado)}</div></div>
       </div>
       <div class="bloque-titulo">Movimientos de su causa</div>
-      <div class="cli-nota-mov">Cada línea es una actuación del expediente, de la más reciente a la más antigua. Si algún término no se entiende, consultenos: está para eso.</div>
+      <div class="cli-nota-mov">Cada línea es una actuación real del expediente, cargada por el estudio. Si algún término no se entiende, tocá la palabra resaltada o escribinos.</div>
       <div class="tl">${(function(){
         const base=(sel.bitacora||[]).map(b=>({fecha:b.fecha,texto:b.texto}));
         const yaTxt={};base.forEach(b=>{yaTxt[b.texto]=true;});
