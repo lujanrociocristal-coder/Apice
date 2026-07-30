@@ -2,7 +2,7 @@
   "name": "ÁPICE · Gestión Jurídica",
   "short_name": "ÁPICE",
   "description": "Gestión jurídica inteligente: causas, agenda, honorarios y clientes.",
-  "start_url": "/",
+  "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

@@ -10,6 +10,11 @@
   RewriteEngine On
   RewriteCond %{HTTPS} off
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # El dominio raíz muestra la web de presentación (carpeta web/).
+  # La app sigue accesible en /index.html (no se renombra ni se mueve).
+  # La URL en el navegador queda limpia: se ve "abogadoscatamarca.com".
+  RewriteRule ^$ web/index.html [L]
 </IfModule>
 
 # Control de caché

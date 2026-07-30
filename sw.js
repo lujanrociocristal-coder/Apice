@@ -12,7 +12,7 @@ self.addEventListener('notificationclick', function (e) {
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (cl) {
       for (var i = 0; i < cl.length; i++) { if ('focus' in cl[i]) return cl[i].focus(); }
-      if (self.clients.openWindow) return self.clients.openWindow('/');
+      if (self.clients.openWindow) return self.clients.openWindow('/index.html');
     })
   );
 });
