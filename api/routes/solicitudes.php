@@ -51,6 +51,7 @@ function handle_solicitudes($method, $resto) {
   if ($method === 'GET'  && $a === '')                 return solicitud_listar();
   if ($method === 'POST' && $a !== '' && ($resto[1] ?? '') === 'estado')
                                                         return solicitud_estado((int)$a);
+  if ($method === 'DELETE' && $a !== '')               return solicitud_borrar((int)$a);
   json_error('Acción no válida.', 404);
 }
 
@@ -152,4 +153,11 @@ function solicitud_estado($id) {
   $st = db()->prepare('UPDATE solicitudes SET estado = ? WHERE id = ?');
   $st->execute([$estado, $id]);
   json_ok(['actualizada' => true]);
+}
+
+/* ---- DELETE privado: borrar una solicitud (spam o prueba) ---- */
+function solicitud_borrar($id) {
+  require_superadmin();
+  db()->prepare('DELETE FROM solicitudes WHERE id = ?')->execute([$id]);
+  json_ok(['borrada' => true]);
 }

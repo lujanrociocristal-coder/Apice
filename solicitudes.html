@@ -94,7 +94,7 @@ async function cargar(){
       +'<td><span class="chip c-'+esc(f.estado)+'" id="chip'+f.id+'">'+esc(f.estado)+'</span><br>'
         +'<select class="est" onchange="cambiar('+f.id+',this.value)">'
         +ESTADOS.map(e=>'<option value="'+e+'"'+(e===f.estado?' selected':'')+'>'+e+'</option>').join('')
-        +'</select></td>'
+        +'</select><br><button onclick="borrar('+f.id+')" style="margin-top:6px;border:1px solid #fda29b;color:#b42318;background:#fff;border-radius:7px;padding:3px 9px;font-size:11px;cursor:pointer">Eliminar</button></td>'
       +'</tr>';
   });
   h+='</tbody></table></div>';
@@ -102,6 +102,11 @@ async function cargar(){
 }
 function stat(n,l){ return '<div class="stat"><b>'+n+'</b><span>'+l+'</span></div>'; }
 
+async function borrar(id){
+  if(!confirm('¿Eliminar esta solicitud? No se puede deshacer.')) return;
+  try{ await api('/solicitudes/'+id,'DELETE'); cargar(); }
+  catch(e){ document.getElementById('msg').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; }
+}
 async function cambiar(id, estado){
   try{
     await api('/solicitudes/'+id+'/estado','POST',{estado});
