@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ÁPICE · Honorarios y gastos</title>
+<style>
+  :root{--navy:#1C2433;--teal:#3FC8BD;--blue:#356E94;--ink:#E8EEF3;--mut:#9DB0BE;--line:#e3e9ee}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#0d1117;overflow:hidden;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+  #stage{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 30%,#243247 0%,#141b26 60%,#0d1117 100%);overflow:hidden}
+  .scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:5vw;opacity:0}
+  .play .scene{animation-name:sc;animation-timing-function:cubic-bezier(.2,.7,.2,1);animation-fill-mode:both}
+  @keyframes sc{0%{opacity:0;transform:translateY(24px) scale(.99)}8%{opacity:1;transform:none}88%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-14px) scale(1.01)}}
+  h1{color:var(--ink);font-weight:700;line-height:1.15;font-size:clamp(26px,5vw,58px);letter-spacing:-.01em}
+  h1 .em{color:var(--teal)}
+  .kick{color:var(--teal);letter-spacing:.28em;text-transform:uppercase;font-size:clamp(11px,1.7vw,15px);font-weight:700;margin-bottom:16px}
+  .sub{color:var(--mut);font-size:clamp(16px,2.3vw,24px);margin-top:16px;max-width:42ch}
+  /* generic app card */
+  .app{width:min(430px,86vw);background:#fff;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden;text-align:left}
+  .app .bar{background:var(--navy);color:#fff;padding:13px 18px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+  .app .bar .pill{background:var(--teal);color:#0d2b2a;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px}
+  .app .body{padding:14px 16px 20px}
+  .li{display:flex;justify-content:space-between;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line);opacity:0;transform:translateY(10px)}
+  .li .l{color:var(--navy);font-weight:600;font-size:14.5px}
+  .li .l small{display:block;color:#8a97a2;font-weight:500;font-size:12px}
+  .li .l .tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.03em;padding:1px 7px;border-radius:999px;margin-right:6px;vertical-align:1px}
+  .tag.hon{background:rgba(53,110,148,.15);color:#2f5f80}
+  .tag.gas{background:rgba(201,138,47,.15);color:#b5781f}
+  .li .a{font-weight:800;font-size:15px;color:var(--navy);white-space:nowrap}
+  .li .a small{display:block;font-weight:700;font-size:11px}
+  .li .a .paid{color:var(--teal)}.li .a .due{color:#c98a2f}
+  .play .l1{animation:pop .5s ease forwards;animation-delay:5.6s}
+  .play .l2{animation:pop .5s ease forwards;animation-delay:6.3s}
+  .play .l3{animation:pop .5s ease forwards;animation-delay:7.0s}
+  .play .l4{animation:pop .5s ease forwards;animation-delay:7.7s}
+  @keyframes pop{to{opacity:1;transform:none}}
+  /* dashboard two figures */
+  .dash{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:min(560px,90vw)}
+  .kpi{flex:1;min-width:170px;background:#fff;border-radius:18px;padding:22px 20px;box-shadow:0 24px 60px rgba(0,0,0,.4);text-align:left;opacity:0;transform:translateY(14px)}
+  .kpi .lbl{font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#6b7a86}
+  .kpi .big{font-size:clamp(28px,5vw,42px);font-weight:800;margin-top:6px}
+  .kpi.cob .big{color:var(--teal)}.kpi.pen .big{color:#c98a2f}
+  .kpi .foot{font-size:12.5px;color:#8a97a2;margin-top:6px}
+  .play .kA{animation:pop .6s ease forwards;animation-delay:.5s}
+  .play .kB{animation:pop .6s ease forwards;animation-delay:1.3s}
+  /* client portal mini */
+  .portal{width:min(390px,84vw);background:#fff;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden;text-align:left}
+  .portal .pbar{background:var(--navy);color:#fff;padding:12px 16px;font-weight:700;font-size:13px}
+  .portal .pbody{padding:14px 16px 18px}
+  .prow{background:#f6f9fa;border-radius:11px;padding:11px 13px;margin-bottom:9px}
+  .prow small{color:#6b7a86;font-size:11px;font-weight:700}
+  .prow .v{color:var(--navy);font-weight:600;font-size:14px;margin-top:3px}
+  .prow.ok{background:rgba(63,200,189,.13)}
+  .apex{width:clamp(80px,11vw,130px);filter:drop-shadow(0 12px 34px rgba(63,200,189,.4))}
+  .brandline{color:var(--mut);letter-spacing:.3em;text-transform:uppercase;font-size:clamp(11px,1.6vw,15px);margin-top:12px}
+  .cta{margin-top:20px;color:var(--navy);background:var(--teal);font-weight:700;font-size:clamp(15px,2.2vw,22px);padding:14px 28px;border-radius:999px;display:inline-block}
+  #startBtn{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(120% 120% at 50% 30%,#243247,#0d1117);cursor:pointer}
+  #startBtn .pb{width:96px;height:96px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;box-shadow:0 14px 40px rgba(63,200,189,.5)}
+  #startBtn .pb:before{content:"";border-left:26px solid #0d2b2a;border-top:16px solid transparent;border-bottom:16px solid transparent;margin-left:6px}
+  #startBtn span{color:var(--ink);margin-top:20px;font-size:18px}
+  #replay{position:fixed;right:18px;bottom:16px;z-index:9;background:rgba(255,255,255,.08);color:#cfe;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:inherit}
+  .hint{position:fixed;left:18px;bottom:16px;z-index:9;color:#5b6b7a;font-size:12px}
+</style></head>
+<body>
+<audio id="bgm" src="musica-apice.mp3" preload="auto"></audio>
+<div id="stage">
+
+  <div class="scene" style="animation-duration:4.5s;animation-delay:0s">
+    <div class="kick">ÁPICE · Honorarios y gastos</div>
+    <h1>Todo el dinero de la causa,<br><span class="em">en un solo lugar.</span></h1>
+  </div>
+
+  <div class="scene" style="animation-duration:4s;animation-delay:4.5s">
+    <h1>Registrás honorarios<br><span class="em">y gastos del proceso.</span></h1>
+    <div class="sub">Tasas, cédulas, pericias, movilidad… todo queda anotado.</div>
+  </div>
+
+  <div class="scene" style="animation-duration:9s;animation-delay:8.5s">
+    <div class="app">
+      <div class="bar"><span>Pérez c/ González · Movimientos</span><span class="pill">LIBRO AL DÍA</span></div>
+      <div class="body">
+        <div class="li l1"><div class="l"><span class="tag hon">HONORARIOS</span>Anticipo de honorarios<small>Recibo N° 0012 · 05/07</small></div><div class="a">$ 900.000<small class="paid">Cobrado</small></div></div>
+        <div class="li l2"><div class="l"><span class="tag gas">GASTO</span>Tasa de justicia<small>Comprobante · 06/07</small></div><div class="a">$ 320.000<small class="paid">Pagado</small></div></div>
+        <div class="li l3"><div class="l"><span class="tag gas">GASTO</span>Cédulas y diligencias<small>Comprobante · 09/07</small></div><div class="a">$ 145.000<small class="paid">Pagado</small></div></div>
+        <div class="li l4"><div class="l"><span class="tag hon">HONORARIOS</span>Saldo de honorarios<small>Convenio · cuota 2 de 3</small></div><div class="a">$ 1.600.000<small class="due">Pendiente</small></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene" style="animation-duration:5.5s;animation-delay:17.5s">
+    <div class="kick" style="margin-bottom:26px">De un vistazo sabés cómo venís</div>
+    <div class="dash">
+      <div class="kpi cob kA"><div class="lbl">Cobrado</div><div class="big">$ 1.365.000</div><div class="foot">Honorarios + gastos recuperados</div></div>
+      <div class="kpi pen kB"><div class="lbl">Pendiente de cobro</div><div class="big">$ 1.600.000</div><div class="foot">Lo que todavía te deben</div></div>
+    </div>
+  </div>
+
+  <div class="scene" style="animation-duration:4.5s;animation-delay:23s">
+    <h1>Y tu cliente<br><span class="em">también lo ve.</span></h1>
+    <div class="sub">Con transparencia. Tu cliente confía más y tu estudio queda prolijo.</div>
+  </div>
+
+  <div class="scene" style="animation-duration:6.5s;animation-delay:27.5s">
+    <div class="portal">
+      <div class="pbar">Portal del cliente · Juan Pérez</div>
+      <div class="pbody">
+        <div class="prow ok"><small>HONORARIOS</small><div class="v">Anticipo pagado · Saldo en 3 cuotas</div></div>
+        <div class="prow"><small>GASTOS DEL PROCESO</small><div class="v">Tasa de justicia y cédulas · con comprobante</div></div>
+        <div class="prow"><small>TU SALDO</small><div class="v">Cuota 2 de 3 · vence 10/08</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene" style="animation-duration:4s;animation-delay:34s">
+    <h1 style="font-size:clamp(24px,4.2vw,50px);color:var(--mut)">Recibos numerados, libro al día.<br><span style="color:var(--ink)">Tus números, siempre claros.</span></h1>
+  </div>
+
+  <div class="scene" style="animation-duration:6s;animation-delay:38s">
+    <svg class="apex" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-label="ÁPICE">
+      <defs><linearGradient id="g" x1="120" y1="130" x2="392" y2="382" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#3FC8BD"/><stop offset="1" stop-color="#356E94"/></linearGradient></defs>
+      <rect x="6" y="6" width="500" height="500" rx="96" fill="#1C2433"/>
+      <path d="M256 130 L392 382 L120 382 Z" fill="url(#g)"/>
+      <path d="M256 235 L333 382 L179 382 Z" fill="#23436E"/>
+      <path d="M256 130 L272 281 L207 382 L120 382 Z" fill="#46D2C6" opacity=".85"/>
+    </svg>
+    <div class="brandline">Gestión Jurídica Inteligente</div>
+    <div class="cta">Probá ÁPICE gratis</div>
+  </div>
+
+</div>
+<div id="startBtn" onclick="start()"><div class="pb"></div><span>Reproducir con sonido</span></div>
+<button id="replay" onclick="start()">↻ Reproducir de nuevo</button>
+<div class="hint">Consejo: F11 para pantalla completa · grabá la pantalla mientras corre</div>
+<script>
+  var bgm=document.getElementById('bgm'), fade;
+  function fadeOut(){ if(!bgm)return; var iv=setInterval(function(){ bgm.volume=Math.max(0,bgm.volume-0.06); if(bgm.volume<=0){clearInterval(iv);bgm.pause();} },120); }
+  function start(){
+    var sb=document.getElementById('startBtn'); if(sb)sb.style.display='none';
+    var s=document.getElementById('stage'); s.classList.remove('play'); void s.offsetWidth; s.classList.add('play');
+    if(bgm){ try{ bgm.pause(); bgm.currentTime=0; bgm.volume=0.85; bgm.play(); }catch(e){} }
+    clearTimeout(fade); fade=setTimeout(fadeOut, 42000);
+  }
+</script>
+</body></html>

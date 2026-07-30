@@ -48,6 +48,7 @@ $rutas = [
   'avisos'      => 'avisos.php',  // novedades automáticas (docs nuevos, primer ingreso)
   'push'        => 'push.php',    // notificaciones al celular (Web Push / VAPID)
   'ia'          => 'ia.php',      // etapa 2 (preparado)
+  'solicitudes' => 'solicitudes.php',// buzón del formulario de prueba de la landing
 ];
 
 if (!isset($rutas[$recurso])) {

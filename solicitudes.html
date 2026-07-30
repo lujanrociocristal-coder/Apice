@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ÁPICE · Solicitudes de prueba</title>
+<style>
+  :root{--navy:#1C2433;--teal:#3FC8BD;--ink:#1C2433;--mut:#6b7a86;--line:#e3e9ee;--bg:#f4f7f9}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--navy);color:#fff;padding:16px 22px;display:flex;align-items:center;gap:12px}
+  header .b{font-weight:700;letter-spacing:.14em}
+  header a{margin-left:auto;color:#bfe9e4;font-size:14px;text-decoration:none}
+  .wrap{max-width:1100px;margin:0 auto;padding:22px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--mut);margin:0 0 18px;font-size:14px}
+  .stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;min-width:120px}
+  .stat b{font-size:24px;display:block}.stat span{color:var(--mut);font-size:12px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:11px 12px;font-size:13.5px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#fafcfd;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  tr:last-child td{border-bottom:0}
+  .who b{font-size:14px}.who small{color:var(--mut);display:block}
+  .chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .c-nueva{background:#e6f6f4;color:#1c7d72}.c-contactada{background:#eef2f7;color:#4a5a66}
+  .c-prueba{background:#fff3df;color:#b5781f}.c-cliente{background:#e7f7ec;color:#2f7d55}
+  .c-descartada{background:#f5f6f7;color:#9aa8b4}
+  select.est{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12.5px;background:#fff}
+  .dolor{color:#4a5a66;max-width:260px}
+  .bloqueo{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px;text-align:center;color:var(--mut)}
+  .msg{padding:10px 12px;border-radius:9px;margin-top:12px;font-size:13.5px}
+  .msg.err{background:#fdecec;color:#b42318}.msg.ok{background:#e7f7ec;color:#2f7d55}
+  .empty{padding:30px;text-align:center;color:var(--mut)}
+  a.wa{color:#2f7d55;text-decoration:none;font-weight:600}
+</style></head>
+<body>
+<header><span class="b">ÁPICE</span> · Solicitudes de prueba <a href="/">← Volver a la app</a></header>
+<div class="wrap">
+  <h1>Solicitudes de prueba</h1>
+  <p class="sub">Las personas que completaron el formulario de la web. Contactalas y marcá cómo va cada una.</p>
+  <div id="stats" class="stats"></div>
+  <div id="cont"></div>
+  <div id="msg"></div>
+</div>
+
+<script>
+const API='/api';
+async function api(path, method, body){
+  const opt={method:method||'GET',headers:{'Content-Type':'application/json'},credentials:'same-origin'};
+  if(body!==undefined) opt.body=JSON.stringify(body);
+  const r=await fetch(API+path,opt);
+  let j=null; try{j=await r.json();}catch(e){}
+  if(!r.ok||(j&&j.ok===false)) throw new Error((j&&j.error)||('Error '+r.status));
+  return j?j.data:null;
+}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fecha(s){ if(!s) return ''; const d=new Date(s.replace(' ','T')); if(isNaN(d)) return esc(s); return d.toLocaleDateString('es-AR')+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); }
+function waLink(n){ if(!n) return ''; const num=String(n).replace(/[^0-9]/g,''); return num?('https://wa.me/'+num):''; }
+const ESTADOS=['nueva','contactada','prueba','cliente','descartada'];
+
+async function init(){
+  let yo=null;
+  try{ yo=await api('/auth/me'); }catch(e){}
+  if(!yo||!yo.logueada){ bloqueo('Tenés que iniciar sesión en ÁPICE primero.'); return; }
+  if(Number(yo.es_superadmin)!==1){ bloqueo('Esta sección es solo para la administradora de la plataforma.'); return; }
+  cargar();
+}
+function bloqueo(t){ document.getElementById('cont').innerHTML='<div class="bloqueo">'+esc(t)+'</div>'; }
+
+async function cargar(){
+  let filas=[];
+  try{ filas=await api('/solicitudes'); }
+  catch(e){ document.getElementById('msg').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; return; }
+
+  // stats
+  const c={total:filas.length,nueva:0,contactada:0,prueba:0,cliente:0};
+  filas.forEach(f=>{ if(c[f.estado]!==undefined) c[f.estado]++; });
+  document.getElementById('stats').innerHTML=
+    stat(c.total,'En total')+stat(c.nueva,'Nuevas')+stat(c.contactada,'Contactadas')+stat(c.prueba,'En prueba')+stat(c.cliente,'Clientes');
+
+  const cont=document.getElementById('cont');
+  if(!filas.length){ cont.innerHTML='<div class="card"><div class="empty">Todavía no hay solicitudes. Cuando alguien complete el formulario de la web, aparece acá.</div></div>'; return; }
+
+  let h='<div class="card"><table><thead><tr><th>Persona</th><th>Estudio / lugar</th><th>Contacto</th><th>Tamaño</th><th>Qué le complica</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>';
+  filas.forEach(f=>{
+    const wa=waLink(f.whatsapp);
+    h+='<tr>'
+      +'<td class="who"><b>'+esc(f.nombre)+'</b></td>'
+      +'<td>'+esc(f.estudio||'—')+'<small>'+esc(f.provincia||'')+'</small></td>'
+      +'<td>'+(f.email?esc(f.email)+'<br>':'')+(f.whatsapp?(wa?'<a class="wa" target="_blank" href="'+wa+'">'+esc(f.whatsapp)+'</a>':esc(f.whatsapp)):'')+'</td>'
+      +'<td>'+esc(f.causas||'—')+'<small>'+esc(f.abogados||'')+'</small></td>'
+      +'<td class="dolor">'+esc(f.dolor||'—')+'</td>'
+      +'<td><small>'+fecha(f.creado_en)+'</small></td>'
+      +'<td><span class="chip c-'+esc(f.estado)+'" id="chip'+f.id+'">'+esc(f.estado)+'</span><br>'
+        +'<select class="est" onchange="cambiar('+f.id+',this.value)">'
+        +ESTADOS.map(e=>'<option value="'+e+'"'+(e===f.estado?' selected':'')+'>'+e+'</option>').join('')
+        +'</select></td>'
+      +'</tr>';
+  });
+  h+='</tbody></table></div>';
+  cont.innerHTML=h;
+}
+function stat(n,l){ return '<div class="stat"><b>'+n+'</b><span>'+l+'</span></div>'; }
+
+async function cambiar(id, estado){
+  try{
+    await api('/solicitudes/'+id+'/estado','POST',{estado});
+    const chip=document.getElementById('chip'+id);
+    if(chip){ chip.textContent=estado; chip.className='chip c-'+estado; }
+    // Actualizar contadores
+    const filas=await api('/solicitudes');
+    const c={total:filas.length,nueva:0,contactada:0,prueba:0,cliente:0};
+    filas.forEach(f=>{ if(c[f.estado]!==undefined) c[f.estado]++; });
+    document.getElementById('stats').innerHTML=
+      stat(c.total,'En total')+stat(c.nueva,'Nuevas')+stat(c.contactada,'Contactadas')+stat(c.prueba,'En prueba')+stat(c.cliente,'Clientes');
+  }catch(e){ document.getElementById('msg').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; }
+}
+init();
+</script>
+</body></html>

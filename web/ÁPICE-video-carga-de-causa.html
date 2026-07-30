@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ÁPICE · Cargar una causa</title>
+<style>
+  :root{--navy:#1C2433;--teal:#3FC8BD;--blue:#356E94;--ink:#E8EEF3;--mut:#9DB0BE;--line:#e3e9ee}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#0d1117;overflow:hidden;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+  #stage{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 30%,#243247 0%,#141b26 60%,#0d1117 100%);overflow:hidden}
+  .scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:5vw;opacity:0}
+  .play .scene{animation-name:sc;animation-timing-function:cubic-bezier(.2,.7,.2,1);animation-fill-mode:both}
+  @keyframes sc{0%{opacity:0;transform:translateY(24px) scale(.99)}10%{opacity:1;transform:none}85%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-14px) scale(1.01)}}
+  h1{color:var(--ink);font-weight:700;line-height:1.15;font-size:clamp(26px,5vw,58px);letter-spacing:-.01em}
+  h1 .em{color:var(--teal)}
+  .kick{color:var(--teal);letter-spacing:.28em;text-transform:uppercase;font-size:clamp(11px,1.7vw,15px);font-weight:700;margin-bottom:16px}
+  .sub{color:var(--mut);font-size:clamp(16px,2.3vw,24px);margin-top:16px;max-width:40ch}
+  /* app mock */
+  .app{width:min(430px,86vw);background:#fff;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden;text-align:left}
+  .app .bar{background:var(--navy);color:#fff;padding:14px 18px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .app .bar .dot{width:9px;height:9px;border-radius:50%;background:var(--teal)}
+  .app .body{padding:18px 18px 22px}
+  .fld{margin-bottom:12px;opacity:0}
+  .fld small{display:block;color:#6b7a86;font-size:12px;font-weight:700;letter-spacing:.02em;margin-bottom:5px}
+  .fld .inp{border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--navy);font-size:15px;font-weight:600;background:#fafcfd;min-height:42px}
+  .play .f1{animation:pop .5s ease forwards;animation-delay:5.6s}
+  .play .f2{animation:pop .5s ease forwards;animation-delay:6.4s}
+  .play .f3{animation:pop .5s ease forwards;animation-delay:7.2s}
+  .play .f4{animation:pop .5s ease forwards;animation-delay:8.0s}
+  @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .savebtn{background:var(--teal);color:#0d2b2a;font-weight:800;text-align:center;padding:13px;border-radius:10px;font-size:15px;opacity:0}
+  .play .savebtn{animation:pop .5s ease forwards;animation-delay:9.0s}
+  .okwrap{display:flex;flex-direction:column;align-items:center}
+  .okc{width:120px;height:120px;border-radius:50%;background:rgba(63,200,189,.15);display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+  .okc svg{width:64px;height:64px}
+  .okc path{stroke:var(--teal);stroke-width:9;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:120;stroke-dashoffset:120}
+  .play .okc path{animation:draw .7s ease forwards;animation-delay:13.4s}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .apex{width:clamp(80px,11vw,130px);filter:drop-shadow(0 12px 34px rgba(63,200,189,.4))}
+  .brandline{color:var(--mut);letter-spacing:.3em;text-transform:uppercase;font-size:clamp(11px,1.6vw,15px);margin-top:12px}
+  .cta{margin-top:20px;color:var(--navy);background:var(--teal);font-weight:700;font-size:clamp(15px,2.2vw,22px);padding:14px 28px;border-radius:999px;display:inline-block}
+  #startBtn{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(120% 120% at 50% 30%,#243247,#0d1117);cursor:pointer}
+  #startBtn .pb{width:96px;height:96px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;box-shadow:0 14px 40px rgba(63,200,189,.5)}
+  #startBtn .pb:before{content:"";border-left:26px solid #0d2b2a;border-top:16px solid transparent;border-bottom:16px solid transparent;margin-left:6px}
+  #startBtn span{color:var(--ink);margin-top:20px;font-size:18px}
+  #replay{position:fixed;right:18px;bottom:16px;z-index:9;background:rgba(255,255,255,.08);color:#cfe;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:inherit}
+  .hint{position:fixed;left:18px;bottom:16px;z-index:9;color:#5b6b7a;font-size:12px}
+</style></head>
+<body>
+<audio id="bgm" src="musica-apice.mp3" preload="auto"></audio>
+<div id="stage">
+
+  <div class="scene" style="animation-duration:4s;animation-delay:0s">
+    <div class="kick">ÁPICE · Cargar una causa</div>
+    <h1>Una causa nueva,<br><span class="em">en menos de un minuto.</span></h1>
+  </div>
+
+  <div class="scene" style="animation-duration:9s;animation-delay:4s">
+    <div class="app">
+      <div class="bar"><span class="dot"></span>Nueva causa</div>
+      <div class="body">
+        <div class="fld f1"><small>CARÁTULA</small><div class="inp">Pérez c/ González s/ Daños</div></div>
+        <div class="fld f2"><small>CLIENTE</small><div class="inp">Juan Pérez</div></div>
+        <div class="fld f3"><small>FUERO / JUZGADO</small><div class="inp">Civil y Comercial · Juzgado N° 2</div></div>
+        <div class="fld f4"><small>ESTADO</small><div class="inp">En trámite</div></div>
+        <div class="savebtn">Guardar causa</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene" style="animation-duration:4s;animation-delay:13s">
+    <div class="okwrap">
+      <div class="okc"><svg viewBox="0 0 100 100"><path d="M25 52 L44 71 L77 32"/></svg></div>
+      <h1>¡Guardada!</h1>
+      <div class="sub">Con sus documentos, movimientos y plazos, todo junto.</div>
+    </div>
+  </div>
+
+  <div class="scene" style="animation-duration:4s;animation-delay:17s">
+    <h1>Desde la compu<br>o el <span class="em">celular.</span></h1>
+    <div class="sub">Sin planillas, sin papeles sueltos.</div>
+  </div>
+
+  <div class="scene" style="animation-duration:6s;animation-delay:21s">
+    <svg class="apex" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-label="ÁPICE">
+      <defs><linearGradient id="g" x1="120" y1="130" x2="392" y2="382" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#3FC8BD"/><stop offset="1" stop-color="#356E94"/></linearGradient></defs>
+      <rect x="6" y="6" width="500" height="500" rx="96" fill="#1C2433"/>
+      <path d="M256 130 L392 382 L120 382 Z" fill="url(#g)"/>
+      <path d="M256 235 L333 382 L179 382 Z" fill="#23436E"/>
+      <path d="M256 130 L272 281 L207 382 L120 382 Z" fill="#46D2C6" opacity=".85"/>
+    </svg>
+    <div class="brandline">Gestión Jurídica Inteligente</div>
+    <div class="cta">Probá ÁPICE gratis</div>
+  </div>
+
+</div>
+<div id="startBtn" onclick="start()"><div class="pb"></div><span>Reproducir con sonido</span></div>
+<button id="replay" onclick="start()">↻ Reproducir de nuevo</button>
+<div class="hint">Consejo: F11 para pantalla completa · grabá la pantalla mientras corre</div>
+<script>
+  var bgm=document.getElementById('bgm'), fade;
+  function fadeOut(){ if(!bgm)return; var iv=setInterval(function(){ bgm.volume=Math.max(0,bgm.volume-0.06); if(bgm.volume<=0){clearInterval(iv);bgm.pause();} },120); }
+  function start(){
+    var sb=document.getElementById('startBtn'); if(sb)sb.style.display='none';
+    var s=document.getElementById('stage'); s.classList.remove('play'); void s.offsetWidth; s.classList.add('play');
+    if(bgm){ try{ bgm.pause(); bgm.currentTime=0; bgm.volume=0.85; bgm.play(); }catch(e){} }
+    clearTimeout(fade); fade=setTimeout(fadeOut, 24000);
+  }
+</script>
+</body></html>
