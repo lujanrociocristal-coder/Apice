@@ -1044,12 +1044,13 @@ function renderCliente(c){
     const h=sel.honorarios||{ius:0,gastos:[],pagos:[]};const vIus=+config.valorIUS||0;
     const tot=+h.ius||0;const pag=(h.pagos||[]).filter(p=>p.confirmado!==false).reduce((a,p)=>a+(+p.ius||0),0);const sal=Math.max(0,tot-pag);const pct=tot>0?Math.min(100,Math.round(pag/tot*100)):0;
     const gastosPesos=(h.gastos||[]).reduce((a,g)=>a+(g.moneda==='ius'?(+g.monto*vIus):(+g.monto||0)),0);
-    panel=`<div class="bloque-titulo">Honorarios de su proceso</div>`+(tot>0?`<div class="hon-saldo">
+    const hayHon=tot>0||((h.pagos||[]).length>0)||((h.gastos||[]).length>0);
+    panel=`<div class="bloque-titulo">Honorarios de su proceso</div>`+(hayHon?`${tot>0?`<div class="hon-saldo">
         <div class="hon-s"><span class="hl">Total</span><span class="hv">${tot} ${unidadHon()}</span><span class="hp">${fmtPesos(tot*vIus)}</span></div>
         <div class="hon-s ok"><span class="hl">Pagado</span><span class="hv">${pag} ${unidadHon()}</span><span class="hp">${fmtPesos(pag*vIus)}</span></div>
         <div class="hon-s sal"><span class="hl">Saldo</span><span class="hv">${sal} ${unidadHon()}</span><span class="hp">${fmtPesos(sal*vIus)}</span></div></div>
       <div class="hon-bar"><div class="hon-fill" style="width:${pct}%"></div></div>
-      <div class="hon-pct">${pct}% cubierto · puede abonar en pagos parciales (ej. 1 ${unidadHon()} por mes)</div>
+      <div class="hon-pct">${pct}% cubierto · puede abonar en pagos parciales (ej. 1 ${unidadHon()} por mes)</div>`:''}
       ${MODO_CLIENTE?`<div class="pago-add" style="margin-top:6px"><input type="number" id="cli_pg_ius" placeholder="${unidadHon()} que transferiste" min="0" step="0.5"><input type="file" id="cli_pg_file" accept=".pdf,.jpg,.jpeg,.png"><button onclick="informarPagoCliente('${sel.id}')">Informar un pago</button></div><div style="font-size:12px;color:var(--mut);margin-bottom:8px">Cargá el monto y el comprobante de tu transferencia. Queda como <b>informado</b> hasta que el estudio lo confirme.</div>`:''}
       <div class="bloque-titulo">Sus pagos registrados</div>
       <div class="pago-list">${(h.pagos||[]).length?(h.pagos||[]).map((p,i)=>{const pend=p.confirmado===false;const compLink=p.compArch?`<a class="vtag cli" href="/api/archivos/${p.compArch}/descargar" target="_blank" rel="noopener">comprobante</a>`:(p.comp?`<a class="vtag cli" href="${attr(p.comp)}" target="_blank" rel="noopener">comprobante</a>`:'');return `<div class="pago-it"><span class="pf">${esc(p.fecha)}</span><span class="pi">${esc(p.ius)} ${unidadHon()}</span><span class="pe">${fmtPesos((+p.ius||0)*vIus)}</span>${pend?'<span class="vtag" style="background:#FEF0C7;color:#B54708">🕐 en revisión</span>':''}${compLink}<span class="pn">${esc(p.nota||'')}</span>${p.recibo?`<button class="rec-btn done" onclick="openModal({tipo:'recibo',id:'${sel.id}',i:${i}})">📄 Recibo N° ${String(p.recibo.num).padStart(4,'0')}</button>`:''}</div>`;}).join(""):`<div class="vacio">Todavía no hay pagos registrados.</div>`}</div>
