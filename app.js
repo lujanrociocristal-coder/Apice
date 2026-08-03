@@ -694,10 +694,10 @@ function agregarDocOverlay(causaId){
   ov.innerHTML=
     '<div style="background:#fff;border-radius:14px;max-width:440px;width:100%;padding:24px;font-family:system-ui,sans-serif;color:#1C2433;max-height:92vh;overflow:auto">'
     +'<h2 style="font-size:18px;margin:0 0 4px">Agregar documento</h2>'
-    +'<p style="font-size:13px;color:#6B7280;margin:0 0 16px">Eleg&iacute; un archivo o sac&aacute; una foto. M&aacute;ximo 20 MB. Formatos: PDF, Word, JPG o PNG.</p>'
+    +'<p style="font-size:13px;color:#6B7280;margin:0 0 16px">Eleg&iacute; uno o varios archivos, o sac&aacute; varias fotos (una por p&aacute;gina). Pod&eacute;s ir agregando de a poco. M&aacute;ximo 20 MB cada archivo. PDF, Word, JPG o PNG.</p>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
       +'<label style="flex:1;min-width:130px;cursor:pointer;text-align:center;border:1px solid #D3D7DE;border-radius:10px;padding:14px 10px;font-size:14px;font-weight:600">📷 Sacar foto<input id="docCam" type="file" accept="image/*" capture="environment" style="display:none"></label>'
-      +'<label style="flex:1;min-width:130px;cursor:pointer;text-align:center;border:1px solid #D3D7DE;border-radius:10px;padding:14px 10px;font-size:14px;font-weight:600">📎 Elegir archivo<input id="docFile" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,image/*" style="display:none"></label>'
+      +'<label style="flex:1;min-width:130px;cursor:pointer;text-align:center;border:1px solid #D3D7DE;border-radius:10px;padding:14px 10px;font-size:14px;font-weight:600">📎 Elegir archivos<input id="docFile" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,image/*" multiple style="display:none"></label>'
     +'</div>'
     +'<div id="docSel" style="font-size:13px;color:#2F7D55;margin:10px 0 0;min-height:18px"></div>'
     +'<label style="display:block;font-size:12px;color:#6B7280;margin-top:12px">Nombre del documento</label>'
@@ -716,32 +716,51 @@ function agregarDocOverlay(causaId){
   document.body.appendChild(ov);
   const selEl=ov.querySelector('#docSel'),nomEl=ov.querySelector('#docNombre');
   const guardarBtn=ov.querySelector('#docGuardar'),msgEl=ov.querySelector('#docMsg');
-  function onPick(inp){
-    const f=inp.files&&inp.files[0];if(!f)return;
-    if(f.size>20*1024*1024){msgEl.textContent='El archivo supera los 20 MB.';return;}
-    selFile=f;msgEl.textContent='';
-    selEl.textContent='✓ '+f.name+' ('+fmtTam(f.size)+')';
-    if(!nomEl.value)nomEl.value=f.name.replace(/\.[^.]+$/,'');
+  let selFiles=[];
+  function pintarSel(){
+    if(!selFiles.length){selEl.innerHTML='';guardarBtn.disabled=true;guardarBtn.style.opacity='.5';return;}
+    selEl.innerHTML=selFiles.map(function(f,i){return '✓ '+esc(f.name)+' ('+fmtTam(f.size)+') <a href="#" data-i="'+i+'" class="delSel" style="color:#B42318;text-decoration:none" title="Quitar">✕</a>';}).join('<br>')
+      +(selFiles.length>1?'<div style="color:#6B7280;margin-top:5px">'+selFiles.length+' archivos: se guardan como p&aacute;ginas del mismo documento.</div>':'');
+    selEl.querySelectorAll('.delSel').forEach(function(a){a.addEventListener('click',function(ev){ev.preventDefault();selFiles.splice(+this.getAttribute('data-i'),1);pintarSel();});});
     guardarBtn.disabled=false;guardarBtn.style.opacity='1';
+  }
+  function onPick(inp){
+    const fs=inp.files?Array.prototype.slice.call(inp.files):[];
+    let grande='';
+    fs.forEach(function(f){ if(f.size>20*1024*1024){grande=f.name;} else { selFiles.push(f); } });
+    msgEl.textContent=grande?('“'+grande+'” supera los 20 MB y no se agreg&oacute;.'):'';
+    if(selFiles.length&&!nomEl.value)nomEl.value=selFiles[0].name.replace(/\.[^.]+$/,'');
+    inp.value='';
+    pintarSel();
   }
   ov.querySelector('#docCam').addEventListener('change',function(){onPick(this);});
   ov.querySelector('#docFile').addEventListener('change',function(){onPick(this);});
   ov.querySelector('#docCancel').addEventListener('click',function(){document.body.removeChild(ov);});
   guardarBtn.addEventListener('click',async function(){
-    if(!selFile){msgEl.textContent='Primero eleg&iacute; un archivo o sac&aacute; una foto.';return;}
-    guardarBtn.disabled=true;guardarBtn.textContent='Subiendo…';
-    const fd=new FormData();
-    fd.append('file',selFile);fd.append('causa_id',causaId);
-    fd.append('nombre',(nomEl.value.trim()||selFile.name));
-    fd.append('carpeta',ov.querySelector('#docCarp').value);
-    const _fv=(ov.querySelector('#docFecha')||{}).value||'';if(_fv)fd.append('fecha_doc',_fv);
-    if(ov.querySelector('#docVis').checked)fd.append('visible_cliente','1');
+    if(!selFiles.length){msgEl.textContent='Primero eleg&iacute; un archivo o sac&aacute; una foto.';return;}
+    guardarBtn.disabled=true;
+    const base=(nomEl.value.trim()||selFiles[0].name);
+    const carp=ov.querySelector('#docCarp').value;
+    const fv=(ov.querySelector('#docFecha')||{}).value||'';
+    const vis=ov.querySelector('#docVis').checked;
+    const total=selFiles.length; let hechos=0;
     try{
-      const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});
-      const j=await r.json();
-      if(!j||j.ok===false)throw new Error((j&&j.error)||'Error al subir');
+      while(selFiles.length){
+        guardarBtn.textContent=total>1?('Subiendo '+(hechos+1)+'/'+total+'…'):'Subiendo…';
+        const f=selFiles[0];
+        const fd=new FormData();
+        fd.append('file',f);fd.append('causa_id',causaId);
+        fd.append('nombre',total>1?(base+' - hoja '+(hechos+1)):base);
+        fd.append('carpeta',carp);
+        if(fv)fd.append('fecha_doc',fv);
+        if(vis)fd.append('visible_cliente','1');
+        const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});
+        const j=await r.json();
+        if(!j||j.ok===false)throw new Error((j&&j.error)||'Error al subir');
+        selFiles.shift();hechos++;
+      }
       document.body.removeChild(ov);cargarArchivos(causaId);
-    }catch(e){msgEl.textContent='No se pudo subir: '+e.message;guardarBtn.disabled=false;guardarBtn.textContent='Guardar';}
+    }catch(e){msgEl.textContent='Se subieron '+hechos+' de '+total+'. Fall&oacute;: '+e.message+'. Toc&aacute; Guardar para reintentar el resto.';guardarBtn.disabled=false;guardarBtn.textContent='Guardar';pintarSel();}
   });
 }
 function moverArchivo(id,cid){
