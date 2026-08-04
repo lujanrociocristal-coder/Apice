@@ -142,15 +142,27 @@ function compartida_guardar($uuid) {
   $u = require_login();
   $uuid = trim((string)$uuid);
   if ($uuid === '') json_error('Falta la causa.');
+  /* Puede guardar: (a) el/la colega con permiso de EDICIÓN, o (b) la DUEÑA
+     (profesional del estudio de origen), para sincronizar sus movimientos
+     hacia la vista del colega. */
   $st = db()->prepare("SELECT * FROM causa_compartida WHERE causa_uuid = ? AND colaborador_id = ?");
   $st->execute([$uuid, (int)$u['id']]);
   $sh = $st->fetch();
-  if (!$sh) json_error('No tenés acceso a esta causa.', 403);
-  if ($sh['permiso'] !== 'edicion') json_error('Tenés esta causa en modo solo lectura.', 403);
+  $origenId = 0;
+  if ($sh) {
+    if ($sh['permiso'] !== 'edicion') json_error('Tenés esta causa en modo solo lectura.', 403);
+    $origenId = (int)$sh['estudio_origen_id'];
+  } else {
+    if (($u['rol'] ?? '') !== 'profesional') json_error('No tenés acceso a esta causa.', 403);
+    $stO = db()->prepare('SELECT 1 FROM causa_compartida WHERE causa_uuid = ? AND estudio_origen_id = ? LIMIT 1');
+    $stO->execute([$uuid, (int)$u['estudio_id']]);
+    if (!$stO->fetch()) json_error('No tenés acceso a esta causa.', 403);
+    $origenId = (int)$u['estudio_id'];
+  }
 
   // Traer la fila real (del estudio de origen).
   $stc = db()->prepare('SELECT id, estudio_id FROM causas WHERE uuid = ? AND estudio_id = ?');
-  $stc->execute([$uuid, (int)$sh['estudio_origen_id']]);
+  $stc->execute([$uuid, $origenId]);
   $row = $stc->fetch();
   if (!$row) json_error('La causa ya no está disponible.', 404);
 

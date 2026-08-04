@@ -86,6 +86,15 @@ async function saveState(){
       if(!r.ok)syncAviso('warn','No se pudo guardar en el servidor un cambio de una causa compartida.');
     }catch(e){syncAviso('warn','Sin conexión: un cambio de una causa compartida no se guardó en el servidor.');}
   }
+  /* Empujar también MIS causas compartidas con externos, para que el/la colega
+     vea los últimos movimientos (se guardan en la tabla que lee su vista). */
+  try{
+    (causas||[]).forEach(function(c){
+      if(!c._compartida && typeof misCompartidas!=='undefined' && misCompartidas && misCompartidas[c.id]){
+        fetch('/api/compartir/causa/'+encodeURIComponent(c.id),{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({causa:c})}).catch(function(){});
+      }
+    });
+  }catch(e){}
 }
 /* ===== Guardado confiable: aviso visible + reintento automático (v46) ===== */
 let __syncPend=null,__syncTimer=null,__syncFallos=0;
@@ -297,7 +306,7 @@ function inicioStats(){
 const DIAS_SEM=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
 function fmtFechaLarga(d){return DIAS_SEM[d.getDay()]+" "+d.getDate()+" de "+MESES[d.getMonth()];}
 function dPlus(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
-function abogadaNombre(){const p=config.perfil||{};return p.nombre||p.abogada||p.titular||p.estudio||'Rocío';}
+function abogadaNombre(){const me=(typeof window!=='undefined'&&window.__me)||{};if(me.nombre)return me.nombre;const p=config.perfil||{};return p.nombre||p.abogada||p.titular||p.estudio||'Rocío';}
 function mdArt(scen){
   if(scen==='libre')return `<svg viewBox="0 0 200 130" class="hoy-svg" aria-hidden="true">
     <ellipse cx="100" cy="118" rx="78" ry="8" fill="#1C24330d"/>
