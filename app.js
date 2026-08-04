@@ -150,6 +150,16 @@ async function cargarCompartidas(){
       normalize();
     }
   }catch(e){}
+  /* Traer la última versión de MIS causas compartidas (posiblemente editadas por
+     el/la colega) y reemplazar la local, para verlas actualizadas en ambos lados. */
+  try{
+    const r3=await fetch('/api/compartir/actualizar',{credentials:'same-origin'});
+    const j3=await r3.json();
+    if(j3&&j3.ok&&Array.isArray(j3.data)&&j3.data.length){
+      j3.data.forEach(sc=>{const i=causas.findIndex(c=>c.id===sc.id&&!c._compartida);if(i>=0)causas.splice(i,1,sc);});
+      normalize();
+    }
+  }catch(e){}
   // Marcar cuáles de MIS causas están compartidas con externos (para el cartel).
   try{
     const r2=await fetch('/api/compartir/mias',{credentials:'same-origin'});

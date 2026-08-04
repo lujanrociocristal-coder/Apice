@@ -33,17 +33,45 @@ function asegurar_tabla_compartida() {
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
+/* Asegura la columna datos_json en causas: guarda la causa COMPLETA (JSON), la
+   única fuente de verdad de una causa compartida. Evita la pérdida de datos que
+   tendría el mapeo por columnas. Idempotente y defensivo. */
+function asegurar_datos_json() {
+  static $ok = false; if ($ok) return; $ok = true;
+  try {
+    $c = db()->query("SELECT COUNT(*) FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME='causas' AND COLUMN_NAME='datos_json'")->fetchColumn();
+    if ((int)$c === 0) db()->exec("ALTER TABLE causas ADD COLUMN datos_json LONGTEXT NULL");
+  } catch (Throwable $e) { /* silencioso */ }
+}
+
 function handle_compartir($method, $resto) {
   asegurar_tabla_compartida();
+  asegurar_datos_json();
   $a = $resto[0] ?? '';
 
-  if ($method === 'POST' && $a === '')        return compartir_causa();
-  if ($method === 'GET'  && $a === 'conmigo') return compartidas_conmigo();
-  if ($method === 'GET'  && $a === 'mias')    return compartidas_por_mi();
-  if ($method === 'GET'  && $a === '')        return compartida_quien();
-  if ($method === 'PUT'  && $a === 'causa')   return compartida_guardar($resto[1] ?? '');
-  if ($method === 'DELETE' && $a !== '')      return compartir_revocar((int)$a);
+  if ($method === 'POST' && $a === '')          return compartir_causa();
+  if ($method === 'GET'  && $a === 'conmigo')   return compartidas_conmigo();
+  if ($method === 'GET'  && $a === 'mias')      return compartidas_por_mi();
+  if ($method === 'GET'  && $a === 'actualizar')return compartidas_actualizar();
+  if ($method === 'GET'  && $a === '')          return compartida_quien();
+  if ($method === 'PUT'  && $a === 'causa')     return compartida_guardar($resto[1] ?? '');
+  if ($method === 'DELETE' && $a !== '')        return compartir_revocar((int)$a);
   json_error('Acción no válida.', 404);
+}
+
+/* Última versión de MIS causas compartidas (para que la dueña vea lo que editó
+   el colega). Devuelve la causa COMPLETA desde datos_json. */
+function compartidas_actualizar() {
+  $u = require_profesional();
+  $st = db()->prepare('SELECT DISTINCT causa_uuid FROM causa_compartida WHERE estudio_origen_id = ?');
+  $st->execute([(int)$u['estudio_id']]);
+  $out = [];
+  foreach ($st->fetchAll() as $r) {
+    $c = causa_por_uuid($r['causa_uuid'], (int)$u['estudio_id']);
+    if ($c) $out[] = $c;
+  }
+  json_ok($out);
 }
 
 /* La causa (por uuid) debe pertenecer al estudio de la persona logueada. */
@@ -175,7 +203,7 @@ function compartida_guardar($uuid) {
       estado=?, procesal=?, caratula=?, cliente_nombre=?, expediente=?, cuij=?, objeto=?,
       fuero=?, juzgado=?, juez=?, secretaria=?, letrada=?, cliente_es=?, actor_rol=?, actor=?,
       demandado_rol=?, demandado=?, cliente_calidad=?, posicion=?, materias=?, honorarios=?,
-      documentos=?, pendientes=?, alertas=? WHERE id=?')
+      documentos=?, pendientes=?, alertas=?, datos_json=? WHERE id=?')
     ->execute([
       $c['estado'] ?? 'preparacion', $c['procesal'] ?? null, $c['caratula'] ?? '',
       $c['cliente'] ?? null, $c['expediente'] ?? null, $c['cuij'] ?? null, $c['objeto'] ?? null,
@@ -184,6 +212,7 @@ function compartida_guardar($uuid) {
       $c['demandadoRol'] ?? null, $c['demandado'] ?? null, $c['clienteCalidad'] ?? null,
       $c['posicion'] ?? null, $j($c['materia'] ?? null), $j($c['honorarios'] ?? null),
       $j($c['documentos'] ?? null), $j($c['pendientes'] ?? null), $j($c['alertas'] ?? null),
+      json_encode($c, JSON_UNESCAPED_UNICODE),
       (int)$row['id'],
     ]);
 
@@ -203,6 +232,12 @@ function causa_por_uuid($uuid, $estudioId) {
   $st->execute([$uuid, $estudioId]);
   $c = $st->fetch();
   if (!$c) return null;
+  /* Fuente de verdad de una causa compartida: la causa COMPLETA guardada en
+     datos_json (sin pérdida). Si existe, la devolvemos tal cual. */
+  if (!empty($c['datos_json'])) {
+    $full = json_decode($c['datos_json'], true);
+    if (is_array($full) && !empty($full['id'])) return $full;
+  }
   $stMov = db()->prepare('SELECT fecha_txt,texto,inicio FROM movimientos WHERE causa_id=? ORDER BY id ASC');
   $stMov->execute([(int)$c['id']]);
   $bit = array_map(function ($m) {
