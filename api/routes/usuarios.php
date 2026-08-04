@@ -157,13 +157,13 @@ function estudio_editar($id) {
     $sets[] = 'tipo = ?'; $vals[] = (field('tipo') === 'individual' ? 'individual' : 'estudio');
   }
   /* Prueba (v48): 'prueba' = 'activar' quita la prueba (cuenta definitiva);
-     'prueba_dias' 7/14/30 renueva el plazo desde hoy. Los datos NO se tocan. */
+     'prueba_dias' 7/14/30/60/90 renueva el plazo desde hoy. Los datos NO se tocan. */
   if (field('prueba', '__NO__') !== '__NO__' && field('prueba') === 'activar') {
     asegurar_cols_jurisdiccion(db());
     $sets[] = 'prueba_hasta = NULL';
   } elseif (field('prueba_dias', '__NO__') !== '__NO__') {
     $d = (int)field('prueba_dias');
-    if (in_array($d, [7, 14, 30], true)) {
+    if (in_array($d, [7, 14, 30, 60, 90], true)) {
       asegurar_cols_jurisdiccion(db());
       $sets[] = 'prueba_hasta = ?'; $vals[] = date('Y-m-d', strtotime("+$d days"));
     }

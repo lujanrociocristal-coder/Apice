@@ -292,7 +292,15 @@ async function cargarEstudios(){
       }
       h += '<tr><td>'+esc(e.nombre)+'<div style="font-size:11px;color:#6B7280;margin-top:2px">'+esc(e.email_admin||'(sin correo)')+'</div>'+pruebaHtml+'</td><td>'+tag+'</td><td>'+(e.abogadas||0)+'</td><td>'+(e.clientes||0)+'</td>'
          + '<td><div class="acc">'
-         + (e.prueba_hasta ? '<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#067647;border-color:#6CE9A6" onclick="activarCuenta('+e.id+',\''+nomJs+'\')">✓ Activar cuenta</button>' : '')
+         + '<select class="btn-sec" style="padding:5px 6px;font-size:11px" onchange="cambiarPrueba('+e.id+',this.value,\''+nomJs+'\');this.selectedIndex=0">'
+             + '<option value="">Plan / prueba ▾</option>'
+             + '<option value="activar">✓ Definitiva (pagó)</option>'
+             + '<option value="7">Prueba 7 días</option>'
+             + '<option value="14">Prueba 14 días</option>'
+             + '<option value="30">Prueba 30 días</option>'
+             + '<option value="60">Prueba 60 días</option>'
+             + '<option value="90">Prueba 90 días</option>'
+           + '</select>'
          + '<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="editarNombreEstudio('+e.id+',\''+nomJs+'\')">Editar nombre</button>'
          + '<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarTipoEstudio('+e.id+',\''+otro+'\')">'+lblBtn+'</button>'
          + '<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarEstudio('+e.id+',\''+nomJs+'\')">Eliminar</button>'
@@ -306,6 +314,22 @@ async function cargarEstudios(){
 async function activarCuenta(id, nombre){
   if(!confirm('¿Activar como cuenta definitiva el estudio "'+nombre+'"? Se quita el período de prueba y conserva TODOS sus datos.')) return;
   try{ await api('/usuarios/estudio/'+id,'PUT',{prueba:'activar'}); cargarEstudios(); }
+  catch(e){ alert(e.message); }
+}
+
+async function cambiarPrueba(id, val, nombre){
+  if(!val) return;
+  let body, msg;
+  if(val==='activar'){
+    body = {prueba:'activar'};
+    msg = '¿Pasar el estudio "'+nombre+'" a cuenta DEFINITIVA? Se quita el período de prueba y conserva TODOS sus datos.';
+  } else {
+    const d = parseInt(val,10);
+    body = {prueba_dias:d};
+    msg = '¿Poner el estudio "'+nombre+'" en prueba de '+d+' días, contados desde hoy?';
+  }
+  if(!confirm(msg)) return;
+  try{ await api('/usuarios/estudio/'+id,'PUT',body); cargarEstudios(); }
   catch(e){ alert(e.message); }
 }
 
