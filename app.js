@@ -2435,7 +2435,7 @@ function renderConfig(){
   const U=unidadHon();
   const iusOf=window.__iusOficial||{};
   const iusNota=(typeof esSuperAdmin==='function'&&esSuperAdmin())
-    ? ` Este es el <b>${esc(U)} oficial</b>: aparece por defecto para todos los estudios. Actualizalo cada mes con el valor del Colegio.`
+    ? ` Este es el <b>${esc(U)} oficial</b> de Catamarca: aparece por defecto para todos los estudios de esta jurisdicción. Actualizalo cada mes con el valor del Colegio.`
     : (config.iusPropio
         ? ` Estás usando un ${esc(U)} propio.`+((+iusOf.valor>0)?` El oficial es <b>${esc(fmtMiles(+iusOf.valor))}</b> — <a href="#" onclick="volverIusOficial();return false" style="color:#356E94;font-weight:600">usar el oficial</a>.`:'')
         : ` Estás usando el <b>${esc(U)} oficial</b>. Si lo editás, pasás a tener el tuyo propio.`);
@@ -3246,7 +3246,7 @@ async function init(){try{const mm=await (await fetch('/api/auth/me',{credential
   marcarCausasGuardadas(causas.filter(function(c){return !c._compartida;}));try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;/* Cargar la jurisdicción del servidor ANTES de sembrar la Guía Judicial:
    así un estudio genérico no recibe los juzgados de Catamarca. */
 try{const _cf=await window.APICE.get('/config');if(_cf){if(_cf.jurisdiccion)config.jurisdiccion=_cf.jurisdiccion;if(_cf.unidad_hon)config.unidadHon=_cf.unidad_hon;}}catch(e){}
-try{const _iu=await window.APICE.get('/config/ius');if(_iu&&+_iu.valor>0){window.__iusOficial={valor:+_iu.valor,fecha:_iu.fecha||''};if(config.iusPropio!==true){config.valorIUS=+_iu.valor;if(_iu.fecha)config.iusFecha=(''+_iu.fecha).split('-').reverse().join('/');}}}catch(e){}
+try{const _iu=await window.APICE.get('/config/ius');if(_iu&&+_iu.valor>0){window.__iusOficial={valor:+_iu.valor,fecha:_iu.fecha||''};/* El IUS oficial es de Catamarca (Ley 5724): solo lo adoptan por defecto los estudios de esa jurisdicción. Los genéricos usan su propio valor. */ if(config.iusPropio!==true && (config.jurisdiccion||'catamarca')==='catamarca'){config.valorIUS=+_iu.valor;if(_iu.fecha)config.iusFecha=(''+_iu.fecha).split('-').reverse().join('/');}}}catch(e){}
 const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else if(jurMod('guiaSembrada'))seedDir();dirMigrateNames();dirMigrateCats();cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();updateSidebarUser();injectCima();try{injectPruebaBanner();}catch(e){}try{avisarPruebasSuper();}catch(e){}try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 
