@@ -1912,7 +1912,7 @@ function renderAudiencias(){
        <div class="calc-field"><label>Detalle (opcional)</label><input type="text" id="aud_detalle" value="${attr(af.detalle)}" placeholder="Ej. Audiencia preliminar (art. 360)" oninput="afSet('detalle',this.value)"></div>`;
   } else if(af.tipo==='cita'){
     const cliList=[...new Set(causas.map(c=>c.cliente).filter(Boolean))];
-    cond=`<div class="calc-field"><label>Cliente</label><input type="text" id="aud_cli" list="aud_clilist" value="${attr(af.cli)}" placeholder="Nombre del cliente" oninput="afSet('cli',this.value)"><datalist id="aud_clilist">${cliList.map(n=>`<option value="${attr(n)}"></option>`).join('')}</datalist></div>
+    cond=`<div class="calc-field"><label>Cliente</label>${cliList.length?`<select id="aud_clisel" style="margin-bottom:6px" onchange="afSet('cli',this.value);var _i=document.getElementById('aud_cli');if(_i)_i.value=this.value;"><option value="">— Elegí un cliente ya cargado —</option>${cliList.map(n=>`<option value="${attr(n)}" ${af.cli===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`:''}<input type="text" id="aud_cli" value="${attr(af.cli)}" placeholder="…o escribí el nombre del cliente" oninput="afSet('cli',this.value)"></div>
        <div class="calc-field"><label>Modalidad</label><select id="aud_modal" onchange="afSet('modal',this.value)"><option value="presencial" ${af.modal!=='virtual'?'selected':''}>Presencial</option><option value="virtual" ${af.modal==='virtual'?'selected':''}>Virtual</option></select></div>
        ${af.modal==='virtual'
          ? `<div class="calc-field"><label>Enlace de la videollamada</label><input type="text" id="aud_link" value="${attr(af.link||'')}" placeholder="Pegá el link (Meet, Zoom, etc.)" oninput="afSet('link',this.value)"></div>`
@@ -1937,7 +1937,7 @@ function renderAudiencias(){
           <option value="mediacion" ${af.tipo==='mediacion'?'selected':''}>Mediación</option>
           <option value="cita" ${af.tipo==='cita'?'selected':''}>Cita con cliente</option></select></div>
         <div class="calc-field"><label>Fecha</label><input type="date" id="aud_fecha" value="${attr(af.fecha)}" oninput="afSet('fecha',this.value)"></div>
-        <div class="calc-field"><label>Hora</label><input type="time" id="aud_hora" value="${attr(af.hora)}" oninput="afSet('hora',this.value)"></div>
+        <div class="calc-field"><label>Hora</label><input type="text" inputmode="numeric" id="aud_hora" value="${attr(af.hora)}" placeholder="Ej: 18:00, 18 o 6 pm" oninput="afSet('hora',this.value)"><div class="calc-hint2">Escribila directo: 18:00, 18 o 6 pm.</div></div>
         ${cond}
         ${af.tipo!=='cita'?`<label class="aud-check"><input type="checkbox" id="aud_cliasiste" ${af.cliAsiste?'checked':''} onchange="afSet('cliAsiste',this.checked)"> <span>El cliente debe asistir a esta audiencia</span></label>`:''}
         <div class="aud-btns"><button class="calc-btn" onclick="addAudiencia()">${af.tipo==='cita'?'+ Agregar cita':'+ Agregar audiencia'}</button><button class="calc-btn ghost" onclick="afReset()">Limpiar</button></div>
@@ -1951,10 +1951,24 @@ function renderAudiencias(){
 function afSet(k,v){sideSt.af[k]=v;if(k==='tipo'||k==='modal')renderSection();}
 function afLugarManual(v){sideSt.af.lugar=v;sideSt.af.lugarManual=true;}
 function afReset(){const t=(sideSt.af&&sideSt.af.tipo)||'juzgado';sideSt.af={tipo:t,fecha:'',hora:'',causa:'',detalle:'',cli:'',mat:'Derecho de familia',cliAsiste:false,modal:'presencial',lugar:'',link:'',lugarManual:false};renderSection();}
+/* Convierte lo que se escribe ("18", "18:00", "6 pm", "6:30pm", "6 hs") a HH:MM. */
+function parseHora(s){
+  s=(''+(s==null?'':s)).trim().toLowerCase();
+  if(!s)return '';
+  const pm=/p\.?\s*m\.?/.test(s), am=/a\.?\s*m\.?/.test(s);
+  const t=s.replace(/[^0-9:]/g,''); if(!t)return '';
+  let h,m=0;
+  if(t.indexOf(':')>=0){const p=t.split(':');h=parseInt(p[0],10);m=parseInt(p[1]||'0',10);}
+  else{h=parseInt(t,10);m=0;}
+  if(isNaN(h))return '';
+  if(pm&&h<12)h+=12; if(am&&h===12)h=0;
+  if(h<0)h=0; if(h>23)h=23; if(isNaN(m)||m<0)m=0; if(m>59)m=59;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
 function addAudiencia(){
   const af=sideSt.af;
   if(!af.fecha){alert('Poné la fecha de la audiencia.');return;}
-  const a={id:'aud-'+Date.now(),tipo:af.tipo,fecha:af.fecha,hora:af.hora||'',cliAsiste:!!af.cliAsiste};
+  const a={id:'aud-'+Date.now(),tipo:af.tipo,fecha:af.fecha,hora:parseHora(af.hora),cliAsiste:!!af.cliAsiste};
   if(af.tipo==='juzgado'){
     if(!af.causa){alert('Elegí la causa.');return;}
     a.causaId=af.causa;a.detalle=af.detalle||'';
