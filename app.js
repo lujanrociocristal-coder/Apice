@@ -1364,12 +1364,33 @@ function panelHonorarios(c){
   <div class="gasto-list">${(h.gastos||[]).length?h.gastos.map((g,i)=>{const pe=g.moneda==='ius'?(+g.monto*vIus):(+g.monto||0);return `<div class="gasto-it ${g.pagado?'pg':''}"><span class="gc">${esc(g.concepto)}</span><span class="gm">${g.moneda==='ius'?(esc(g.monto)+' '+unidadHon()+' · '):''}${fmtPesos(pe)}</span>${g.comp?`<a class="vtag cli" href="${attr(g.comp)}" target="_blank" rel="noopener">📎</a>`:''}<button class="estado-pago ${g.pagado?'si':'no'}" onclick="toggleGasto('${c.id}',${i})" title="Tocar para cambiar">${g.pagado?'Pagado':'Pendiente'}</button><span class="pdel" onclick="delGasto('${c.id}',${i})" title="Eliminar">×</span></div>`;}).join(""):`<div class="vacio">Sin gastos cargados.</div>`}</div>
   <div class="gasto-tot">Total de gastos: <b>${fmtPesos(gastosPesos)}</b></div>`;
 }
-function setValorIUS(){const v=parseMiles(document.getElementById('cfg_ius').value);if(v>=0){config.valorIUS=v;saveConfig();renderFicha();}}
+/* Aplica un nuevo valor de IUS. Si lo hace la super-admin, además queda como el
+   IUS OFICIAL de la plataforma (lo ven por defecto todos los estudios). Si lo
+   hace un colega, pasa a tener su valor propio. */
+function aplicarIus(v){
+  config.valorIUS=v;
+  config.iusFecha=new Date().toLocaleDateString('es-AR');
+  if(typeof esSuperAdmin==='function'&&esSuperAdmin()){
+    config.iusPropio=false;
+    window.__iusOficial={valor:v,fecha:config.iusFecha};
+    try{window.APICE.put('/config/ius',{valor:v});}catch(e){}
+  }else{
+    config.iusPropio=true;
+  }
+  saveConfig();
+}
+function volverIusOficial(){
+  const io=window.__iusOficial; if(!io||!(+io.valor>0))return;
+  config.iusPropio=false; config.valorIUS=+io.valor;
+  config.iusFecha=(''+(io.fecha||'')).indexOf('-')>=0?(''+io.fecha).split('-').reverse().join('/'):(io.fecha||'');
+  saveConfig(); render();
+}
+function setValorIUS(){const v=parseMiles(document.getElementById('cfg_ius').value);if(v>=0){aplicarIus(v);renderFicha();}}
 function mConfigIus(){return `<div class="modal"><h3>Valor del IUS</h3>
   <div class="msub">Este valor <b>solo lo ves y editás vos</b> (no aparece en la vista del cliente). Cargá el monto en pesos que publica el Colegio de Abogados de Catamarca este mes. Se aplica a todas las causas y recalcula los equivalentes en pesos.</div>
   <div class="field"><label>Valor del IUS (en pesos)</label><input type="text" inputmode="decimal" id="cfg_ius2" value="${attr(fmtMiles(config.valorIUS))}" oninput="numInput(this)" onblur="numBlur(this)" placeholder="Ej: 46.000 o 46.000,50"></div>
   <div class="modal-acc"><button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn-prim" onclick="setValorIUS2()">Guardar valor</button></div></div>`;}
-function setValorIUS2(){const v=parseMiles(document.getElementById('cfg_ius2').value);if(v>=0){config.valorIUS=v;saveConfig();}closeModal();if(calcSt.open)renderSide();}
+function setValorIUS2(){const v=parseMiles(document.getElementById('cfg_ius2').value);if(v>=0){aplicarIus(v);}closeModal();if(calcSt.open)renderSide();}
 function setHonIus(id){const c=get(id);const v=+document.getElementById('hon_ius').value;c.honorarios.ius=v>=0?v:0;persist();renderFicha();}
 async function addPago(id){const c=get(id);const f=isoToDMY(document.getElementById('pg_fecha').value);const ius=+document.getElementById('pg_ius').value;const nota=document.getElementById('pg_nota').value.trim();const comp=document.getElementById('pg_comp').value.trim();const fileEl=document.getElementById('pg_file');const file=fileEl&&fileEl.files&&fileEl.files[0];if(!ius||ius<=0){document.getElementById('pg_ius').focus();return;}let compArch=null;if(file){try{const fd=new FormData();fd.append('file',file);fd.append('causa_id',c.id);fd.append('nombre','Comprobante de pago');fd.append('carpeta','prueba');const r=await fetch('/api/archivos',{method:'POST',credentials:'same-origin',body:fd});const j=await r.json();if(j&&j.ok&&j.data)compArch=j.data.id;}catch(e){}}c.honorarios.pagos.unshift({fecha:f,ius,nota,comp,compArch,confirmado:true});persist();renderFicha();}
 function confirmarPago(id,i){const c=get(id);if(!c||!c.honorarios||!c.honorarios.pagos[i])return;if(!confirm('¿Confirmar que recibiste este pago? Se sumará a lo cobrado.'))return;c.honorarios.pagos[i].confirmado=true;c.honorarios.pagos[i].confirmadoEn=new Date().toISOString();persist();renderFicha();}
@@ -2374,7 +2395,7 @@ function guardarConfig(){
   const v=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
   const num=(id,def)=>{const e=document.getElementById(id);const n=e?parseInt(e.value,10):NaN;return isNaN(n)?def:Math.max(0,n);};
   config.perfil={estudio:v('cfg_estudio'),fuero:v('cfg_fuero'),domicilio:v('cfg_dom'),telefono:v('cfg_tel'),email:v('cfg_mail')};profReadRows();{const p0=(config.profesionales||[])[0]||{};config.perfil.abogada=p0.nombre||'';config.perfil.matricula=p0.mp||'';config.perfil.cuit=p0.cuit||'';}escReadRows();
-  const iusN=parseMiles((document.getElementById('cfg_ius')||{}).value);if(!isNaN(iusN)&&iusN>0)config.valorIUS=iusN;
+  const iusN=parseMiles((document.getElementById('cfg_ius')||{}).value);if(!isNaN(iusN)&&iusN>0)aplicarIus(iusN);
   config.iusFecha=v('cfg_iusf');
   config.feriaJulioDesde=v('cfg_fjd');config.feriaJulioHasta=v('cfg_fjh');
   config.alertaDias=num('cfg_alerta',10);
@@ -2398,9 +2419,15 @@ function renderConfig(){
     <button class="btn-sec" style="margin-top:10px" onclick="profAddRow()">+ Agregar profesional</button>
     <div class="cfg-note" style="margin-top:10px">Estos datos se usan en encabezados, escritos y reportes.</div></div>`;
   const U=unidadHon();
+  const iusOf=window.__iusOficial||{};
+  const iusNota=(typeof esSuperAdmin==='function'&&esSuperAdmin())
+    ? ` Este es el <b>${esc(U)} oficial</b>: aparece por defecto para todos los estudios. Actualizalo cada mes con el valor del Colegio.`
+    : (config.iusPropio
+        ? ` Estás usando un ${esc(U)} propio.`+((+iusOf.valor>0)?` El oficial es <b>${esc(fmtMiles(+iusOf.valor))}</b> — <a href="#" onclick="volverIusOficial();return false" style="color:#356E94;font-weight:600">usar el oficial</a>.`:'')
+        : ` Estás usando el <b>${esc(U)} oficial</b>. Si lo editás, pasás a tener el tuyo propio.`);
   const valores=`<div class="cfg-block"><div class="cfg-bh"><h3>Honorarios y valores</h3><span class="cfg-badge a">Activo</span></div>
     <div class="cfg-grid"><div class="field"><label>Valor del ${esc(U)} (en pesos)</label><input id="cfg_ius" type="text" inputmode="decimal" value="${attr(fmtMiles(config.valorIUS))}" oninput="numInput(this)" onblur="numBlur(this)" placeholder="Ej: 46.000 o 46.000,50"></div>${fld('cfg_iusf','Última actualización',config.iusFecha,'dd/mm/aaaa')}</div>
-    <div class="cfg-note">El ${esc(U)} se usa para calcular y mostrar los honorarios en pesos${jurMod('arancel')?' (Ley 5724)':''}.</div></div>`;
+    <div class="cfg-note">El ${esc(U)} se usa para calcular y mostrar los honorarios en pesos${jurMod('arancel')?' (Ley 5724)':''}.${iusNota}</div></div>`;
   const escala=`<div class="cfg-block"><div class="cfg-bh"><h3>Escala de honorarios sugerida</h3><span class="cfg-badge a">Activo</span></div>
     <div class="cfg-note" style="margin-bottom:10px">Valores <b>orientativos</b> en IUS por materia, que vos definís y editás. En el convenio aparecen solo como sugerencia: el monto final siempre lo fijás vos.</div>
     ${escRowsHTML()}
@@ -3205,6 +3232,7 @@ async function init(){try{const mm=await (await fetch('/api/auth/me',{credential
   marcarCausasGuardadas(causas.filter(function(c){return !c._compartida;}));try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;/* Cargar la jurisdicción del servidor ANTES de sembrar la Guía Judicial:
    así un estudio genérico no recibe los juzgados de Catamarca. */
 try{const _cf=await window.APICE.get('/config');if(_cf){if(_cf.jurisdiccion)config.jurisdiccion=_cf.jurisdiccion;if(_cf.unidad_hon)config.unidadHon=_cf.unidad_hon;}}catch(e){}
+try{const _iu=await window.APICE.get('/config/ius');if(_iu&&+_iu.valor>0){window.__iusOficial={valor:+_iu.valor,fecha:_iu.fecha||''};if(config.iusPropio!==true){config.valorIUS=+_iu.valor;if(_iu.fecha)config.iusFecha=(''+_iu.fecha).split('-').reverse().join('/');}}}catch(e){}
 const savedDir=await loadDir();if(savedDir&&Array.isArray(savedDir)&&savedDir.length)directorio=savedDir;else if(jurMod('guiaSembrada'))seedDir();dirMigrateNames();dirMigrateCats();cfgDefaults();const sl=document.querySelector('.sb-logo');if(sl)sl.innerHTML=APICE_LOGO;render();updateAvatar();updateSidebarUser();injectCima();try{injectPruebaBanner();}catch(e){}try{avisarPruebasSuper();}catch(e){}try{cargarAvisosAuto();}catch(e){}try{if(('Notification' in window)&&Notification.permission==='granted'){setTimeout(notificarUrgentes,1500);setTimeout(function(){try{suscribirPush();}catch(e){}},1200);}}catch(e){}if(!window.__gjClick){window.__gjClick=true;document.addEventListener('click',function(e){if(typeof dirSt!=='undefined'&&dirSt.menu&&!(e.target.closest&&e.target.closest('.gj-menu-wrap'))){dirSt.menu=null;if(activeNav()==='directorio')renderDirectorio();}});}if(!(config.onboarding&&config.onboarding.accepted))injectOnboarding();else if(config.pin)injectLock();else if(!config.tutorialDone){injectTutorial();config.tutorialDone=true;saveConfig();}}
 init();
 

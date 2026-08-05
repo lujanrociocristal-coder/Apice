@@ -31,6 +31,12 @@ function handle_config($method, $resto) {
   if ($sub === 'backup') {
     if ($method === 'GET') return backup_estado();
   }
+  /* IUS oficial de la plataforma (Catamarca): lo fija la super-admin y aparece
+     por defecto para todos los estudios. Cada estudio puede usar el suyo. */
+  if ($sub === 'ius') {
+    if ($method === 'GET') return ius_oficial_ver();
+    if ($method === 'PUT') return ius_oficial_guardar();
+  }
   if ($method === 'GET') return config_ver();
   if ($method === 'PUT') return config_editar();
   json_error('Método no permitido.', 405);
@@ -147,6 +153,23 @@ function ajuste_guardar($clave, $valor) {
   db()->prepare('INSERT INTO ajustes (clave, valor) VALUES (?, ?)
                  ON DUPLICATE KEY UPDATE valor = VALUES(valor), actualizado_en = NOW()')
       ->execute([$clave, $valor]);
+}
+
+/* IUS oficial de la plataforma. Se guarda en ajustes (clave ius_oficial). */
+function ius_oficial_ver() {
+  require_login();
+  json_ok([
+    'valor' => (float)ajuste_leer('ius_oficial'),
+    'fecha' => ajuste_leer('ius_oficial_fecha'),
+  ]);
+}
+function ius_oficial_guardar() {
+  require_superadmin();
+  $v = (float)field('valor');
+  if ($v <= 0) json_error('Ingresá un valor del IUS válido.');
+  ajuste_guardar('ius_oficial', (string)$v);
+  ajuste_guardar('ius_oficial_fecha', date('Y-m-d'));
+  json_ok(['guardado' => true, 'valor' => $v]);
 }
 
 function correo_ver() {
