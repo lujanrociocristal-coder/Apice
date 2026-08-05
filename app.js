@@ -170,7 +170,7 @@ async function cargarCompartidas(){
 }
 const CFG='gestor_cfg_v9';
 const APICE_LOGO=`<svg viewBox="0 0 232 60" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ÁPICE — Gestión Jurídica Inteligente"><defs><linearGradient id="apg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3FC8BD"/><stop offset="1" stop-color="#356E94"/></linearGradient></defs><path d="M27 6 L51 50 L3 50 Z" fill="url(#apg)"/><path d="M27 24 L43 50 L11 50 Z" fill="#23436E"/><path d="M27 6 L30 23 L18 50 L3 50 Z" fill="#46D2C6" opacity="0.85"/><text x="64" y="33" font-family="Inter,system-ui,sans-serif" font-size="27" font-weight="700" letter-spacing="2.5" fill="#ECF2F5">ÁPICE</text><line x1="65" y1="41" x2="206" y2="41" stroke="#33586C" stroke-width="1"/><text x="65" y="52" font-family="Inter,system-ui,sans-serif" font-size="7.3" letter-spacing="2.1" fill="#79AAB4">GESTIÓN JURÍDICA INTELIGENTE</text></svg>`;
-let config={valorIUS:35000,avatar:null};
+let config={valorIUS:125000,avatar:null};
 let MODO_CLIENTE=false; let __cliNombre='';
 async function loadConfig(){try{if(window.storage){const r=await window.storage.get(CFG);if(r&&r.value)return JSON.parse(r.value);}}catch(e){}try{if(typeof localStorage!=='undefined'){const v=localStorage.getItem(CFG);if(v)return JSON.parse(v);}}catch(e){}return null;}
 async function saveConfig(){const d=JSON.stringify(config);try{if(window.storage){await window.storage.set(CFG,d);return;}}catch(e){}try{if(typeof localStorage!=='undefined')localStorage.setItem(CFG,d);}catch(e){}}
@@ -2443,9 +2443,9 @@ function renderConfig(){
     <div class="cfg-acc"><button class="btn-sec" onclick="tutorialOpen()">🧭 Ver tutorial de nuevo</button><button class="btn-sec" onclick="onbReopen()">👋 Ver pantalla de bienvenida</button><a class="btn-sec" href="/gestion-usuarios.html" style="text-decoration:none">👥 Usuarios y claves</a></div>
     <div class="cfg-logout"><button class="cfg-logout-btn" onclick="cerrarSesion()">↪ Cerrar sesión</button></div></div>`;
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
-    <div class="main-head"><div><div class="eyebrow">Ajustes</div><h1>Configuración</h1><div class="mh-sub">Personalizá ÁPICE para tu estudio.</div></div>
-      <button class="btn-add" id="cfgSaveBtn" onclick="guardarConfig()">Guardar cambios</button></div>
-    ${perfil}${valores}${jurMod('arancel')?escala:''}${plazos}${reglas}${datos}${legales}${seg}${bloquesB}${cuenta}</div>`;
+    <div class="main-head"><div><div class="eyebrow">Ajustes</div><h1>Configuración</h1><div class="mh-sub">Personalizá ÁPICE para tu estudio.</div></div></div>
+    ${perfil}${valores}${jurMod('arancel')?escala:''}${plazos}${reglas}${datos}${legales}${seg}${cuenta}
+    <div class="cfg-savebar" style="display:flex;justify-content:flex-end;margin:22px 0 6px"><button class="btn-add" id="cfgSaveBtn" onclick="guardarConfig()">Guardar cambios</button></div></div>`;
   if(esSuperAdmin())cargarEstadoBackup();
 }
 /* Consulta el estado del respaldo automatico y lo muestra en Configuracion.
