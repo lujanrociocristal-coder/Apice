@@ -55,6 +55,37 @@ function acceso_causa_propia($uuid, $u) {
   return $c;
 }
 
+/* Devuelve el estudio DUEÑO de la causa si la persona puede EDITARLA: porque es
+   de su estudio, o porque es colaboradora con permiso de edición (causa
+   compartida). Así una colega externa también puede vincular clientes. */
+function acceso_estudio_de_causa($uuid, $u) {
+  $st = db()->prepare('SELECT estudio_id FROM causas WHERE uuid = ? AND estudio_id = ?');
+  $st->execute([$uuid, (int)$u['estudio_id']]);
+  $eid = $st->fetchColumn();
+  if ($eid) return (int)$eid;
+  try {
+    $st2 = db()->prepare("SELECT estudio_origen_id FROM causa_compartida
+                          WHERE causa_uuid = ? AND colaborador_id = ? AND permiso = 'edicion' LIMIT 1");
+    $st2->execute([$uuid, (int)$u['id']]);
+    $oe = $st2->fetchColumn();
+    if ($oe) return (int)$oe;
+  } catch (Throwable $e) { /* la tabla puede no existir todavía */ }
+  json_error('No tenés acceso para editar esta causa.', 403);
+}
+
+/* Estudios cuyos clientes puede administrar la persona: el propio + los de las
+   causas compartidas con ella en modo edición. */
+function estudios_editables($u) {
+  $eds = [(int)$u['estudio_id']];
+  try {
+    $st = db()->prepare("SELECT DISTINCT estudio_origen_id FROM causa_compartida
+                         WHERE colaborador_id = ? AND permiso = 'edicion'");
+    $st->execute([(int)$u['id']]);
+    foreach ($st->fetchAll() as $r) { $eds[] = (int)$r['estudio_origen_id']; }
+  } catch (Throwable $e) { /* silencioso */ }
+  return array_values(array_unique($eds));
+}
+
 /* Activar el acceso de un cliente a una causa. */
 function acceso_activar() {
   $u = require_profesional();
@@ -63,8 +94,11 @@ function acceso_activar() {
   if ($uuid === '' || $email === '') json_error('Faltan datos (causa o correo).');
   if (!filter_var($email, FILTER_VALIDATE_EMAIL)) json_error('El correo no es válido.');
 
-  $causa = acceso_causa_propia($uuid, $u);
-  $eid = (int)$u['estudio_id'];
+  $eid = acceso_estudio_de_causa($uuid, $u);
+  $stCausa = db()->prepare('SELECT * FROM causas WHERE uuid = ? AND estudio_id = ?');
+  $stCausa->execute([$uuid, $eid]);
+  $causa = $stCausa->fetch();
+  if (!$causa) json_error('La causa no existe.', 404);
 
   // ¿Ya existe un usuario con ese correo?
   $st = db()->prepare('SELECT id, rol, estudio_id, nombre FROM usuarios WHERE email = ?');
@@ -104,13 +138,13 @@ function acceso_listar() {
   $u = require_profesional();
   $uuid = trim((string)($_GET['causa'] ?? ''));
   if ($uuid === '') json_error('Falta la causa.');
-  acceso_causa_propia($uuid, $u);
+  $eid = acceso_estudio_de_causa($uuid, $u);
   $st = db()->prepare('SELECT ac.id, us.id AS usuario_id, us.nombre, us.email,
                               us.debe_cambiar_clave, us.activo
                        FROM acceso_cliente ac JOIN usuarios us ON us.id = ac.cliente_usuario_id
                        WHERE ac.causa_uuid = ? AND ac.estudio_id = ?
                        ORDER BY us.nombre ASC');
-  $st->execute([$uuid, (int)$u['estudio_id']]);
+  $st->execute([$uuid, $eid]);
   json_ok($st->fetchAll());
 }
 
@@ -121,7 +155,7 @@ function acceso_revocar($id) {
   $st->execute([$id]);
   $ac = $st->fetch();
   if (!$ac) json_error('Ese acceso no existe.', 404);
-  if ((int)$ac['estudio_id'] !== (int)$u['estudio_id']) json_error('No podés quitar este acceso.', 403);
+  if (!in_array((int)$ac['estudio_id'], estudios_editables($u), true)) json_error('No podés quitar este acceso.', 403);
   db()->prepare('DELETE FROM acceso_cliente WHERE id = ?')->execute([$id]);
   json_ok(['revocado' => true]);
 }
@@ -132,9 +166,11 @@ function acceso_blanquear() {
   $uid = (int)field('usuario_id');
   if (!$uid) json_error('Falta el cliente.');
   // El cliente debe estar vinculado a alguna causa de MI estudio.
-  $st = db()->prepare('SELECT 1 FROM acceso_cliente WHERE cliente_usuario_id = ? AND estudio_id = ? LIMIT 1');
-  $st->execute([$uid, (int)$u['estudio_id']]);
-  if (!$st->fetch()) json_error('Ese cliente no pertenece a tu estudio.', 403);
+  $eds = estudios_editables($u);
+  $in = implode(',', array_fill(0, count($eds), '?'));
+  $st = db()->prepare("SELECT 1 FROM acceso_cliente WHERE cliente_usuario_id = ? AND estudio_id IN ($in) LIMIT 1");
+  $st->execute(array_merge([$uid], $eds));
+  if (!$st->fetch()) json_error('Ese cliente no pertenece a una causa que puedas editar.', 403);
 
   $temp = generar_clave_temporal();
   db()->prepare("UPDATE usuarios SET password_hash = ?, debe_cambiar_clave = 1 WHERE id = ? AND rol = 'cliente'")

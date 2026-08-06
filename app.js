@@ -520,7 +520,7 @@ function renderFicha(){
         <button class="btn-sec" onclick="openModal({tipo:'editar',id:'${c.id}'})">✎ Editar datos</button>
         <button class="btn-sec" onclick="openModal({tipo:'estado',id:'${c.id}'})">↻ Cambiar estado</button>
         <button class="btn-sec" onclick="toggleCliente(true)">👁 Vista de cliente</button>
-        ${!c._compartida?`<button class="btn-sec" onclick="accesoClienteOverlay('${c.id}')">👤 Acceso del cliente</button>`:''}
+        ${(!c._compartida||c._permiso==='edicion')?`<button class="btn-sec" onclick="accesoClienteOverlay('${c.id}')">👤 Acceso del cliente</button>`:''}
         ${!c._compartida?`<button class="btn-sec" onclick="compartirCausaOverlay('${c.id}')">🔗 Compartir con externo</button>`:''}
         <a class="btn-sec" href="${D}${c.ficha}/edit" target="_blank" rel="noopener">↗ Abrir ficha en Drive</a>
         ${!c._compartida?`<button class="btn-sec danger" onclick="delCausa('${c.id}')">🗑 Eliminar causa</button>`:''}
