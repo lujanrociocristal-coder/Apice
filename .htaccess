@@ -19,17 +19,20 @@
 
 # Control de caché
 <IfModule mod_headers.c>
-  # Código de la app: siempre la última versión (sin caché)
+  # Código de la app: SIEMPRE se revalida contra el servidor (queda fresco),
+  # pero si el archivo no cambió, el navegador reutiliza su copia y el servidor
+  # responde "304 Sin cambios" (unos bytes) en vez de volver a mandar todo.
+  # Baja MUCHO el tráfico y la carga del servidor, sin arriesgar versiones viejas.
   <FilesMatch "\.(html|js|json|webmanifest)$">
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
+    Header set Cache-Control "no-cache, must-revalidate"
+    Header unset Pragma
+    Header unset Expires
   </FilesMatch>
-  # El service worker: nunca cachear (para que las actualizaciones lleguen)
+  # El service worker: nunca cachear (para que las actualizaciones lleguen).
   <FilesMatch "sw\.js$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
   </FilesMatch>
-  # Imágenes, íconos y fuentes: se pueden cachear un día
+  # Imágenes, íconos y fuentes: se pueden cachear un día.
   <FilesMatch "\.(svg|png|jpg|jpeg|gif|ico|woff2?|ttf|css)$">
     Header set Cache-Control "public, max-age=86400"
   </FilesMatch>

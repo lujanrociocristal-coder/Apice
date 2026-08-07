@@ -86,15 +86,23 @@ async function saveState(){
       if(!r.ok)syncAviso('warn','No se pudo guardar en el servidor un cambio de una causa compartida.');
     }catch(e){syncAviso('warn','Sin conexión: un cambio de una causa compartida no se guardó en el servidor.');}
   }
-  /* Empujar también MIS causas compartidas con externos, para que el/la colega
-     vea los últimos movimientos (se guardan en la tabla que lee su vista). */
-  try{
-    (causas||[]).forEach(function(c){
-      if(!c._compartida && typeof misCompartidas!=='undefined' && misCompartidas && misCompartidas[c.id]){
-        fetch('/api/compartir/causa/'+encodeURIComponent(c.id),{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({causa:c})}).catch(function(){});
-      }
-    });
-  }catch(e){}
+  /* Empujar MIS causas compartidas con externos (con un pequeño retraso, para
+     agrupar cambios seguidos y no saturar el servidor). */
+  try{ programarPushCompartidas(); }catch(e){}
+}
+let __pushCompTimer=null;
+function programarPushCompartidas(){
+  if(__pushCompTimer)return;
+  __pushCompTimer=setTimeout(function(){
+    __pushCompTimer=null;
+    try{
+      (causas||[]).forEach(function(c){
+        if(!c._compartida && typeof misCompartidas!=='undefined' && misCompartidas && misCompartidas[c.id]){
+          fetch('/api/compartir/causa/'+encodeURIComponent(c.id),{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({causa:c})}).catch(function(){});
+        }
+      });
+    }catch(e){}
+  },6000);
 }
 /* ===== Guardado confiable: aviso visible + reintento automático (v46) ===== */
 let __syncPend=null,__syncTimer=null,__syncFallos=0;
