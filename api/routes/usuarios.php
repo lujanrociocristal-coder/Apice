@@ -21,6 +21,7 @@ function handle_usuarios($method, $resto) {
   if ($primero === 'estudio'  && $method === 'POST')   return estudio_crear();
   if ($primero === 'estudio'  && $method === 'PUT')    return estudio_editar((int)($resto[1] ?? 0));
   if ($primero === 'estudio'  && $method === 'DELETE') return estudio_eliminar((int)($resto[1] ?? 0));
+  if ($primero === 'forzar-clave' && $method === 'POST') return forzar_cambio_todos();
 
   // --- Acciones dentro del estudio ---
   $id  = (int)$primero;
@@ -31,6 +32,15 @@ function handle_usuarios($method, $resto) {
   if ($method === 'GET')  return usuarios_listar();
   if ($method === 'POST') return usuario_crear();
   json_error('Método no permitido.', 405);
+}
+
+/* Marca a TODAS las cuentas activas (menos las super-administradoras) para que
+   deban cambiar su contraseña en el próximo ingreso. Solo la super-admin. */
+function forzar_cambio_todos() {
+  require_superadmin();
+  $st = db()->prepare('UPDATE usuarios SET debe_cambiar_clave = 1 WHERE es_superadmin = 0 AND activo = 1');
+  $st->execute();
+  json_ok(['marcados' => $st->rowCount()]);
 }
 
 /* ---------- Dentro del estudio (cualquier profesional) ---------- */

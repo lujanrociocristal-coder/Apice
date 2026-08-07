@@ -65,6 +65,12 @@
       <h2>🏛 Estudios de la plataforma <span style="font-size:11px;background:#E7F1EA;color:#15803D;padding:2px 8px;border-radius:999px;vertical-align:middle">Super-admin</span></h2>
       <div class="nota" style="margin-bottom:12px">Acá decidís qué estudios acceden a ÁPICE. Al crear uno, se genera la abogada administradora de esa firma con una clave temporal.</div>
       <div id="estudiosWrap" style="margin-bottom:16px">Cargando…</div>
+      <div style="border:1px solid #FDE68A;background:#FFFBEB;border-radius:10px;padding:12px;margin-bottom:16px">
+        <b style="font-size:13px">🔒 Seguridad de contraseñas</b>
+        <div class="nota" style="margin:4px 0 8px">Obligá a TODAS las cuentas (menos las super-admin) a cambiar su contraseña en el próximo ingreso. Cada persona entra con su clave actual y elige una nueva fuerte (8+, mayúscula, minúscula y símbolo).</div>
+        <button class="btn-sec" onclick="forzarClaveTodos()">Forzar cambio de clave a todos</button>
+        <div id="fcMsg" style="margin-top:8px"></div>
+      </div>
       <div style="border-top:1px solid var(--linea);padding-top:14px">
         <b style="font-size:14px">Dar acceso a un estudio nuevo</b>
         <div class="row" style="margin-top:8px">
@@ -271,6 +277,11 @@ async function cambiarMiClave(){
 }
 
 /* ---- Super-administradora: estudios de la plataforma ---- */
+async function forzarClaveTodos(){
+  if(!confirm('¿Obligar a TODAS las cuentas (menos super-admin) a cambiar su contraseña en el próximo ingreso? Entrarán con su clave actual y deberán elegir una nueva fuerte.')) return;
+  try{ const r=await api('/usuarios/forzar-clave','POST',{}); msg('fcMsg','Listo. '+((r&&r.marcados!=null)?r.marcados:'Las')+' cuenta(s) deberán cambiar la clave en su próximo ingreso.',true); }
+  catch(e){ msg('fcMsg',e.message,false); }
+}
 async function cargarEstudios(){
   const cont = document.getElementById('estudiosWrap');
   try{
