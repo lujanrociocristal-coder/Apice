@@ -38,7 +38,10 @@ function handle_usuarios($method, $resto) {
    deban cambiar su contraseña en el próximo ingreso. Solo la super-admin. */
 function forzar_cambio_todos() {
   require_superadmin();
-  $st = db()->prepare('UPDATE usuarios SET debe_cambiar_clave = 1 WHERE es_superadmin = 0 AND activo = 1');
+  /* Solo abogados/profesionales. NO se toca a los clientes del portal (recién
+     ingresados) ni a las super-administradoras. */
+  $st = db()->prepare("UPDATE usuarios SET debe_cambiar_clave = 1
+                       WHERE es_superadmin = 0 AND activo = 1 AND rol = 'profesional'");
   $st->execute();
   json_ok(['marcados' => $st->rowCount()]);
 }
