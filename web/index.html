@@ -262,7 +262,10 @@
         <li>Honorarios y comprobantes</li>
         <li>Portal del cliente incluido</li>
       </ul>
-      <a class="btn btn-ghost" href="#prueba" style="margin-top:auto">Empezar prueba</a>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+        <a class="btn btn-primary btn-sub" data-mensual-url="https://mpago.la/2T3rBP9" data-anual-url="https://mpago.la/1gCT49a" href="https://mpago.la/2T3rBP9" target="_blank" rel="noopener">Suscribirme</a>
+        <a class="btn btn-ghost" href="#prueba">Empezar prueba gratis</a>
+      </div>
     </div>
     <div class="card" style="display:flex;flex-direction:column;border:2px solid var(--teal);position:relative">
       <span style="position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--teal);color:#0d2b2a;font-weight:800;font-size:12px;letter-spacing:.08em;padding:4px 14px;border-radius:999px">MÁS ELEGIDO</span>
@@ -276,7 +279,10 @@
         <li>Trabajo compartido entre colegas</li>
         <li>Portal del cliente incluido</li>
       </ul>
-      <a class="btn btn-primary" href="#prueba" style="margin-top:auto">Empezar prueba</a>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+        <a class="btn btn-primary btn-sub" data-mensual-url="https://mpago.la/2Y7XnHm" data-anual-url="https://mpago.la/2MBstGi" href="https://mpago.la/2Y7XnHm" target="_blank" rel="noopener">Suscribirme</a>
+        <a class="btn btn-ghost" href="#prueba">Empezar prueba gratis</a>
+      </div>
     </div>
     <div class="card" style="display:flex;flex-direction:column">
       <div class="ic" style="font-weight:800;color:var(--teal)">Firma</div>
@@ -289,7 +295,10 @@
         <li>Soporte prioritario</li>
         <li>Portal del cliente incluido</li>
       </ul>
-      <a class="btn btn-ghost" href="#prueba" style="margin-top:auto">Hablar con nosotros</a>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+        <a class="btn btn-primary btn-sub" data-mensual-url="https://mpago.la/27USVEo" data-anual-url="https://mpago.la/2jS3q3H" href="https://mpago.la/27USVEo" target="_blank" rel="noopener">Suscribirme</a>
+        <a class="btn btn-ghost" href="#prueba">Empezar prueba gratis</a>
+      </div>
     </div>
   </div>
   <p style="text-align:center;color:#6b7a86;font-size:14px;margin-top:18px">La inteligencia artificial para redactar escritos llega pronto, como plan aparte.</p>
@@ -415,6 +424,10 @@
       el.innerHTML='$'+n+'<span style="font-size:15px;font-weight:500;color:#6b7a86"> '+(anual?'/año':'/mes')+'</span>';
     });
     document.querySelectorAll('.nota-anual').forEach(function(el){el.style.display=anual?'block':'none';});
+    document.querySelectorAll('.btn-sub').forEach(function(el){
+      var u=anual?el.getAttribute('data-anual-url'):el.getAttribute('data-mensual-url');
+      if(u) el.setAttribute('href',u);
+    });
     var m=document.getElementById('tgMes'), a=document.getElementById('tgAnual');
     if(anual){a.style.background='var(--navy)';a.style.color='#fff';a.style.boxShadow='0 2px 6px rgba(0,0,0,.2)';m.style.background='transparent';m.style.color='#2c3b45';m.style.boxShadow='none';}
     else{m.style.background='var(--navy)';m.style.color='#fff';m.style.boxShadow='0 2px 6px rgba(0,0,0,.2)';a.style.background='transparent';a.style.color='#2c3b45';a.style.boxShadow='none';}
