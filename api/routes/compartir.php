@@ -165,6 +165,31 @@ function compartidas_conmigo() {
   json_ok($out);
 }
 
+/* Une la causa entrante con la ya guardada, para que dos colegas que editan la
+   MISMA causa no se pisen: las listas (pendientes, movimientos, documentos) se
+   UNEN (no se reemplazan). Los datos sueltos (estado, carátula, etc.) los toma
+   la última que guarda. Las bajas de ítems no se propagan (se prioriza no
+   perder información). */
+function compartida_merge($prev, $inc) {
+  if (!is_array($prev)) return $inc;
+  $out = $inc;
+  $claves = [
+    'pendientes' => function ($it) { return isset($it['t']) ? mb_strtolower(trim((string)$it['t'])) : json_encode($it); },
+    'bitacora'   => function ($it) { return (isset($it['fecha']) ? $it['fecha'] : '') . '|' . (isset($it['texto']) ? mb_strtolower(trim((string)$it['texto'])) : ''); },
+    'documentos' => function ($it) { return isset($it['nombre']) ? mb_strtolower(trim((string)$it['nombre'])) : json_encode($it); },
+  ];
+  foreach ($claves as $campo => $key) {
+    $p = (isset($prev[$campo]) && is_array($prev[$campo])) ? $prev[$campo] : [];
+    $i = (isset($inc[$campo])  && is_array($inc[$campo]))  ? $inc[$campo]  : [];
+    if (!$p && !$i) continue;
+    $map = [];
+    foreach ($p as $it) { if (is_array($it)) $map[$key($it)] = $it; }
+    foreach ($i as $it) { if (is_array($it)) $map[$key($it)] = $it; } // la entrante agrega/actualiza
+    $out[$campo] = array_values($map);
+  }
+  return $out;
+}
+
 /* Guardar cambios en una causa compartida (solo si tengo permiso de edición). */
 function compartida_guardar($uuid) {
   $u = require_login();
@@ -197,6 +222,18 @@ function compartida_guardar($uuid) {
   $c = field('causa');
   if (is_string($c)) $c = json_decode($c, true);
   if (!is_array($c)) json_error('Formato inválido.');
+
+  /* Unir con lo ya guardado (datos_json) para no perder lo que cargó la otra
+     parte. Si no hay previo o falla, se guarda lo entrante tal cual. */
+  try {
+    $stPrev = db()->prepare('SELECT datos_json FROM causas WHERE id = ?');
+    $stPrev->execute([(int)$row['id']]);
+    $prevJson = $stPrev->fetchColumn();
+    if ($prevJson) {
+      $prev = json_decode($prevJson, true);
+      if (is_array($prev)) $c = compartida_merge($prev, $c);
+    }
+  } catch (Throwable $e) { /* se guarda lo entrante */ }
 
   $j = function ($v) { return isset($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : null; };
   db()->prepare('UPDATE causas SET

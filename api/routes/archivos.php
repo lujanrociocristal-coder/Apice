@@ -118,16 +118,45 @@ function handle_archivos($method, $resto) {
 function archivos_permitidos() { return ['pdf','doc','docx','jpg','jpeg','png']; }
 function archivos_max_bytes()  { return 20 * 1024 * 1024; } // 20 MB
 
-/* Busca un archivo por id y verifica que sea del MISMO estudio de la persona. */
+/* Estudios desde los que la persona puede ver los archivos de UNA causa: el
+   propio + el estudio DUEÑO si la causa está compartida con ella en edición. */
+function archivos_estudios_de_causa($causaUuidRaw, $u) {
+    $eds = [(int)$u['estudio_id']];
+    try {
+        $st = db()->prepare("SELECT estudio_origen_id FROM causa_compartida
+                             WHERE causa_uuid = ? AND colaborador_id = ? AND permiso = 'edicion' LIMIT 1");
+        $st->execute([(string)$causaUuidRaw, (int)$u['id']]);
+        $oe = $st->fetchColumn();
+        if ($oe) $eds[] = (int)$oe;
+    } catch (Throwable $e) { /* silencioso */ }
+    return array_values(array_unique($eds));
+}
+
+/* Todos los estudios cuyos archivos puede gestionar (por id de archivo): el
+   propio + los de causas compartidas con ella en edición. */
+function archivos_estudios_editables($u) {
+    $eds = [(int)$u['estudio_id']];
+    try {
+        $st = db()->prepare("SELECT DISTINCT estudio_origen_id FROM causa_compartida
+                             WHERE colaborador_id = ? AND permiso = 'edicion'");
+        $st->execute([(int)$u['id']]);
+        foreach ($st->fetchAll() as $r) { $eds[] = (int)$r['estudio_origen_id']; }
+    } catch (Throwable $e) { /* silencioso */ }
+    return array_values(array_unique($eds));
+}
+
+/* Busca un archivo por id; permite el propio estudio y los estudios donde la
+   persona es colaboradora con edición (causas compartidas). */
 function archivo_del_estudio($id, $u) {
     /* Doble candado (v46): se filtra por estudio en la consulta MISMA y ademas
        se vuelve a verificar en PHP. Si alguna vez alguien toca una de las dos,
        la otra sigue protegiendo los datos. */
-    $st = db()->prepare('SELECT * FROM archivos WHERE id = ? AND estudio_id = ?');
-    $st->execute([$id, (int)$u['estudio_id']]);
+    $eds = archivos_estudios_editables($u);
+    $in = implode(',', array_fill(0, count($eds), '?'));
+    $st = db()->prepare("SELECT * FROM archivos WHERE id = ? AND estudio_id IN ($in)");
+    $st->execute(array_merge([$id], $eds));
     $a = $st->fetch();
     if (!$a) json_error('Archivo no encontrado.', 404);
-        if ((int)$a['estudio_id'] !== (int)$u['estudio_id']) json_error('No tenes acceso a este archivo.', 403);
             return $a;
 }
 
@@ -157,6 +186,15 @@ function archivo_subir() {
     if ($malo !== '') json_error($malo);
 
         $estudioId = (int)$u['estudio_id'];
+    /* Si la causa está compartida CONMIGO en edición, los archivos van al
+       estudio DUEÑO (así el propietario también los ve en la causa). */
+    try {
+        $stO = db()->prepare("SELECT estudio_origen_id FROM causa_compartida
+                              WHERE causa_uuid = ? AND colaborador_id = ? AND permiso = 'edicion' LIMIT 1");
+        $stO->execute([(string)($_POST['causa_id'] ?? ''), (int)$u['id']]);
+        $oe = $stO->fetchColumn();
+        if ($oe) $estudioId = (int)$oe;
+    } catch (Throwable $e) { /* silencioso */ }
     $dir = archivos_base() . '/' . $estudioId . '/' . $causaId;
     if (!is_dir($dir)) { @mkdir($dir, 0700, true); }
         if (!is_dir($dir)) json_error('No se pudo crear la carpeta de archivos en el servidor.', 500);
@@ -181,12 +219,15 @@ function archivo_subir() {
      cargada, se usa la fecha en que se subio como resguardo). */
 function archivos_listar() {
     $u = require_login();
-    $causaId = archivos_causa_safe($_GET['causa'] ?? '');
+    $rawCausa = (string)($_GET['causa'] ?? '');
+    $causaId = archivos_causa_safe($rawCausa);
     if ($causaId === '') json_error('Falta indicar la causa.');
-        $st = db()->prepare('SELECT id, carpeta, nombre, tipo, tamano, visible_cliente, fecha_doc, creado_en
-                               FROM archivos WHERE causa_id = ? AND estudio_id = ?
-                                                      ORDER BY COALESCE(fecha_doc, DATE(creado_en)) ASC, id ASC');
-    $st->execute([$causaId, (int)$u['estudio_id']]);
+    $eds = archivos_estudios_de_causa($rawCausa, $u);
+    $in = implode(',', array_fill(0, count($eds), '?'));
+    $st = db()->prepare("SELECT id, carpeta, nombre, tipo, tamano, visible_cliente, fecha_doc, creado_en
+                         FROM archivos WHERE causa_id = ? AND estudio_id IN ($in)
+                         ORDER BY COALESCE(fecha_doc, DATE(creado_en)) ASC, id ASC");
+    $st->execute(array_merge([$causaId], $eds));
     $rows = $st->fetchAll();
     if ($u['rol'] === 'cliente') {
           $rows = array_values(array_filter($rows, function ($r) { return (int)$r['visible_cliente'] === 1; }));
