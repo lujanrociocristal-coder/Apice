@@ -129,7 +129,7 @@
       <h2>Cambiar mi contraseña</h2>
       <div class="row">
         <div><label>Contraseña actual</label><input id="mc_actual" type="password"></div>
-        <div><label>Nueva contraseña</label><input id="mc_nueva" type="password" placeholder="mínimo 6 caracteres"></div>
+        <div><label>Nueva contraseña</label><input id="mc_nueva" type="password" placeholder="8+ con mayúscula, minúscula y símbolo"></div>
       </div>
       <button class="btn-main" onclick="cambiarMiClave()">Guardar nueva contraseña</button>
       <div id="mc_msg"></div>
@@ -261,7 +261,8 @@ async function eliminarUsuario(id, nombre){
 async function cambiarMiClave(){
   const actual = document.getElementById('mc_actual').value;
   const nueva  = document.getElementById('mc_nueva').value;
-  if(!actual || nueva.length<6){ msg('mc_msg','Completá la actual y una nueva de al menos 6 caracteres.',false); return; }
+  if(!actual){ msg('mc_msg','Completá tu contraseña actual.',false); return; }
+  if(!(nueva.length>=8 && /[A-ZÁÉÍÓÚÜÑ]/.test(nueva) && /[a-záéíóúüñ]/.test(nueva) && /[^A-Za-z0-9]/.test(nueva))){ msg('mc_msg','La nueva debe tener 8+ caracteres, con mayúscula, minúscula y un símbolo.',false); return; }
   try{
     await api('/auth/cambiar-clave','POST',{actual, nueva});
     msg('mc_msg','Listo, tu contraseña se cambió.',true);

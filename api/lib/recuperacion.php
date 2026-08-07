@@ -124,7 +124,7 @@ function recup_restablecer($token, $nueva) {
   $nueva = (string)$nueva;
 
   if ($token === '') json_error('Falta el código del enlace.');
-  if (strlen($nueva) < 6) json_error('La contraseña nueva tiene que tener al menos 6 caracteres.');
+  $errPass = password_fuerte($nueva); if ($errPass !== '') json_error($errPass);
 
   $hash = hash('sha256', $token);
   $st = $pdo->prepare('SELECT id, usuario_id FROM recuperacion_clave

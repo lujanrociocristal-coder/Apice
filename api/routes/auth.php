@@ -134,7 +134,7 @@ function handle_auth($method, $resto) {
     $u = require_login();
     $actual = (string)field('actual');
     $nueva  = (string)field('nueva');
-    if (strlen($nueva) < 6) json_error('La nueva contraseña debe tener al menos 6 caracteres.');
+    $errPass = password_fuerte($nueva); if ($errPass !== '') json_error($errPass);
 
     // Traer el hash actual.
     $st = db()->prepare('SELECT password_hash FROM usuarios WHERE id = ?');

@@ -41,6 +41,9 @@
 
   window.APICE = { get: apiGet, post: apiPost, put: apiPut, del: apiDelete, base: BASE };
 
+  /* Regla de contraseña fuerte (igual que el servidor): 8+, mayúscula, minúscula y símbolo. */
+  function apClaveFuerte(p){ p = '' + (p || ''); return p.length >= 8 && /[A-ZÁÉÍÓÚÜÑ]/.test(p) && /[a-záéíóúüñ]/.test(p) && /[^A-Za-z0-9]/.test(p); }
+
   // window.storage: el almacen que la app ya sabe usar, pero contra el servidor.
   // La app llama get/set/delete con una clave; cada clave es un bloque de datos
   // COMPARTIDO por el estudio.
@@ -100,7 +103,8 @@
           '<div style="background:#fff;border-radius:14px;max-width:400px;width:100%;padding:26px;font-family:system-ui,sans-serif;color:#1C2433">'
           + '<h2 style="font-size:18px;margin:0 0 6px">Cre&aacute; tu nueva contrase&ntilde;a</h2>'
           + '<p style="font-size:13px;color:#6B7280;margin:0 0 14px">Entraste con una clave temporal. Por seguridad, eleg&iacute; una contrase&ntilde;a nueva para continuar.</p>'
-          + '<input id="apNuevaClave" type="password" placeholder="Nueva contrase&ntilde;a (m&iacute;n. 6)" style="width:100%;padding:11px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
+          + '<input id="apNuevaClave" type="password" placeholder="Nueva contrase&ntilde;a" style="width:100%;padding:11px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box">'
+          + '<div style="font-size:12px;color:#6B7280;margin-top:6px">M&iacute;nimo 8 caracteres, con una <b>may&uacute;scula</b>, una <b>min&uacute;scula</b> y un <b>s&iacute;mbolo</b> (. - _ ! @ #).</div>'
           + '<div id="apNuevaMsg" style="color:#8a2828;font-size:12px;margin-top:8px"></div>'
           + '<button id="apNuevaBtn" style="margin-top:14px;width:100%;background:#1C2433;color:#fff;border:0;padding:12px;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer">Guardar y entrar</button>'
           + '</div>';
@@ -110,7 +114,7 @@
         input.focus();
         async function guardar() {
           var nueva = input.value;
-          if (!nueva || nueva.length < 6) { msgEl.textContent = 'La contrasena debe tener al menos 6 caracteres.'; return; }
+          if (!apClaveFuerte(nueva)) { msgEl.textContent = 'La contraseña debe tener 8+ caracteres, con una mayúscula, una minúscula y un símbolo.'; return; }
           try {
             await window.APICE.post('/auth/cambiar-clave', { actual: claveActual, nueva: nueva });
             document.body.removeChild(ov);
@@ -267,7 +271,7 @@
   function pantallaNuevaClave(token) {
     var ov = overlay(
       '<h2 style="font-size:19px;margin:0 0 6px">Eleg&iacute; tu contrase&ntilde;a nueva</h2>'
-      + '<p style="font-size:14px;color:#6B7280;margin:0 0 16px">M&iacute;nimo 6 caracteres. Us&aacute; una que no uses en otro lado.</p>'
+      + '<p style="font-size:14px;color:#6B7280;margin:0 0 16px">M&iacute;nimo 8 caracteres, con una <b>may&uacute;scula</b>, una <b>min&uacute;scula</b> y un <b>s&iacute;mbolo</b>. Us&aacute; una que no uses en otro lado.</p>'
       + '<label for="nc1" style="display:block;font-size:12px;color:#6B7280;margin-bottom:4px">Contrase&ntilde;a nueva</label>'
       + '<input id="nc1" type="password" autocomplete="new-password" style="' + estiloInp + '">'
       + '<label for="nc2" style="display:block;font-size:12px;color:#6B7280;margin:12px 0 4px">Repetila</label>'
@@ -279,7 +283,7 @@
         msg = ov.querySelector('#ncMsg'), btn = ov.querySelector('#ncOk');
     setTimeout(function () { try { a.focus(); } catch (e) {} }, 60);
     btn.addEventListener('click', async function () {
-      if ((a.value || '').length < 6) { msg.style.color = '#B42318'; msg.textContent = 'Tiene que tener al menos 6 caracteres.'; return; }
+      if (!apClaveFuerte(a.value || '')) { msg.style.color = '#B42318'; msg.textContent = 'Debe tener 8+ caracteres, con una mayúscula, una minúscula y un símbolo.'; return; }
       if (a.value !== b.value) { msg.style.color = '#B42318'; msg.textContent = 'Las dos contrase\u00f1as no coinciden.'; return; }
       btn.disabled = true; btn.textContent = 'Guardando...';
       try {

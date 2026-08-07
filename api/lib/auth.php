@@ -43,6 +43,18 @@ function generar_clave_temporal() {
   return 'Apice-' . $s;
 }
 
+/* Reglas de una contraseña segura para ÁPICE. Devuelve '' si cumple, o el
+   motivo (texto para mostrar) si no. Exige: 8+ caracteres, una mayúscula, una
+   minúscula y un símbolo. */
+function password_fuerte($p) {
+  $p = (string)$p;
+  if (mb_strlen($p) < 8)                    return 'La contraseña debe tener al menos 8 caracteres.';
+  if (!preg_match('/[A-ZÁÉÍÓÚÜÑ]/u', $p))   return 'La contraseña debe incluir al menos una MAYÚSCULA.';
+  if (!preg_match('/[a-záéíóúüñ]/u', $p))   return 'La contraseña debe incluir al menos una minúscula.';
+  if (!preg_match('/[^A-Za-z0-9]/u', $p))   return 'La contraseña debe incluir al menos un símbolo (por ejemplo . - _ ! @ # * ).';
+  return '';
+}
+
 /* Devuelve la usuaria logueada (arreglo) o null si no hay sesión. */
 function current_user() {
   static $u = null;
