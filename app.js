@@ -1181,7 +1181,9 @@ function mAgregar(){
   </div>
   <div class="field"><label>Cliente</label><select id="n_cli_sel"><option value="">— Elegí un cliente existente —</option>${cliOpts}<option value="__nuevo__">➕ Cargar un cliente nuevo</option></select></div>
   <div class="field"><label>…o nombre del cliente nuevo</label><input id="n_cli_nuevo" placeholder="Completá solo si elegiste “cliente nuevo”"></div>
-  <div class="field"><label>Materia</label><select id="n_mat">${materiasFiltro().map(x=>`<option>${esc(x)}</option>`).join("")}</select></div>
+  <div class="field"><label>Materia</label>
+    <select id="n_mat" onchange="var o=document.getElementById('n_mat_otra');if(o){o.style.display=(this.value==='__otra__')?'block':'none';if(this.value==='__otra__')o.focus();}">${materiasFiltro().map(x=>`<option>${esc(x)}</option>`).join("")}<option value="__otra__">➕ Otra materia (escribir)…</option></select>
+    <input id="n_mat_otra" type="text" placeholder="Escribí la materia (ej: Supresión de apellido)" style="display:none;margin-top:6px;width:100%;padding:10px 12px;border:1px solid #D3D7DE;border-radius:9px;font-size:14px;box-sizing:border-box"></div>
   <div class="field"><label>Objeto</label><input id="n_obj" placeholder="Breve descripción del objeto"></div>
   <div class="field"><label>Partes intervinientes</label><textarea id="n_par" rows="2" placeholder="Actora / demandado / causante…"></textarea></div>
   <div class="field"><label>Fuero</label><input id="n_fuero" placeholder="Civil / Familia / …"></div>
@@ -1593,7 +1595,7 @@ function guardarNueva(){const g=id=>{const el=document.getElementById(id);return
   const pend=enTr
     ?[{t:"Verificar el último movimiento en el expediente (IURIX).",done:false},{t:"Completar datos y documentación.",done:false}]
     :[{t:"Completar datos y documentación.",done:false},{t:"Preparar escrito de inicio.",done:false}];
-  causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:[g("n_mat")||"Sucesión"],
+  causas.unshift({id:"nueva-"+Date.now(),estado:est,procesal:null,materia:[(function(){var m=g("n_mat");if(m==='__otra__')m=((document.getElementById('n_mat_otra')||{}).value||'').trim();return m||"Sucesión";})()],
     caratula:car,cliente:cliName||"A completar",expediente:exp,cuij:null,objeto:g("n_obj")||"A completar.",
     fuero:g("n_fuero")||"A definir",juzgado:g("n_juz")||"A definir al presentar",juez:g("n_juez")||"—",secretaria:g("n_sec")||"—",dirJuzId:(document.getElementById("n_dirjuz")||{}).value||null,
     letrada:g("n_let")||nombreProfesional(),clienteEs:"activa",actorRol:"Actora",actor:g("n_par")||"A completar",actorPat:g("n_let")||nombreProfesional(),demandadoRol:"Demandado",demandado:"A completar",demandadoPat:"",clienteCalidad:"por derecho propio",posicion:"—",
