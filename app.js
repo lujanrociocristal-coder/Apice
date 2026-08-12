@@ -1494,7 +1494,7 @@ const fjus=n=>{n=Math.round((+n||0)*100)/100;if(Number.isInteger(n))return Strin
 function toggleCalc(force){const open=(typeof force==='boolean')?force:!calcSt.open;calcSt.open=open;document.body.classList.toggle('calc-open',open);if(open)renderSide();}
 function setCalcMode(m){calcSt.mode=m;calcSt.applied=null;renderCalc();}
 function calcQinput(v){calcSt.q=v;const lst=document.getElementById('calcList');if(lst)lst.innerHTML=calcListHtml();}
-function calcListHtml(){const q=(calcSt.q||'').toLowerCase().trim();let out='';let grp='';const items=ARANCEL_FIJOS.map((it,i)=>({it,i})).filter(o=>!q||(o.it.l+' '+o.it.g).toLowerCase().includes(q));if(!items.length)return '<div class="vacio" style="padding:14px 2px">Sin coincidencias.</div>';items.forEach(o=>{if(o.it.g!==grp){grp=o.it.g;out+='<div class="calc-grp">'+esc(grp)+'</div>';}out+='<button class="calc-it '+(calcSt.sel===o.i?'sel':'')+'" onclick="calcSelFija('+o.i+')"><span>'+esc(o.it.l)+'</span><span class="cj">'+fjus(o.it.jus)+' JUS</span></button>';});return out;}
+function calcListHtml(){const q=(calcSt.q||'').toLowerCase().trim();let out='';let grp='';const items=ARANCEL_FIJOS.map((it,i)=>({it,i})).filter(o=>!q||(o.it.l+' '+o.it.g).toLowerCase().includes(q));if(!items.length)return '<div class="vacio" style="padding:14px 2px">Sin coincidencias.</div>';items.forEach(o=>{if(o.it.g!==grp){grp=o.it.g;out+='<div class="calc-grp">'+esc(grp)+'</div>';}out+='<button class="calc-it '+(calcSt.sel===o.i?'sel':'')+'" onclick="calcSelFija('+o.i+')"><span>'+esc(o.it.l)+'<small style="display:block;opacity:.55;font-weight:400;font-size:11px;margin-top:2px">Ley 5724, '+esc(o.it.art)+'</small></span><span class="cj">'+fjus(o.it.jus)+' JUS</span></button>';});return out;}
 function calcSelFija(i){calcSt.sel=i;calcSt.applied=null;renderCalc();}
 function tramo25(j){if(j<=30)return{r:"0 – 30 JUS",min:19,max:25};if(j<=90)return{r:"31 – 90 JUS",min:18,max:24};if(j<=180)return{r:"91 – 180 JUS",min:17,max:23};if(j<=300)return{r:"181 – 300 JUS",min:16,max:22};if(j<=900)return{r:"301 – 900 JUS",min:15,max:21};if(j<=1500)return{r:"901 – 1500 JUS",min:14,max:20};return{r:"1501 JUS en adelante",min:13,max:19};}
 function calcEco(){const vIus=+config.valorIUS||0;const raw=(calcSt.base||'').toString().replace(/[^\d.,]/g,'').replace(/\./g,'').replace(',','.');const base=+raw||0;const tEl=document.getElementById('calc_tipo');if(tEl)calcSt.tipo=tEl.value;const omEl=document.getElementById('calc_otromin');if(omEl)calcSt.otroMin=omEl.value;if(!vIus){calcSt.last={err:'sinius'};renderCalc();return;}if(!base||base<=0){calcSt.last={err:'sinbase'};renderCalc();return;}const baseJUS=base/vIus;const t=tramo25(baseJUS);const honMinJUS=baseJUS*t.min/100;const honMaxJUS=baseJUS*t.max/100;const legalMin=calcSt.tipo==='conocimiento'?20:(calcSt.tipo==='ejecucion'?10:(+calcSt.otroMin||0));let warn=null,effMin=honMinJUS,effMax=honMaxJUS;if(honMaxJUS<legalMin){warn='todo';effMin=legalMin;effMax=legalMin;}else if(honMinJUS<legalMin){warn='piso';effMin=legalMin;}calcSt.last={base,baseJUS,t,honMinJUS,honMaxJUS,legalMin,effMin,effMax,warn};calcSt.applied=null;renderCalc();}
@@ -1582,7 +1582,7 @@ function guardarEdit(id){const c=get(id);const g=i=>document.getElementById(i).v
   c.actor=g('e_act').trim();c.actorPat=g('e_actpat').trim();c.demandado=g('e_dem').trim();c.demandadoPat=g('e_dempat').trim();c.cliente=g('e_cli').trim();c.clienteCalidad=g('e_ccal').trim();
   c.dirJuzId=(document.getElementById('e_dirjuz')||{}).value||null;
   persist();closeModal();if(st.vista==="ficha")renderFicha();}
-function irACausa(id,tab){st.modal=null;st.actual=id;st.vista="ficha";st.tab=tab;st.cliente=false;st.editPend=null;window.scrollTo(0,0);render();}
+function irACausa(id,tab){st.modal=null;st.actual=id;st.vista="ficha";st.tab=tab;st.cliente=false;st.editPend=null;try{marcarColegaVisto(id);}catch(e){}window.scrollTo(0,0);render();}
 function resolver(id,idx,opcion){const c=get(id);const a=c.alertas[idx];if(!a)return;
   if(a.t==='eleccion'&&a.campo&&opcion)c[a.campo]=opcion;
   c.alertas.splice(idx,1);persist();
@@ -1796,7 +1796,7 @@ function notifs(){const hk=hoyKey();return audiencias.filter(a=>a.cliAsiste&&a.f
 function citasProx(){const hk=hoyKey();return audiencias.filter(a=>a.tipo==='cita'&&a.fecha&&a.fecha>=hk).sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')));}
 function pagosInformados(){const out=[];causas.forEach(c=>{((c.honorarios&&c.honorarios.pagos)||[]).forEach((p,i)=>{if(p.confirmado===false)out.push({cid:c.id,cliente:c.cliente,caratula:cShort(c.caratula),ius:+p.ius||0,fecha:p.fecha,i:i,compArch:p.compArch});});});return out;}
 function irAHonorarios(cid){st.actual=cid;st.vista='ficha';st.tab='honorarios';st.cliente=false;window.scrollTo(0,0);render();}
-function irACausa(cid){st.actual=cid;st.vista='ficha';st.tab='datos';st.cliente=false;window.scrollTo(0,0);render();}
+function irACausa(cid,tab){st.actual=cid;st.vista='ficha';st.tab=tab||'datos';st.cliente=false;try{marcarColegaVisto(cid);}catch(e){}window.scrollTo(0,0);render();}
 /* Causas con caducidad de instancia próxima o vencida. */
 function caducidadesProximas(){if(!jurMod('caducidad'))return [];const out=[];causas.forEach(c=>{if(c.estado==='finalizada'||c.estado==='suspenso')return;const r=calcCaducidad(c);if(r&&r.venc&&!r.nocaduca&&!r.sinImpulso&&!r.pausa&&['venc','rojo','amar'].indexOf(r.nivel)>=0){out.push({cid:c.id,caratula:cShort(c.caratula),cliente:c.cliente,venc:r.venc,dias:r.diasRest,nivel:r.nivel});}});out.sort((a,b)=>a.dias-b.dias);return out;}
 /* Clientes/causas con saldo impago hace más de 30 días. */
@@ -1862,7 +1862,29 @@ async function notificarUrgentes(){
     try{localStorage.setItem('apice_notif_vistos',JSON.stringify(vistos));}catch(e){}
   }catch(e){}
 }
-function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas()+pagosInformados().length+caducidadesProximas().length+morosos().length+compartidasConmigo().length+((jurMod('arancel')&&iusDesactualizado())?1:0)+__avAuto.docs+__avAuto.clis;b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
+function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas()+pagosInformados().length+caducidadesProximas().length+morosos().length+compartidasConmigo().length+novedadesColegas().length+((jurMod('arancel')&&iusDesactualizado())?1:0)+__avAuto.docs+__avAuto.clis;b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
+/* ===== #7 Novedades de colegas en causas compartidas (marca local por dispositivo) =====
+   Detecta cuándo el otro/a colega agregó movimientos, documentos o pendientes en una
+   causa compartida, sin tocar datos del servidor. La "vista" se guarda en este equipo. */
+function _colegaSig(c){return {b:(c.bitacora||[]).length,d:(c.documentos||[]).length,a:(c.archivos||[]).length,p:(c.pendientes||[]).length};}
+function _colegaSeen(){try{return JSON.parse(localStorage.getItem('apice_colega_seen')||'{}');}catch(e){return {};}}
+function _colegaSeenSave(o){try{localStorage.setItem('apice_colega_seen',JSON.stringify(o));}catch(e){}}
+function marcarColegaVisto(id){const c=(typeof get==='function')?get(id):null;if(!c)return;if(!(c._compartida||(typeof misCompartidas!=='undefined'&&misCompartidas[id])))return;const s=_colegaSeen();s[id]=_colegaSig(c);_colegaSeenSave(s);}
+function novedadesColegas(){
+  const s=_colegaSeen();let changed=false;const out=[];
+  causas.forEach(c=>{
+    const esComp=c._compartida||(typeof misCompartidas!=='undefined'&&misCompartidas[c.id]);if(!esComp)return;
+    const sig=_colegaSig(c);const prev=s[c.id];
+    if(!prev){s[c.id]=sig;changed=true;return;}
+    const partes=[];
+    if(sig.b>prev.b)partes.push((sig.b-prev.b)+' movimiento(s)');
+    if((sig.d+sig.a)>(prev.d+prev.a))partes.push(((sig.d+sig.a)-(prev.d+prev.a))+' documento(s)');
+    if(sig.p>prev.p)partes.push((sig.p-prev.p)+' pendiente(s)');
+    if(partes.length)out.push({c,detalle:partes.join(' · '),quien:c._compartida?(c._origen||'Otro estudio'):'Un colega'});
+  });
+  if(changed)_colegaSeenSave(s);
+  return out;
+}
 function renderAvisos(){
   const list=notifs();const hk=hoyKey();
   const cards=list.map(a=>{
@@ -1914,11 +1936,16 @@ function renderAvisos(){
       <div class="avi-meta">${esc(cShort(c.caratula))}</div></div>
       <button class="btn-sec" onclick="irACausa('${c.id}')">Abrir</button></div>`).join('');
   const compSec=comps.length?`<div class="avi-sec"><div class="avi-sec-h">Causas compartidas con vos <span class="avi-n">${comps.length}</span></div><div class="avi-list">${compCards}</div></div>`:'';
+  const novs=novedadesColegas();
+  const novCards=novs.map(x=>`<div class="avi-card"><div class="avi-ic">🤝</div><div class="avi-body"><div class="avi-top"><b>${esc(x.quien)}</b> actualizó una causa compartida.<span class="avi-tag man">NOVEDAD</span></div>
+      <div class="avi-meta">${esc(cShort(x.c.caratula))} — ${esc(x.detalle)}</div></div>
+      <button class="btn-sec" onclick="marcarColegaVisto('${x.c.id}');irACausa('${x.c.id}','avance')">Ver novedades</button></div>`).join('');
+  const novSec=novs.length?`<div class="avi-sec"><div class="avi-sec-h">Novedades de colegas <span class="avi-n">${novs.length}</span></div><div class="avi-list">${novCards}</div></div>`:'';
   const iusSec=(jurMod('arancel')&&iusDesactualizado())?`<div class="avi-sec"><div class="avi-sec-h">Valor del IUS</div><div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div></div>`:'';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
     <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Todo lo que requiere tu atención, reunido en un solo lugar.</div></div></div>
     ${('Notification' in window)?(Notification.permission!=='granted'?`<div class="avi-sec"><div class="avi-row"><span>📱 Activá las notificaciones en este dispositivo para recibir en el celular los avisos urgentes —vencimientos de plazos y audiencias de hoy/mañana— con el logo de ÁPICE.</span><button class="btn-sec" onclick="activarNotificaciones()">🔔 Activar avisos en el celular</button></div></div>`:`<div class="avi-sec"><div class="avi-row"><span>✅ Notificaciones activadas en este dispositivo. Vas a recibir en el celular los avisos urgentes (vencimientos y audiencias de hoy/mañana).</span><button class="btn-sec" onclick="probarPush()">Probar aviso</button></div></div>`):''}
-    ${urgSec}${cadSec}${infoSec}<div id="avAutoDocs"></div><div id="avAutoClis"></div>${morSec}${compSec}${iusSec}${audSec}${citaSec}${avSec}${verSec}
+    ${novSec}${urgSec}${cadSec}${infoSec}<div id="avAutoDocs"></div><div id="avAutoClis"></div>${morSec}${compSec}${iusSec}${audSec}${citaSec}${avSec}${verSec}
     <img src="/apice-trigger.gif" alt="" style="display:none" onerror="cargarAvisosAuto();this.remove()"></div>`;
 }
 function verEnCalendario(key){sideSt.sec='calendario';sideSt.calSel=key;const dt=new Date(key+'T00:00:00');sideSt.calY=dt.getFullYear();sideSt.calM=dt.getMonth();st.nav='calendario';window.scrollTo(0,0);render();}
