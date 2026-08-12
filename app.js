@@ -364,6 +364,18 @@ function mdArt(scen){
       <circle cx="118" cy="104" r="5" fill="#DC2626"/><circle cx="146" cy="104" r="5" fill="#DC2626"/><circle cx="174" cy="104" r="5" fill="#DC2626"/></g>
   </svg>`;
 }
+/* Trae del servidor los últimos cambios (causas propias y compartidas, agenda y
+   clientes) sin cerrar sesión. Útil en el celular, donde recargar cuesta. */
+async function sincronizarApp(){
+  try{
+    var s=await loadState(); if(s&&Array.isArray(s)){causas=s;normalize();}
+    marcarCausasGuardadas(causas.filter(function(c){return !c._compartida;}));
+    try{await cargarCompartidas();}catch(e){}
+    var sa=await loadAud(); if(sa&&Array.isArray(sa))audiencias=sa;
+    var sc=await loadCli(); if(sc&&typeof sc==='object')clientes=sc;
+  }catch(e){}
+  render();
+}
 function renderInicio(){
   const hk=hoyKey();
   const today=new Date(hk+"T00:00:00");
@@ -393,7 +405,7 @@ function renderInicio(){
   }[scen];
   // ítems concretos de hoy
   const hoyChips=[];
-  audHoy.forEach(a=>{const c=a.causaId?get(a.causaId):null;hoyChips.push(`<button class="hoy-it" onclick="${a.causaId?("abrirFicha('"+a.causaId+"')"):"navTo('audiencias')"}"><span class="hi-ic">⚖</span><span><b>Audiencia${a.hora?(" · "+esc(a.hora)+" hs"):""}</b> ${a.cliAsiste?'· asiste el cliente':''}<br><span class="hi-s">${a.tipo==="juzgado"?(c?esc(cShort(c.caratula)):"Audiencia"):("Mediación · "+esc(a.materia||""))}</span></span></button>`);});
+  audHoy.forEach(a=>{const c=a.causaId?get(a.causaId):null;hoyChips.push(`<button class="hoy-it" onclick="${a.causaId?("abrirFicha('"+a.causaId+"')"):"navTo('audiencias')"}"><span class="hi-ic">${a.tipo==="cita"?"📅":"⚖"}</span><span><b>${a.tipo==="cita"?"Cita con cliente":"Audiencia"}${a.hora?(" · "+esc(a.hora)+" hs"):""}</b> ${a.cliAsiste?'· asiste el cliente':''}<br><span class="hi-s">${a.tipo==="juzgado"?(c?esc(cShort(c.caratula)):"Audiencia"):(a.tipo==="cita"?esc(a.cliente||"cliente"):("Mediación · "+esc(a.materia||"")))}</span></span></button>`);});
   cadHoy.forEach(x=>hoyChips.push(`<button class="hoy-it urg" onclick="abrirFicha('${x.c.id}')"><span class="hi-ic">⏰</span><span><b>Caducidad ${x.k.diasRest<0?'vencida':'vence hoy'}</b><br><span class="hi-s">${esc(cShort(x.c.caratula))}</span></span></button>`));
   tVenc.forEach(o=>hoyChips.push(`<button class="hoy-it urg" onclick="abrirFicha('${o.c.id}')"><span class="hi-ic">📌</span><span><b>Tarea atrasada</b> · ${esc(o.p.t)}<br><span class="hi-s">${esc(cShort(o.c.caratula))}</span></span></button>`));
   tHoy.forEach(o=>hoyChips.push(`<button class="hoy-it" onclick="abrirFicha('${o.c.id}')"><span class="hi-ic">📌</span><span><b>Tarea</b> · ${esc(o.p.t)}<br><span class="hi-s">${esc(cShort(o.c.caratula))}</span></span></button>`));
@@ -411,7 +423,7 @@ function renderInicio(){
   const plzCard=`<div class="mdcard"><div class="mdcard-h"><h3>Plazos y vencimientos</h3><span class="mdcard-sub">por urgencia</span></div><div class="pz-list">${plzRows}</div><div class="pz-foot">⚠ Cálculo orientativo de caducidad. Verificá siempre en el expediente.</div></div>`;
   // ---- Próximos 7 días ----
   const prox=[];
-  audProx.forEach(a=>{const c=a.causaId?get(a.causaId):null;prox.push({f:a.fecha,h:a.hora||"",html:`<button class="p7-row" onclick="${a.causaId?("abrirFicha('"+a.causaId+"')"):"navTo('audiencias')"}"><span class="p7-date">${a.fecha.slice(8,10)}/${a.fecha.slice(5,7)}</span><div class="p7-main"><div class="p7-car">${a.tipo==="juzgado"?(c?esc(cShort(c.caratula)):"Audiencia"):("Mediación · "+esc(a.materia||""))}</div><div class="p7-sub">⚖ Audiencia${a.hora?(" · "+esc(a.hora)+" hs"):""} ${a.cliAsiste?'<span class="p7-tag">asiste el cliente</span>':''}</div></div></button>`});});
+  audProx.forEach(a=>{const c=a.causaId?get(a.causaId):null;prox.push({f:a.fecha,h:a.hora||"",html:`<button class="p7-row" onclick="${a.causaId?("abrirFicha('"+a.causaId+"')"):"navTo('audiencias')"}"><span class="p7-date">${a.fecha.slice(8,10)}/${a.fecha.slice(5,7)}</span><div class="p7-main"><div class="p7-car">${a.tipo==="juzgado"?(c?esc(cShort(c.caratula)):"Audiencia"):(a.tipo==="cita"?("Cita con "+esc(a.cliente||"cliente")):("Mediación · "+esc(a.materia||"")))}</div><div class="p7-sub">${a.tipo==="cita"?"📅 Cita con cliente":"⚖ Audiencia"}${a.hora?(" · "+esc(a.hora)+" hs"):""} ${a.cliAsiste?'<span class="p7-tag">asiste el cliente</span>':''}</div></div></button>`});});
   if(jurMod('caducidad'))cadProx.forEach(x=>{const iso=ferYMD(x.k.venc);prox.push({f:iso,h:"",html:`<button class="p7-row" onclick="abrirFicha('${x.c.id}')"><span class="p7-date amar">${iso.slice(8,10)}/${iso.slice(5,7)}</span><div class="p7-main"><div class="p7-car">${esc(cShort(x.c.caratula))}</div><div class="p7-sub">⏰ Caducidad por vencer · ${x.k.diasRest} días</div></div></button>`});});
   tProx.forEach(o=>{prox.push({f:o.p.fecha,h:"",html:`<button class="p7-row" onclick="abrirFicha('${o.c.id}')"><span class="p7-date">${o.p.fecha.slice(8,10)}/${o.p.fecha.slice(5,7)}</span><div class="p7-main"><div class="p7-car">${esc(cShort(o.c.caratula))}</div><div class="p7-sub">📌 Tarea · ${esc(o.p.t)}</div></div></button>`});});
   prox.sort((a,b)=>((a.f||"")+(a.h||"")).localeCompare((b.f||"")+(b.h||"")));
@@ -447,6 +459,7 @@ function renderInicio(){
         <button class="md2-btn primary" onclick="openModal({tipo:'agregar'})">+ Nueva causa</button>
         <button class="md2-btn out" onclick="navTo('audiencias')">+ Audiencia</button>
         <button class="md2-btn out" onclick="openModal({tipo:'tarearapida'})">+ Tarea</button>
+        <button class="md2-btn out" onclick="sincronizarApp()" title="Traer los últimos cambios (útil en el celular)">⟳ Actualizar</button>
       </div>
     </div>
     <div class="md2-grid">
@@ -1947,7 +1960,7 @@ function renderAudiencias(){
           <option value="mediacion" ${af.tipo==='mediacion'?'selected':''}>Mediación</option>
           <option value="cita" ${af.tipo==='cita'?'selected':''}>Cita con cliente</option></select></div>
         <div class="calc-field"><label>Fecha</label><input type="date" id="aud_fecha" value="${attr(af.fecha)}" oninput="afSet('fecha',this.value)"></div>
-        <div class="calc-field"><label>Hora</label><input type="text" inputmode="numeric" id="aud_hora" value="${attr(af.hora)}" placeholder="Ej: 18:00, 18 o 6 pm" oninput="afSet('hora',this.value)"><div class="calc-hint2">Escribila directo: 18:00, 18 o 6 pm.</div></div>
+        <div class="calc-field"><label>Hora</label><input type="text" inputmode="numeric" id="aud_hora" value="${attr(af.hora)}" placeholder="Ej: 1800 (= 18:00) o 18" oninput="afSet('hora',this.value)"><div class="calc-hint2">Escribí solo números: 1800 = 18:00 · 930 = 9:30. También vale 18 o 6 pm.</div></div>
         ${cond}
         ${af.tipo!=='cita'?`<label class="aud-check"><input type="checkbox" id="aud_cliasiste" ${af.cliAsiste?'checked':''} onchange="afSet('cliAsiste',this.checked)"> <span>El cliente debe asistir a esta audiencia</span></label>`:''}
         <div class="aud-btns"><button class="calc-btn" onclick="addAudiencia()">${af.tipo==='cita'?'+ Agregar cita':'+ Agregar audiencia'}</button><button class="calc-btn ghost" onclick="afReset()">Limpiar</button></div>
@@ -1969,7 +1982,7 @@ function parseHora(s){
   const t=s.replace(/[^0-9:]/g,''); if(!t)return '';
   let h,m=0;
   if(t.indexOf(':')>=0){const p=t.split(':');h=parseInt(p[0],10);m=parseInt(p[1]||'0',10);}
-  else{h=parseInt(t,10);m=0;}
+  else{if(t.length>=3){m=parseInt(t.slice(-2),10);h=parseInt(t.slice(0,-2),10);}else{h=parseInt(t,10);m=0;}}
   if(isNaN(h))return '';
   if(pm&&h<12)h+=12; if(am&&h===12)h=0;
   if(h<0)h=0; if(h>23)h=23; if(isNaN(m)||m<0)m=0; if(m>59)m=59;

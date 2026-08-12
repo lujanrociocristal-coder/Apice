@@ -123,11 +123,20 @@ function archivos_max_bytes()  { return 20 * 1024 * 1024; } // 20 MB
 function archivos_estudios_de_causa($causaUuidRaw, $u) {
     $eds = [(int)$u['estudio_id']];
     try {
-        $st = db()->prepare("SELECT estudio_origen_id FROM causa_compartida
-                             WHERE causa_uuid = ? AND colaborador_id = ? AND permiso = 'edicion' LIMIT 1");
-        $st->execute([(string)$causaUuidRaw, (int)$u['id']]);
-        $oe = $st->fetchColumn();
-        if ($oe) $eds[] = (int)$oe;
+        /* "Círculo" de la causa compartida: el estudio dueño + los estudios de
+           todos los colegas con quienes está compartida. Si mi estudio está en
+           ese círculo (soy el dueño o uno de los colegas), veo TODOS los
+           archivos del círculo, sin importar quién los subió. */
+        $st = db()->prepare("SELECT cc.estudio_origen_id AS dueno, us.estudio_id AS colega
+                             FROM causa_compartida cc JOIN usuarios us ON us.id = cc.colaborador_id
+                             WHERE cc.causa_uuid = ?");
+        $st->execute([(string)$causaUuidRaw]);
+        $circulo = []; $miEstudio = (int)$u['estudio_id']; $enCirculo = false;
+        foreach ($st->fetchAll() as $r) {
+            $circulo[] = (int)$r['dueno']; $circulo[] = (int)$r['colega'];
+            if ((int)$r['dueno'] === $miEstudio || (int)$r['colega'] === $miEstudio) $enCirculo = true;
+        }
+        if ($enCirculo) $eds = array_merge($eds, $circulo);
     } catch (Throwable $e) { /* silencioso */ }
     return array_values(array_unique($eds));
 }
@@ -137,10 +146,15 @@ function archivos_estudios_de_causa($causaUuidRaw, $u) {
 function archivos_estudios_editables($u) {
     $eds = [(int)$u['estudio_id']];
     try {
-        $st = db()->prepare("SELECT DISTINCT estudio_origen_id FROM causa_compartida
-                             WHERE colaborador_id = ? AND permiso = 'edicion'");
+        // Estudios dueños de causas que comparten CONMIGO (soy colaborador).
+        $st = db()->prepare("SELECT DISTINCT estudio_origen_id FROM causa_compartida WHERE colaborador_id = ?");
         $st->execute([(int)$u['id']]);
         foreach ($st->fetchAll() as $r) { $eds[] = (int)$r['estudio_origen_id']; }
+        // Estudios de colegas a quienes MI estudio les compartió causas.
+        $st2 = db()->prepare("SELECT DISTINCT us.estudio_id FROM causa_compartida cc
+                              JOIN usuarios us ON us.id = cc.colaborador_id WHERE cc.estudio_origen_id = ?");
+        $st2->execute([(int)$u['estudio_id']]);
+        foreach ($st2->fetchAll() as $r) { $eds[] = (int)$r['estudio_id']; }
     } catch (Throwable $e) { /* silencioso */ }
     return array_values(array_unique($eds));
 }
