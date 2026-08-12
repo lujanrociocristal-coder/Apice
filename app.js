@@ -1716,8 +1716,11 @@ const DOW=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 const AUD='gestor_aud_v1';
 let audiencias=[];
 let sideSt={sec:'calendario',calY:null,calM:null,calSel:'',af:null};
-async function loadAud(){try{if(window.storage){const r=await window.storage.get(AUD);if(r&&r.value)return JSON.parse(r.value);}}catch(e){}try{if(typeof localStorage!=='undefined'){const v=localStorage.getItem(AUD);if(v)return JSON.parse(v);}}catch(e){}return null;}
-async function saveAud(){const d=JSON.stringify(audiencias);try{if(window.storage){await window.storage.set(AUD,d);return;}}catch(e){}try{if(typeof localStorage!=='undefined')localStorage.setItem(AUD,d);}catch(e){}}
+/* El servidor usa el campo 'clienteNombre'; la app usa 'cliente'. Normalizamos en
+   ambos sentidos para que el nombre del cliente no se pierda al recargar. */
+function normAud(arr){if(!Array.isArray(arr))return arr;arr.forEach(a=>{if(a){const n=a.cliente||a.clienteNombre||'';a.cliente=n;a.clienteNombre=n;}});return arr;}
+async function loadAud(){try{if(window.storage){const r=await window.storage.get(AUD);if(r&&r.value)return normAud(JSON.parse(r.value));}}catch(e){}try{if(typeof localStorage!=='undefined'){const v=localStorage.getItem(AUD);if(v)return normAud(JSON.parse(v));}}catch(e){}return null;}
+async function saveAud(){normAud(audiencias);const d=JSON.stringify(audiencias);try{if(window.storage){await window.storage.set(AUD,d);return;}}catch(e){}try{if(typeof localStorage!=='undefined')localStorage.setItem(AUD,d);}catch(e){}}
 function persistAud(){saveAud();}
 
 function navHTML(){const s=sideSt.sec;const b=(id,ic,l)=>`<button class="side-tab ${s===id?'on':''}" onclick="setSide('${id}')">${ic} ${l}</button>`;

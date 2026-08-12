@@ -306,6 +306,7 @@ function handle_estado($method, $resto) {
           'fecha'         => $a['fecha'],
           'hora'          => $a['hora'],
           'detalle'       => $a['detalle'],
+          'cliente'       => $a['cliente_nombre'],
           'clienteNombre' => $a['cliente_nombre'],
           'materia'       => $a['materia'],
           'cliAsiste'     => (bool)$a['cli_asiste'],
@@ -354,7 +355,7 @@ function handle_estado($method, $resto) {
           $ups->execute([
             $eid,$uuid,$tipo,$fecha,
             $a['hora']??null,$a['detalle']??null,
-            $a['clienteNombre']??null,$a['materia']??null,
+            ($a['cliente']??$a['clienteNombre'])??null,$a['materia']??null,
             empty($a['cliAsiste'])?0:1,$a['modalidad']??null,$a['lugar']??null,$a['link']??null,
           ]);
         }
