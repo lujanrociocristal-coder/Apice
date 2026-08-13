@@ -197,6 +197,20 @@
   .padd input{flex:1;border:1px solid var(--linea-fuerte);border-radius:9px;padding:10px 12px;font-size:13.5px;font-family:inherit;outline:none}
   .padd input:focus{border-color:var(--azul)}
   .padd button{background:var(--tinta);color:#fff;font-size:13px;font-weight:600;padding:0 16px;border-radius:9px}
+  /* Celulares: que las filas se acomoden y nada se corte fuera de la pantalla */
+  @media(max-width:560px){
+    html,body{overflow-x:hidden}
+    .pitem{flex-wrap:wrap}
+    .pitem .ptxt{flex:1 1 62%;min-width:0}
+    .pitem .pfecha{margin-left:auto}
+    .padd{flex-wrap:wrap}
+    .padd #np{flex:1 1 100%}
+    .padd .pfecha{flex:1 1 auto}
+    .padd button{flex:1 1 100%;padding:11px 16px}
+    .mov-add{flex-wrap:wrap}
+    .mov-add #nm_texto{flex:1 1 100%;min-width:0}
+    .mov-add button{flex:1 1 100%}
+  }
   .cliente-aviso{background:var(--azul-bg);border:1px solid #BFD0F5;border-radius:10px;padding:12px 15px;font-size:13px;color:var(--azul-tx);margin-bottom:20px;display:flex;gap:9px;align-items:flex-start}
   .cli-card{border:1px solid var(--linea);border-radius:12px;padding:24px;background:linear-gradient(180deg,#FBFAF7,#fff)}
   .cli-card .clab{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}

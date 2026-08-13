@@ -17,8 +17,18 @@ let causas=[];
 let st={vista:"tablero",nav:"dashboard",filtrosOpen:false,actual:null,busqueda:"",fEstado:null,fMateria:null,fProcesal:null,tab:"datos",cliente:false,cliCausa:null,cliTab:"datos",modal:null,editPend:null,editMov:null};
 
 /* ===== PERSISTENCIA ===== */
+/* Clave numérica de la fecha de un movimiento (para ordenar del más reciente al
+   más antiguo). Soporta dd/mm/aaaa, mm/aaaa, aaaa-mm-dd, rangos y solo-año. */
+function bitKey(b){var f=((b&&b.fecha)||'').toString();var m;
+  if(m=f.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/))return (+m[3])*10000+(+m[2])*100+(+m[1]);
+  if(m=f.match(/(\d{1,2})\/(\d{4})/))return (+m[2])*10000+(+m[1])*100;
+  if(m=f.match(/(\d{4})-(\d{2})-(\d{2})/))return (+m[1])*10000+(+m[2])*100+(+m[3]);
+  if(m=f.match(/(\d{4})/))return (+m[1])*10000;
+  return 0;}
+function sortBit(c){if(c&&Array.isArray(c.bitacora))c.bitacora.sort((a,b)=>bitKey(b)-bitKey(a));return c;}
 function normalize(){causas.forEach(c=>{
   c.pendientes=c.pendientes.map(p=>typeof p==='string'?{t:p,done:false}:p);
+  sortBit(c);
   c.documentos=(c.documentos||[]).map(d=>d.carpeta?d:({n:d.n,tipo:docTipo(d.n),fecha:'',usuario:'',carpeta:inferCarpeta(d.n),relevancia:'tramite',visible:(d.v==='cli'),etiquetas:[],u:d.u||null,historial:[]}));
   if(c.actorPat===undefined)c.actorPat=(c.clienteEs==='pasiva')?'':(c.letrada||'');
   if(c.demandadoPat===undefined)c.demandadoPat=(c.clienteEs==='pasiva')?(c.letrada||''):'';
@@ -1563,7 +1573,7 @@ function renderCalc(){
   body.innerHTML=h;
 }
 function calcInit(){calcSt.open=jurMod('arancel')&&window.innerWidth>=1200;document.body.classList.toggle('calc-open',calcSt.open);renderSide();}
-function syncUltimo(c){if(c.bitacora.length){const b=c.bitacora[0];c.ultimoMov={fecha:b.fecha,texto:b.texto,nuevo:b.nuevo};}}
+function syncUltimo(c){sortBit(c);if(c.bitacora.length){const b=c.bitacora[0];c.ultimoMov={fecha:b.fecha,texto:b.texto,nuevo:b.nuevo};}}
 function addMov(id){const c=get(id);const fEl=document.getElementById('nm_fecha');const tEl=document.getElementById('nm_texto');const t=(tEl.value||'').trim();if(!t){tEl.focus();return;}const fecha=isoToDMY(fEl.value);c.bitacora.unshift({fecha,texto:t,nuevo:true});syncUltimo(c);persist();renderFicha();}
 function editMov(id,i){st.editMov={id,i};renderFicha();setTimeout(()=>{const e=document.getElementById('me_texto');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},20);}
 function cancelMov(){st.editMov=null;renderFicha();}
