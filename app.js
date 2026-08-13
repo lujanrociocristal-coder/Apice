@@ -73,6 +73,7 @@ async function loadState(){
 async function saveState(){
   // Separar causas PROPIAS (van al bloque del estudio) de las COMPARTIDAS por
   // otro estudio (se guardan en su causa de origen, sin tocar mi estudio).
+  try{embederAgenda();}catch(e){}
   const propias=causas.filter(c=>!c._compartida);
   const data=JSON.stringify(propias);
   /* 1) Respaldo en el dispositivo SIEMPRE primero: pase lo que pase, no se pierde acá. */
@@ -392,6 +393,7 @@ async function sincronizarApp(){
     marcarCausasGuardadas(causas.filter(function(c){return !c._compartida;}));
     try{await cargarCompartidas();}catch(e){}
     var sa=await loadAud(); if(sa&&Array.isArray(sa))audiencias=sa;
+    try{mergeAgendaCompartida();}catch(e){}
     var sc=await loadCli(); if(sc&&typeof sc==='object')clientes=sc;
   }catch(e){}
   render();
@@ -1986,6 +1988,7 @@ function renderAudiencias(){
   } else if(af.tipo==='cita'){
     const cliList=[...new Set(causas.map(c=>c.cliente).filter(Boolean))];
     cond=`<div class="calc-field"><label>Cliente</label>${cliList.length?`<select id="aud_clisel" style="margin-bottom:6px" onchange="afSet('cli',this.value);var _i=document.getElementById('aud_cli');if(_i)_i.value=this.value;"><option value="">— Elegí un cliente ya cargado —</option>${cliList.map(n=>`<option value="${attr(n)}" ${af.cli===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`:''}<input type="text" id="aud_cli" value="${attr(af.cli)}" placeholder="…o escribí el nombre del cliente" oninput="afSet('cli',this.value)"></div>
+       <div class="calc-field"><label>Causa (para que el colega vea la cita)</label><select id="aud_causa_cita" onchange="afSet('causa',this.value)"><option value="">— Sin causa (solo en tu agenda) —</option>${causasOpts}</select><div class="calc-hint2">Si la ligás a una causa compartida, la cita se ve también del lado del colega.</div></div>
        <div class="calc-field"><label>Modalidad</label><select id="aud_modal" onchange="afSet('modal',this.value)"><option value="presencial" ${af.modal!=='virtual'?'selected':''}>Presencial</option><option value="virtual" ${af.modal==='virtual'?'selected':''}>Virtual</option></select></div>
        ${af.modal==='virtual'
          ? `<div class="calc-field"><label>Enlace de la videollamada</label><input type="text" id="aud_link" value="${attr(af.link||'')}" placeholder="Pegá el link (Meet, Zoom, etc.)" oninput="afSet('link',this.value)"></div>`
@@ -2038,6 +2041,29 @@ function parseHora(s){
   if(h<0)h=0; if(h>23)h=23; if(isNaN(m)||m<0)m=0; if(m>59)m=59;
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
+/* ===== #4b Agenda de causas compartidas =====
+   Las audiencias/citas ligadas a una causa compartida viajan DENTRO de la causa
+   (campo c.agenda), que ya se sincroniza entre los dos abogados. Identidad por id,
+   con bajas propagadas (c._agDel). */
+function esCompartida(c){return !!(c && (c._compartida || (typeof misCompartidas!=='undefined' && misCompartidas && misCompartidas[c.id])));}
+function embederAgenda(){(causas||[]).forEach(function(c){if(esCompartida(c)){c.agenda=(audiencias||[]).filter(function(a){return a && a.causaId===c.id;});}});}
+function mergeAgendaCompartida(){
+  var byId={};(audiencias||[]).forEach(function(a){if(a&&a.id)byId[a.id]=a;});
+  var del={};
+  (causas||[]).forEach(function(c){
+    if(!esCompartida(c))return;
+    (c._agDel||[]).forEach(function(id){del[id]=true;});
+    (c.agenda||[]).forEach(function(a){if(a&&a.id){byId[a.id]=Object.assign({},a,{causaId:c.id});}});
+  });
+  Object.keys(del).forEach(function(id){delete byId[id];});
+  audiencias=Object.keys(byId).map(function(k){return byId[k];});
+  try{persistAud();}catch(e){}
+}
+async function pushAgendaCausa(causaId){
+  var c=(typeof get==='function')?get(causaId):null;if(!esCompartida(c))return;
+  c.agenda=(audiencias||[]).filter(function(a){return a && a.causaId===causaId;});
+  try{await fetch('/api/compartir/causa/'+encodeURIComponent(c.id),{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({causa:c})});}catch(e){}
+}
 function addAudiencia(){
   const af=sideSt.af;
   if(!af.fecha){alert('Poné la fecha de la audiencia.');return;}
@@ -2050,6 +2076,7 @@ function addAudiencia(){
   } else if(af.tipo==='cita'){
     if(!af.cli){alert('Poné el nombre del cliente.');return;}
     a.cliente=af.cli;a.modalidad=(af.modal==='virtual'?'virtual':'presencial');
+    if(af.causa)a.causaId=af.causa;
     if(a.modalidad==='virtual'){const le=document.getElementById('aud_link');a.link=le?le.value:(af.link||'');}
     else {const ge=document.getElementById('aud_lugar');a.lugar=ge?ge.value:((config.perfil&&config.perfil.domicilio)||'');}
     a.detalle=af.detalle||'';
@@ -2057,12 +2084,19 @@ function addAudiencia(){
     a.cliente=af.cli||'';a.materia=af.mat||'Derecho de familia';
   }
   audiencias.push(a);persistAud();persist();
+  if(a.causaId){try{pushAgendaCausa(a.causaId);}catch(e){}}
   const wasCausa=a.causaId;
   sideSt.af={tipo:af.tipo,fecha:'',hora:'',causa:'',detalle:'',cli:'',mat:'Derecho de familia',cliAsiste:false,modal:(af.modal||'presencial'),lugar:'',link:'',lugarManual:false};
   if(st.vista==='ficha'&&st.actual===wasCausa)renderFicha();
   renderSection();
 }
-function delAudiencia(id){audiencias=audiencias.filter(a=>a.id!==id);persistAud();renderSection();}
+function delAudiencia(id){
+  var a=(audiencias||[]).find(function(x){return x.id===id;});
+  var cid=a&&a.causaId;
+  audiencias=audiencias.filter(a=>a.id!==id);
+  if(cid){var c=(typeof get==='function')?get(cid):null;if(esCompartida(c)){c._agDel=c._agDel||[];if(c._agDel.indexOf(id)<0)c._agDel.push(id);try{pushAgendaCausa(cid);}catch(e){}}}
+  persistAud();renderSection();
+}
 
 /* ----- Tareas (pendientes de todas las causas) ----- */
 function renderTareas(){
@@ -3316,7 +3350,7 @@ function injectPruebaBanner(){
   document.body.appendChild(b);
 }
 async function init(){try{const mm=await (await fetch('/api/auth/me',{credentials:'same-origin'})).json();if(mm&&mm.data){window.__me=mm.data;}if(mm&&mm.data&&mm.data.logueada&&mm.data.rol==='cliente')return initCliente(mm.data);if(mm&&mm.data&&mm.data.prueba_vencida)return mostrarPruebaVencida(mm.data);}catch(e){}const savedCfg=await loadConfig();if(savedCfg&&typeof savedCfg==='object')config=Object.assign({},config,savedCfg);const saved=await loadState();if(saved&&Array.isArray(saved)){causas=saved;normalize();}else{seedCausas();}
-  marcarCausasGuardadas(causas.filter(function(c){return !c._compartida;}));try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;/* Cargar la jurisdicción del servidor ANTES de sembrar la Guía Judicial:
+  marcarCausasGuardadas(causas.filter(function(c){return !c._compartida;}));try{await cargarCompartidas();}catch(e){}const savedAud=await loadAud();if(savedAud&&Array.isArray(savedAud))audiencias=savedAud;try{mergeAgendaCompartida();}catch(e){}const savedCli=await loadCli();if(savedCli&&typeof savedCli==='object')clientes=savedCli;/* Cargar la jurisdicción del servidor ANTES de sembrar la Guía Judicial:
    así un estudio genérico no recibe los juzgados de Catamarca. */
 try{const _cf=await window.APICE.get('/config');if(_cf){if(_cf.jurisdiccion)config.jurisdiccion=_cf.jurisdiccion;if(_cf.unidad_hon)config.unidadHon=_cf.unidad_hon;}}catch(e){}
 try{const _iu=await window.APICE.get('/config/ius');if(_iu&&+_iu.valor>0){window.__iusOficial={valor:+_iu.valor,fecha:_iu.fecha||''};/* El IUS oficial es de Catamarca (Ley 5724): solo lo adoptan por defecto los estudios de esa jurisdicción. Los genéricos usan su propio valor. */ if(config.iusPropio!==true && (config.jurisdiccion||'catamarca')==='catamarca'){config.valorIUS=+_iu.valor;if(_iu.fecha)config.iusFecha=(''+_iu.fecha).split('-').reverse().join('/');}}}catch(e){}

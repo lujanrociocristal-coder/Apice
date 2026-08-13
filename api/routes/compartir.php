@@ -187,6 +187,22 @@ function compartida_merge($prev, $inc) {
     foreach ($i as $it) { if (is_array($it)) $map[$key($it)] = $it; } // la entrante agrega/actualiza
     $out[$campo] = array_values($map);
   }
+  /* Agenda (audiencias/citas de la causa compartida): identidad por 'id', con bajas
+     propagadas vía _agDel para que borrar en un lado desaparezca en el otro. */
+  $pa = (isset($prev['agenda']) && is_array($prev['agenda'])) ? $prev['agenda'] : [];
+  $ia = (isset($inc['agenda'])  && is_array($inc['agenda']))  ? $inc['agenda']  : [];
+  if ($pa || $ia) {
+    $mapA = [];
+    foreach ($pa as $it) { if (is_array($it) && isset($it['id'])) $mapA[$it['id']] = $it; }
+    foreach ($ia as $it) { if (is_array($it) && isset($it['id'])) $mapA[$it['id']] = $it; }
+    $del = array_values(array_unique(array_merge(
+      (isset($prev['_agDel']) && is_array($prev['_agDel'])) ? $prev['_agDel'] : [],
+      (isset($inc['_agDel'])  && is_array($inc['_agDel']))  ? $inc['_agDel']  : []
+    )));
+    foreach ($del as $id) { unset($mapA[$id]); }
+    $out['agenda']  = array_values($mapA);
+    $out['_agDel']  = $del;
+  }
   return $out;
 }
 
