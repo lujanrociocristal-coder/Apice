@@ -80,15 +80,25 @@ async function saveState(){
   /* 2) Guardado en el servidor. Se marca qué causas cambiaron REALMENTE en
         este dispositivo, para que el servidor no pise el trabajo de un colega
         en las causas que acá no se tocaron. */
+  const cambiadas={};
   const paraServidor=JSON.stringify(propias.map(function(c){
     const h=hashCausa(c);
     const anterior=__hashCausas[c.id];
     const cambiada=(anterior===undefined)||(h===null)||(h!==anterior);
+    if(cambiada)cambiadas[c.id]=true;
     return Object.assign({},c,{_mod:cambiada});
   }));
   try{
     if(window.storage){await window.storage.set(STORE,paraServidor);marcarCausasGuardadas(propias);syncOk();}
   }catch(e){syncFallo(paraServidor,e);}
+  /* Empujar YA (sin esperar) las causas PROPIAS que comparto con un externo y que
+     cambiaron en este dispositivo. Así, si el colega y yo cargamos algo casi a la
+     vez, ninguno pierde su cambio (el servidor los une). */
+  for(const c of propias){
+    if(cambiadas[c.id] && typeof misCompartidas!=='undefined' && misCompartidas && misCompartidas[c.id]){
+      try{ await fetch('/api/compartir/causa/'+encodeURIComponent(c.id),{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({causa:c})}); }catch(e){}
+    }
+  }
   const comp=causas.filter(c=>c._compartida&&c._permiso==='edicion');
   for(const c of comp){
     try{
