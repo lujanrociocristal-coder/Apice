@@ -584,8 +584,10 @@ function renderFicha(){
       <div class="ficha-acciones">
         <button class="btn-sec" onclick="openModal({tipo:'editar',id:'${c.id}'})">✎ Editar datos</button>
         <button class="btn-sec" onclick="openModal({tipo:'estado',id:'${c.id}'})">↻ Cambiar estado</button>
-        <button class="btn-sec" onclick="toggleCliente(true)">👁 Vista de cliente</button>
-        ${(!c._compartida||c._permiso==='edicion')?`<button class="btn-sec" onclick="accesoClienteOverlay('${c.id}')">👤 Acceso del cliente</button>`:''}
+        <div style="display:flex;gap:8px;flex:1 1 100%">
+          <button class="btn-sec" style="flex:1" onclick="toggleCliente(true)">👁 Vista cliente</button>
+          ${(!c._compartida||c._permiso==='edicion')?`<button class="btn-sec" style="flex:1" onclick="accesoClienteOverlay('${c.id}')">👤 Acceso cliente</button>`:''}
+        </div>
         ${!c._compartida?`<button class="btn-sec" onclick="compartirCausaOverlay('${c.id}')">🔗 Compartir con externo</button>`:''}
         ${!c._compartida?`<button class="btn-sec danger" onclick="delCausa('${c.id}')">🗑 Eliminar causa</button>`:''}
       </div></div>
