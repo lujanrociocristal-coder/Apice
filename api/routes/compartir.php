@@ -173,10 +173,11 @@ function compartidas_conmigo() {
 function compartida_merge($prev, $inc) {
   if (!is_array($prev)) return $inc;
   $out = $inc;
+  /* Identidad por CONTENIDO (igual que el frontend), para que no se dupliquen. */
   $claves = [
-    'pendientes' => function ($it) { return isset($it['uid']) ? $it['uid'] : (isset($it['t']) ? 'p'.mb_strtolower(trim((string)$it['t'])) : json_encode($it)); },
-    'bitacora'   => function ($it) { return isset($it['uid']) ? $it['uid'] : ('m'.(isset($it['fecha']) ? $it['fecha'] : '') . '|' . (isset($it['texto']) ? mb_strtolower(trim((string)$it['texto'])) : '')); },
-    'documentos' => function ($it) { return isset($it['uid']) ? $it['uid'] : (isset($it['n']) ? 'd'.mb_strtolower(trim((string)$it['n'])) : (isset($it['nombre']) ? 'd'.mb_strtolower(trim((string)$it['nombre'])) : json_encode($it))); },
+    'pendientes' => function ($it) { return 'p'.(isset($it['t']) ? mb_strtolower(trim((string)$it['t'])) : json_encode($it)); },
+    'bitacora'   => function ($it) { return 'm'.(isset($it['fecha']) ? $it['fecha'] : '') . '|' . (isset($it['texto']) ? mb_strtolower(trim((string)$it['texto'])) : ''); },
+    'documentos' => function ($it) { return 'd'.(isset($it['n']) ? mb_strtolower(trim((string)$it['n'])) : (isset($it['nombre']) ? mb_strtolower(trim((string)$it['nombre'])) : json_encode($it))); },
   ];
   /* Bajas propagadas: si un ítem fue borrado (su uid/clave está en _del), no se
      vuelve a incorporar aunque siga en la copia de la otra parte. */

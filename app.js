@@ -26,21 +26,18 @@ function bitKey(b){var f=((b&&b.fecha)||'').toString();var m;
   if(m=f.match(/(\d{4})/))return (+m[1])*10000;
   return 0;}
 function sortBit(c){if(c&&Array.isArray(c.bitacora))c.bitacora.sort((a,b)=>bitKey(b)-bitKey(a));return c;}
-/* ===== Identidad por ítem + bajas propagadas (pendientes/movimientos/documentos) =====
-   Cada ítem tiene un uid. Los viejos (sin uid) reciben uno DETERMINÍSTICO por contenido
-   (igual en los dos lados, para no duplicarse). Los nuevos reciben uno único (para que
-   borrar y volver a cargar el mismo texto aparezca de nuevo). Las bajas se registran en
-   c._del y se aplican en cada carga, para que borrar en un lado desaparezca en el otro. */
-function _h(s){s=(''+s);var h=5381,i=s.length;while(i)h=(h*33)^s.charCodeAt(--i);return (h>>>0).toString(36);}
-function _uid(pfx){return (pfx||'x')+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+/* ===== Identidad por CONTENIDO + bajas propagadas (pendientes/movimientos/documentos) =====
+   La clave de cada ítem es su contenido normalizado (idéntica en los dos lados y en el
+   servidor), por eso no se duplican. Borrar registra la clave en c._del; volver a cargar
+   el mismo texto quita esa clave de _del para que reaparezca. */
+function _norm(s){return (''+(s==null?'':s)).toLowerCase().trim();}
 function itemUid(campo,it){
-  if(it&&it.uid)return it.uid;
-  if(campo==='pendientes')return 'p'+_h((it&&it.t)||'');
-  if(campo==='bitacora')return 'm'+_h(((it&&it.fecha)||'')+'|'+((it&&it.texto)||''));
-  if(campo==='documentos')return 'd'+_h((it&&(it.n||it.nombre))||'');
-  return 'x'+_h(JSON.stringify(it||{}));
+  if(campo==='pendientes')return 'p'+_norm(it&&it.t);
+  if(campo==='bitacora')return 'm'+(((it&&it.fecha)||'')+'')+'|'+_norm(it&&it.texto);
+  if(campo==='documentos')return 'd'+_norm(it&&(it.n||it.nombre));
+  return 'x'+_norm(JSON.stringify(it||{}));
 }
-function asignarUids(c){['pendientes','bitacora','documentos'].forEach(function(campo){if(Array.isArray(c[campo]))c[campo].forEach(function(it){if(it&&!it.uid)it.uid=itemUid(campo,it);});});}
+function dedupItems(c){['pendientes','bitacora','documentos'].forEach(function(campo){if(!Array.isArray(c[campo]))return;var seen={},out=[];c[campo].forEach(function(it){var u=itemUid(campo,it);if(!seen[u]){seen[u]=1;out.push(it);}});c[campo]=out;});}
 function aplicarTomb(c){
   if(!c||!c._del)return;
   ['pendientes','bitacora','documentos'].forEach(function(campo){
@@ -50,9 +47,10 @@ function aplicarTomb(c){
   });
 }
 function tombItem(c,campo,it){if(!c||!it)return;c._del=c._del||{};c._del[campo]=c._del[campo]||[];var u=itemUid(campo,it);if(c._del[campo].indexOf(u)<0)c._del[campo].push(u);}
+function untombItem(c,campo,it){if(!c||!c._del||!c._del[campo]||!it)return;var u=itemUid(campo,it);c._del[campo]=c._del[campo].filter(function(x){return x!==u;});}
 function normalize(){causas.forEach(c=>{
   c.pendientes=c.pendientes.map(p=>typeof p==='string'?{t:p,done:false}:p);
-  sortBit(c);asignarUids(c);aplicarTomb(c);
+  sortBit(c);aplicarTomb(c);dedupItems(c);
   c.documentos=(c.documentos||[]).map(d=>d.carpeta?d:({n:d.n,tipo:docTipo(d.n),fecha:'',usuario:'',carpeta:inferCarpeta(d.n),relevancia:'tramite',visible:(d.v==='cli'),etiquetas:[],u:d.u||null,historial:[]}));
   if(c.actorPat===undefined)c.actorPat=(c.clienteEs==='pasiva')?'':(c.letrada||'');
   if(c.demandadoPat===undefined)c.demandadoPat=(c.clienteEs==='pasiva')?(c.letrada||''):'';
@@ -1365,7 +1363,7 @@ function cliVerCausas(){st.cliCausa=null;window.scrollTo(0,0);renderFicha();}
 function setCliTab(t){st.cliTab=t;renderFicha();}
 function togglePend(id,i){const c=get(id);c.pendientes[i].done=!c.pendientes[i].done;persist();renderFicha();}
 function delPend(id,i){const c=get(id);tombItem(c,'pendientes',c.pendientes[i]);c.pendientes.splice(i,1);st.editPend=null;persist();try{marcarColegaVisto(id);}catch(e){}renderFicha();}
-function addPend(id){const c=get(id);const el=document.getElementById("np");const fe=document.getElementById("npf");const v=el.value.trim();if(v){c.pendientes.push({t:v,done:false,fecha:(fe&&fe.value)||null,uid:_uid('p')});persist();try{marcarColegaVisto(id);}catch(e){}}renderFicha();}
+function addPend(id){const c=get(id);const el=document.getElementById("np");const fe=document.getElementById("npf");const v=el.value.trim();if(v){const np={t:v,done:false,fecha:(fe&&fe.value)||null};c.pendientes.push(np);try{untombItem(c,'pendientes',np);}catch(e){}persist();try{marcarColegaVisto(id);}catch(e){}}renderFicha();}
 function startEditPend(id,i){st.editPend={id,i};renderFicha();setTimeout(()=>{const e=document.getElementById("pe");if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},20);}
 function savePendText(id,i){const e=document.getElementById("pe");if(e){const v=e.value.trim();if(v){get(id).pendientes[i].t=v;persist();}}st.editPend=null;renderFicha();}
 function fmtPesos(n){n=Math.round(+n||0);return '$'+n.toLocaleString('es-AR');}
@@ -1610,7 +1608,7 @@ function renderCalc(){
 }
 function calcInit(){calcSt.open=jurMod('arancel')&&window.innerWidth>=1200;document.body.classList.toggle('calc-open',calcSt.open);renderSide();}
 function syncUltimo(c){sortBit(c);if(c.bitacora.length){const b=c.bitacora[0];c.ultimoMov={fecha:b.fecha,texto:b.texto,nuevo:b.nuevo};}}
-function addMov(id){const c=get(id);const fEl=document.getElementById('nm_fecha');const tEl=document.getElementById('nm_texto');const t=(tEl.value||'').trim();if(!t){tEl.focus();return;}const fecha=isoToDMY(fEl.value);c.bitacora.unshift({fecha,texto:t,nuevo:true,uid:_uid('m')});syncUltimo(c);persist();try{marcarColegaVisto(id);}catch(e){}renderFicha();}
+function addMov(id){const c=get(id);const fEl=document.getElementById('nm_fecha');const tEl=document.getElementById('nm_texto');const t=(tEl.value||'').trim();if(!t){tEl.focus();return;}const fecha=isoToDMY(fEl.value);const nm={fecha,texto:t,nuevo:true};c.bitacora.unshift(nm);try{untombItem(c,'bitacora',nm);}catch(e){}syncUltimo(c);persist();try{marcarColegaVisto(id);}catch(e){}renderFicha();}
 function editMov(id,i){st.editMov={id,i};renderFicha();setTimeout(()=>{const e=document.getElementById('me_texto');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},20);}
 function cancelMov(){st.editMov=null;renderFicha();}
 function saveMov(id,i){const c=get(id);const fEl=document.getElementById('me_fecha');const tEl=document.getElementById('me_texto');const f=(fEl.value||'').trim();const t=(tEl.value||'').trim();if(f)c.bitacora[i].fecha=f;if(t)c.bitacora[i].texto=t;st.editMov=null;syncUltimo(c);persist();renderFicha();}
