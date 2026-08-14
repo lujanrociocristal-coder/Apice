@@ -1113,10 +1113,13 @@
      celular, solo Ver/Visibilidad y el resto detrás de "⋯". */
   .doc-morebtn{display:none}
   .doc-sec{display:contents}
+  .doc-top{display:contents}
   @media(max-width:560px){
-    .doc-morebtn{display:inline-block}
+    .doc-top{display:flex;align-items:center;gap:10px;flex:1 1 100%;min-width:0}
+    .doc-top a{min-width:0!important;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .doc-morebtn{display:inline-block;flex:none}
     .doc-sec{display:none}
-    .doc-sec.open{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%;margin-top:4px}
+    .doc-sec.open{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%;margin-top:6px}
     .doc-meta{display:none}
     .doc-filtros{display:none!important}
   }

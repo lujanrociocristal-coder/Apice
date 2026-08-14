@@ -777,11 +777,13 @@ function archRow(cid,a){
   const vis=Number(a.visible_cliente)?'👁 visible al cliente':'🔒 solo interno';
   const nomJs=esc(a.nombre).replace(/'/g,'');
   return '<div class="doc-item" style="display:flex;align-items:center;gap:10px;border:1px solid var(--linea);border-radius:9px;padding:8px 10px;flex-wrap:wrap">'
+    +'<span class="doc-top">'
     +'<span style="font-size:18px">'+icon+'</span>'
     +'<a href="/api/archivos/'+a.id+'/descargar" target="_blank" rel="noopener" style="font-weight:600;color:var(--tinta);text-decoration:none;flex:1;min-width:140px">'+esc(a.nombre)+'</a>'
     +'<span style="font-size:11px;font-weight:600;color:'+car.c+';background:'+car.c+'18;padding:3px 9px;border-radius:20px">'+car.l+'</span>'
     +'<span class="doc-meta" style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+'<span class="doc-size"> · '+fmtTam(a.tamano)+'</span>'+(a.fecha_doc?(' · 📅 '+esc(fmtFechaDoc(a.fecha_doc))):'')+'</span>'
     +'<button class="btn-sec doc-morebtn" style="padding:5px 11px;font-size:14px;line-height:1" onclick="toggleDocSec('+a.id+')" title="Más acciones">⋯</button>'
+    +'</span>'
     +'<span class="doc-sec" id="docsec-'+a.id+'">'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarFechaArchivo('+a.id+',\''+cid+'\',\''+(a.fecha_doc||'')+'\')">Fecha</button>'
