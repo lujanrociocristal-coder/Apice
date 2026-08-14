@@ -587,7 +587,6 @@ function renderFicha(){
         <button class="btn-sec" onclick="toggleCliente(true)">👁 Vista de cliente</button>
         ${(!c._compartida||c._permiso==='edicion')?`<button class="btn-sec" onclick="accesoClienteOverlay('${c.id}')">👤 Acceso del cliente</button>`:''}
         ${!c._compartida?`<button class="btn-sec" onclick="compartirCausaOverlay('${c.id}')">🔗 Compartir con externo</button>`:''}
-        <a class="btn-sec" href="${D}${c.ficha}/edit" target="_blank" rel="noopener">↗ Abrir ficha en Drive</a>
         ${!c._compartida?`<button class="btn-sec danger" onclick="delCausa('${c.id}')">🗑 Eliminar causa</button>`:''}
       </div></div>
     <div class="tabs">${tabBtn("datos","Datos de la causa")}${tabBtn("avance","Avance progresivo")}${tabBtn("docs","Documentación")}${tabBtn("pend","Pendientes")}${tabBtn("honorarios","Honorarios")}</div>
@@ -2019,7 +2018,7 @@ function renderAvisos(){
   const iusSec=((typeof esSuperAdmin==='function'&&esSuperAdmin())&&jurMod('arancel')&&iusDesactualizado())?avCol('Actualizar valor del IUS (administración)',1,`<div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div>`):'';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
     <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Lo que un colega o un cliente modificó, para que no se te pase. (Tus audiencias, citas, pendientes y vencimientos están en Mi día.)</div></div></div>
-    ${('Notification' in window)?(Notification.permission!=='granted'?`<div class="avi-sec"><div class="avi-row"><span>📱 Activá las notificaciones en este dispositivo para recibir en el celular los avisos urgentes —vencimientos de plazos y audiencias de hoy/mañana— con el logo de ÁPICE.</span><button class="btn-sec" onclick="activarNotificaciones()">🔔 Activar avisos en el celular</button></div></div>`:`<div class="avi-sec"><div class="avi-row"><span>✅ Notificaciones activadas en este dispositivo. Vas a recibir en el celular los avisos urgentes (vencimientos y audiencias de hoy/mañana).</span><button class="btn-sec" onclick="probarPush()">Probar aviso</button></div></div>`):''}
+    ${(('Notification' in window)&&Notification.permission!=='granted')?`<div class="avi-sec"><div class="avi-row"><span>📱 Activá las notificaciones en este dispositivo para recibir en el celular los avisos urgentes —vencimientos de plazos y audiencias de hoy/mañana— con el logo de ÁPICE.</span><button class="btn-sec" onclick="activarNotificaciones()">🔔 Activar avisos en el celular</button></div></div>`:''}
     ${novSec}${infoSec}<div id="avAutoClis"></div>${compSec}${iusSec}
     <img src="/apice-trigger.gif" alt="" style="display:none" onerror="cargarAvisosAuto();this.remove()"></div>`;
 }
