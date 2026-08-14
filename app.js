@@ -690,8 +690,8 @@ function panelDocs(c){
         <div><b style="font-size:15px">Documentos</b><div style="font-size:12px;color:var(--mut)">Subí PDF, Word o imágenes (hasta 20 MB), o sacá una foto. Elegí la carpeta y si el cliente puede verlo.</div></div>
         <button class="btn-add" onclick="agregarDocOverlay('${c.id}')">+ Agregar documento</button>
       </div>
-      <div id="docChips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
+      <div id="docChips" class="doc-filtros" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"></div>
+      <div class="doc-filtros" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
         <select aria-label="Filtrar documentos por visibilidad para el cliente" onchange="docFiltVis(this.value)" style="padding:8px 10px;border:1px solid var(--linea);border-radius:8px;font-size:13px;background:#fff">
           <option value="">Todos</option>
           <option value="si" ${docSt.fVis==='si'?'selected':''}>Visible al cliente</option>
@@ -776,14 +776,14 @@ function archRow(cid,a){
   const car=CARPETAS[a.carpeta]||CARPETAS.actuaciones;
   const vis=Number(a.visible_cliente)?'👁 visible al cliente':'🔒 solo interno';
   const nomJs=esc(a.nombre).replace(/'/g,'');
-  return '<div style="display:flex;align-items:center;gap:10px;border:1px solid var(--linea);border-radius:9px;padding:8px 10px;flex-wrap:wrap">'
+  return '<div class="doc-item" style="display:flex;align-items:center;gap:10px;border:1px solid var(--linea);border-radius:9px;padding:8px 10px;flex-wrap:wrap">'
     +'<span style="font-size:18px">'+icon+'</span>'
     +'<a href="/api/archivos/'+a.id+'/descargar" target="_blank" rel="noopener" style="font-weight:600;color:var(--tinta);text-decoration:none;flex:1;min-width:140px">'+esc(a.nombre)+'</a>'
     +'<span style="font-size:11px;font-weight:600;color:'+car.c+';background:'+car.c+'18;padding:3px 9px;border-radius:20px">'+car.l+'</span>'
-    +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+(a.fecha_doc?(' · 📅 '+esc(fmtFechaDoc(a.fecha_doc))):'')+'</span>'
-    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
+    +'<span class="doc-meta" style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+'<span class="doc-size"> · '+fmtTam(a.tamano)+'</span>'+(a.fecha_doc?(' · 📅 '+esc(fmtFechaDoc(a.fecha_doc))):'')+'</span>'
     +'<button class="btn-sec doc-morebtn" style="padding:5px 11px;font-size:14px;line-height:1" onclick="toggleDocSec('+a.id+')" title="Más acciones">⋯</button>'
     +'<span class="doc-sec" id="docsec-'+a.id+'">'
+    +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarFechaArchivo('+a.id+',\''+cid+'\',\''+(a.fecha_doc||'')+'\')">Fecha</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+cid+'\',\''+nomJs+'\')">Renombrar</button>'

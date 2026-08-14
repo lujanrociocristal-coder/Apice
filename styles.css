@@ -1117,6 +1117,8 @@
     .doc-morebtn{display:inline-block}
     .doc-sec{display:none}
     .doc-sec.open{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%;margin-top:4px}
+    .doc-meta{display:none}
+    .doc-filtros{display:none!important}
   }
   .rec-btn{font-size:11px;font-weight:600;color:var(--azul);border:1px solid var(--azul);border-radius:7px;padding:3px 9px;background:#fff;white-space:nowrap}
   .rec-btn:hover{background:var(--azul-bg)}
