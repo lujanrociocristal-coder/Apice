@@ -724,7 +724,7 @@ function reconciliarMovsDocs(causaId){
     });
     if(sumo){
       c.bitacora.sort((x,y)=>(parseDMY(y.fecha)||0)-(parseDMY(x.fecha)||0));
-      syncUltimo(c);persist();
+      syncUltimo(c);persist();try{marcarColegaVisto(c.id);}catch(e){}
       if(typeof renderFicha==='function')renderFicha();
     }
   }catch(e){}
@@ -1364,8 +1364,8 @@ function cliAbrir(id){st.cliCausa=id;st.cliTab="datos";window.scrollTo(0,0);rend
 function cliVerCausas(){st.cliCausa=null;window.scrollTo(0,0);renderFicha();}
 function setCliTab(t){st.cliTab=t;renderFicha();}
 function togglePend(id,i){const c=get(id);c.pendientes[i].done=!c.pendientes[i].done;persist();renderFicha();}
-function delPend(id,i){const c=get(id);tombItem(c,'pendientes',c.pendientes[i]);c.pendientes.splice(i,1);st.editPend=null;persist();renderFicha();}
-function addPend(id){const c=get(id);const el=document.getElementById("np");const fe=document.getElementById("npf");const v=el.value.trim();if(v){c.pendientes.push({t:v,done:false,fecha:(fe&&fe.value)||null,uid:_uid('p')});persist();}renderFicha();}
+function delPend(id,i){const c=get(id);tombItem(c,'pendientes',c.pendientes[i]);c.pendientes.splice(i,1);st.editPend=null;persist();try{marcarColegaVisto(id);}catch(e){}renderFicha();}
+function addPend(id){const c=get(id);const el=document.getElementById("np");const fe=document.getElementById("npf");const v=el.value.trim();if(v){c.pendientes.push({t:v,done:false,fecha:(fe&&fe.value)||null,uid:_uid('p')});persist();try{marcarColegaVisto(id);}catch(e){}}renderFicha();}
 function startEditPend(id,i){st.editPend={id,i};renderFicha();setTimeout(()=>{const e=document.getElementById("pe");if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},20);}
 function savePendText(id,i){const e=document.getElementById("pe");if(e){const v=e.value.trim();if(v){get(id).pendientes[i].t=v;persist();}}st.editPend=null;renderFicha();}
 function fmtPesos(n){n=Math.round(+n||0);return '$'+n.toLocaleString('es-AR');}
@@ -1610,7 +1610,7 @@ function renderCalc(){
 }
 function calcInit(){calcSt.open=jurMod('arancel')&&window.innerWidth>=1200;document.body.classList.toggle('calc-open',calcSt.open);renderSide();}
 function syncUltimo(c){sortBit(c);if(c.bitacora.length){const b=c.bitacora[0];c.ultimoMov={fecha:b.fecha,texto:b.texto,nuevo:b.nuevo};}}
-function addMov(id){const c=get(id);const fEl=document.getElementById('nm_fecha');const tEl=document.getElementById('nm_texto');const t=(tEl.value||'').trim();if(!t){tEl.focus();return;}const fecha=isoToDMY(fEl.value);c.bitacora.unshift({fecha,texto:t,nuevo:true,uid:_uid('m')});syncUltimo(c);persist();renderFicha();}
+function addMov(id){const c=get(id);const fEl=document.getElementById('nm_fecha');const tEl=document.getElementById('nm_texto');const t=(tEl.value||'').trim();if(!t){tEl.focus();return;}const fecha=isoToDMY(fEl.value);c.bitacora.unshift({fecha,texto:t,nuevo:true,uid:_uid('m')});syncUltimo(c);persist();try{marcarColegaVisto(id);}catch(e){}renderFicha();}
 function editMov(id,i){st.editMov={id,i};renderFicha();setTimeout(()=>{const e=document.getElementById('me_texto');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},20);}
 function cancelMov(){st.editMov=null;renderFicha();}
 function saveMov(id,i){const c=get(id);const fEl=document.getElementById('me_fecha');const tEl=document.getElementById('me_texto');const f=(fEl.value||'').trim();const t=(tEl.value||'').trim();if(f)c.bitacora[i].fecha=f;if(t)c.bitacora[i].texto=t;st.editMov=null;syncUltimo(c);persist();renderFicha();}
@@ -1915,23 +1915,34 @@ function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=docum
 /* ===== #7 Novedades de colegas en causas compartidas (marca local por dispositivo) =====
    Detecta cuándo el otro/a colega agregó movimientos, documentos o pendientes en una
    causa compartida, sin tocar datos del servidor. La "vista" se guarda en este equipo. */
-function _colegaSig(c){return {b:(c.bitacora||[]).length,d:(c.documentos||[]).length,a:(c.archivos||[]).length,p:(c.pendientes||[]).length};}
-function _colegaSeen(){try{return JSON.parse(localStorage.getItem('apice_colega_seen')||'{}');}catch(e){return {};}}
-function _colegaSeenSave(o){try{localStorage.setItem('apice_colega_seen',JSON.stringify(o));}catch(e){}}
-function marcarColegaVisto(id){const c=(typeof get==='function')?get(id):null;if(!c)return;if(!(c._compartida||(typeof misCompartidas!=='undefined'&&misCompartidas[id])))return;const s=_colegaSeen();s[id]=_colegaSig(c);_colegaSeenSave(s);}
+/* Feed por ÍTEM: cada movimiento, documento, pendiente o audiencia nueva del colega
+   es una novedad con su propio id, que se limpia al abrir la causa o tocarla. */
+function _seenNov(){try{return JSON.parse(localStorage.getItem('apice_nov_seen')||'{}');}catch(e){return {};}}
+function _seenNovSave(o){try{localStorage.setItem('apice_nov_seen',JSON.stringify(o));}catch(e){}}
+function _itemsDeCausa(c){
+  var out=[];
+  (c.bitacora||[]).forEach(function(b){if(b&&b.inicio)return;out.push({uid:'b'+itemUid('bitacora',b),tipo:'Movimiento',ic:'✎',tab:'avance',texto:(b.texto||''),fecha:b.fecha});});
+  (c.pendientes||[]).forEach(function(p){out.push({uid:'p'+itemUid('pendientes',p),tipo:'Pendiente',ic:'☑',tab:'pend',texto:(p.t||'')});});
+  (c.documentos||[]).forEach(function(d){out.push({uid:'d'+itemUid('documentos',d),tipo:'Documento',ic:'📄',tab:'docs',texto:(d.n||d.nombre||'')});});
+  (c.agenda||[]).forEach(function(a){if(a&&a.id)out.push({uid:'ag'+a.id,tipo:(a.tipo==='cita'?'Cita':'Audiencia'),ic:'📅',tab:'agenda',texto:((a.cliente?('con '+a.cliente):'')+(a.fecha?(' · '+audFechaDMY(a.fecha)):'')).trim()||'Agenda',fecha:a.fecha});});
+  return out;
+}
+function marcarColegaVisto(id){
+  var c=(typeof get==='function')?get(id):null;if(!c||!esCompartida(c))return;
+  var s=_seenNov();s[id]=s[id]||{};_itemsDeCausa(c).forEach(function(it){s[id][it.uid]=1;});_seenNovSave(s);
+}
+function verNovedad(causaId,uid,tab){var s=_seenNov();s[causaId]=s[causaId]||{};s[causaId][uid]=1;_seenNovSave(s);irACausa(causaId,tab);}
+function marcarNovedadesVistas(){var s=_seenNov();(causas||[]).forEach(function(c){if(!esCompartida(c))return;s[c.id]=s[c.id]||{};_itemsDeCausa(c).forEach(function(it){s[c.id][it.uid]=1;});});_seenNovSave(s);if(typeof render==='function')render();}
 function novedadesColegas(){
-  const s=_colegaSeen();let changed=false;const out=[];
-  causas.forEach(c=>{
-    const esComp=c._compartida||(typeof misCompartidas!=='undefined'&&misCompartidas[c.id]);if(!esComp)return;
-    const sig=_colegaSig(c);const prev=s[c.id];
-    if(!prev){s[c.id]=sig;changed=true;return;}
-    const partes=[];
-    if(sig.b>prev.b)partes.push((sig.b-prev.b)+' movimiento(s)');
-    if((sig.d+sig.a)>(prev.d+prev.a))partes.push(((sig.d+sig.a)-(prev.d+prev.a))+' documento(s)');
-    if(sig.p>prev.p)partes.push((sig.p-prev.p)+' pendiente(s)');
-    if(partes.length)out.push({c,detalle:partes.join(' · '),quien:c._compartida?(c._origen||'Otro estudio'):'Un colega'});
+  var s=_seenNov();var changed=false;var out=[];
+  (causas||[]).forEach(function(c){
+    if(!esCompartida(c))return;
+    var items=_itemsDeCausa(c);var vistos=s[c.id];
+    if(!vistos){vistos={};items.forEach(function(it){vistos[it.uid]=1;});s[c.id]=vistos;changed=true;return;}
+    items.forEach(function(it){if(!vistos[it.uid])out.push(Object.assign({causaId:c.id,caratula:c.caratula},it));});
   });
-  if(changed)_colegaSeenSave(s);
+  if(changed)_seenNovSave(s);
+  out.sort(function(a,b){return bitKey({fecha:b.fecha})-bitKey({fecha:a.fecha});});
   return out;
 }
 function renderAvisos(){
@@ -1986,10 +1997,12 @@ function renderAvisos(){
       <button class="btn-sec" onclick="irACausa('${c.id}')">Abrir</button></div>`).join('');
   const compSec=comps.length?`<div class="avi-sec"><div class="avi-sec-h">Causas compartidas con vos <span class="avi-n">${comps.length}</span></div><div class="avi-list">${compCards}</div></div>`:'';
   const novs=novedadesColegas();
-  const novCards=novs.map(x=>`<div class="avi-card"><div class="avi-ic">🤝</div><div class="avi-body"><div class="avi-top"><b>${esc(x.quien)}</b> actualizó una causa compartida.<span class="avi-tag man">NOVEDAD</span></div>
-      <div class="avi-meta">${esc(cShort(x.c.caratula))} — ${esc(x.detalle)}</div></div>
-      <button class="btn-sec" onclick="marcarColegaVisto('${x.c.id}');irACausa('${x.c.id}','avance')">Ver novedades</button></div>`).join('');
-  const novSec=novs.length?`<div class="avi-sec"><div class="avi-sec-h">Novedades de colegas <span class="avi-n">${novs.length}</span></div><div class="avi-list">${novCards}</div></div>`:'';
+  const novCards=novs.map(x=>`<div class="avi-card" onclick="verNovedad('${x.causaId}','${x.uid}','${x.tab}')" style="cursor:pointer">
+      <div class="avi-ic">${x.ic}</div>
+      <div class="avi-body"><div class="avi-top"><b>${esc(cShort(x.caratula))}</b><span class="avi-tag man">${esc(x.tipo)} nuevo</span></div>
+      <div class="avi-meta">${esc((x.texto||'').slice(0,90))}</div>
+      <div class="avi-when">Tocá para ver ›</div></div></div>`).join('');
+  const novSec=novs.length?`<div class="avi-sec"><div class="avi-sec-h">Novedades de colegas <span class="avi-n">${novs.length}</span><button class="lk" style="float:right;font-size:12px" onclick="marcarNovedadesVistas()">Marcar todo como visto</button></div><div class="avi-list">${novCards}</div></div>`:'';
   const iusSec=(jurMod('arancel')&&iusDesactualizado())?`<div class="avi-sec"><div class="avi-sec-h">Valor del IUS</div><div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div></div>`:'';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
     <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Todo lo que requiere tu atención, reunido en un solo lugar.</div></div></div>
@@ -2110,7 +2123,7 @@ function addAudiencia(){
     a.cliente=af.cli||'';a.materia=af.mat||'Derecho de familia';
   }
   audiencias.push(a);persistAud();persist();
-  if(a.causaId){try{pushAgendaCausa(a.causaId);}catch(e){}}
+  if(a.causaId){try{pushAgendaCausa(a.causaId);}catch(e){}try{marcarColegaVisto(a.causaId);}catch(e){}}
   const wasCausa=a.causaId;
   sideSt.af={tipo:af.tipo,fecha:'',hora:'',causa:'',detalle:'',cli:'',mat:'Derecho de familia',cliAsiste:false,modal:(af.modal||'presencial'),lugar:'',link:'',lugarManual:false};
   if(st.vista==='ficha'&&st.actual===wasCausa)renderFicha();
