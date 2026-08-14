@@ -2057,7 +2057,9 @@ function mergeAgendaCompartida(){
   });
   Object.keys(del).forEach(function(id){delete byId[id];});
   audiencias=Object.keys(byId).map(function(k){return byId[k];});
-  try{persistAud();}catch(e){}
+  /* NO regrabamos acá: la agenda compartida se re-arma en cada carga desde la
+     causa. Grabar en la carga podía pisar la agenda del estudio si venía
+     incompleta por una conexión lenta. */
 }
 async function pushAgendaCausa(causaId){
   var c=(typeof get==='function')?get(causaId):null;if(!esCompartida(c))return;
@@ -2092,6 +2094,8 @@ function addAudiencia(){
 }
 function delAudiencia(id){
   var a=(audiencias||[]).find(function(x){return x.id===id;});
+  var quien=a?((a.cliente?('con '+a.cliente):a.tipo)+(a.fecha?(' del '+audFechaDMY(a.fecha)):'')):'';
+  if(!confirm('¿Eliminar esta '+((a&&a.tipo==='cita')?'cita':'audiencia')+(quien?(' '+quien):'')+'?'+((a&&a.causaId)?'\n\nComo está ligada a una causa compartida, también se le quita al colega.':'')))return;
   var cid=a&&a.causaId;
   audiencias=audiencias.filter(a=>a.id!==id);
   if(cid){var c=(typeof get==='function')?get(cid):null;if(esCompartida(c)){c._agDel=c._agDel||[];if(c._agDel.indexOf(id)<0)c._agDel.push(id);try{pushAgendaCausa(cid);}catch(e){}}}
