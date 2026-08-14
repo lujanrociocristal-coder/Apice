@@ -1858,10 +1858,10 @@ async function cargarAvisosAuto(){
   try{
     const r=await fetch('/api/avisos',{credentials:'same-origin'});const j=await r.json();
     if(!j||j.ok===false)return;
-    const docs=(j.data&&j.data.documentos)||[];const clis=(j.data&&j.data.clientes)||[];
-    __avAuto={docs:docs.length,clis:clis.length};
-    const dc=document.getElementById('avAutoDocs');
-    if(dc)dc.innerHTML=docs.length?('<div class="avi-sec"><div class="avi-sec-h">Documentos nuevos <span class="avi-n">'+docs.length+'</span></div><div class="avi-list">'+docs.map(function(d){var nav=d.causa_uuid?(' onclick="irACausa(\''+d.causa_uuid+'\',\'docs\')" style="cursor:pointer"'):'';return '<div class="avi-card"'+nav+'><div class="avi-ic">📄</div><div class="avi-body"><div class="avi-top"><b>'+esc(d.quien||(d.rol==='cliente'?'Un cliente':'Un colega'))+'</b> subió un documento.<span class="avi-tag man">NUEVO</span></div><div class="avi-meta">'+esc(d.nombre||'Documento')+(d.caratula?(' · '+esc(cShort(d.caratula))):'')+'</div><div class="avi-when">📅 '+esc(String(d.creado_en||'').slice(0,10))+(d.causa_uuid?' · Ver documento ›':'')+'</div></div></div>';}).join('')+'</div></div>'):'';
+    const clis=(j.data&&j.data.clientes)||[];
+    __avAuto={docs:0,clis:clis.length};
+    /* "Documentos nuevos" se quitó: las subidas de un colega ya aparecen en el
+       feed unificado "Novedades de colegas", y los clientes no suben documentos. */
     const cc=document.getElementById('avAutoClis');
     if(cc)cc.innerHTML=clis.length?('<div class="avi-sec"><div class="avi-sec-h">Clientes que ingresaron <span class="avi-n">'+clis.length+'</span></div><div class="avi-list">'+clis.map(c=>'<div class="avi-card"><div class="avi-ic">👤</div><div class="avi-body"><div class="avi-top"><b>'+esc(c.nombre||c.email)+'</b> ingresó por primera vez a su portal.<span class="avi-tag man">NUEVO</span></div><div class="avi-meta">'+esc(c.email||'')+'</div><div class="avi-when">📅 '+esc(String(c.primer_acceso||'').slice(0,10))+'</div></div></div>').join('')+'</div></div>'):'';
     updateNotifBell();
@@ -2007,7 +2007,7 @@ function renderAvisos(){
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
     <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Todo lo que requiere tu atención, reunido en un solo lugar.</div></div></div>
     ${('Notification' in window)?(Notification.permission!=='granted'?`<div class="avi-sec"><div class="avi-row"><span>📱 Activá las notificaciones en este dispositivo para recibir en el celular los avisos urgentes —vencimientos de plazos y audiencias de hoy/mañana— con el logo de ÁPICE.</span><button class="btn-sec" onclick="activarNotificaciones()">🔔 Activar avisos en el celular</button></div></div>`:`<div class="avi-sec"><div class="avi-row"><span>✅ Notificaciones activadas en este dispositivo. Vas a recibir en el celular los avisos urgentes (vencimientos y audiencias de hoy/mañana).</span><button class="btn-sec" onclick="probarPush()">Probar aviso</button></div></div>`):''}
-    ${novSec}<div id="avAutoDocs"></div>${avSec}<div id="avAutoClis"></div>${compSec}${urgSec}${cadSec}${infoSec}${morSec}${iusSec}${audSec}${citaSec}${verSec}
+    ${novSec}${avSec}<div id="avAutoClis"></div>${compSec}${urgSec}${cadSec}${infoSec}${morSec}${iusSec}${audSec}${citaSec}${verSec}
     <img src="/apice-trigger.gif" alt="" style="display:none" onerror="cargarAvisosAuto();this.remove()"></div>`;
 }
 function verEnCalendario(key){sideSt.sec='calendario';sideSt.calSel=key;const dt=new Date(key+'T00:00:00');sideSt.calY=dt.getFullYear();sideSt.calM=dt.getMonth();st.nav='calendario';window.scrollTo(0,0);render();}
