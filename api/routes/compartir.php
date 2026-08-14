@@ -174,17 +174,28 @@ function compartida_merge($prev, $inc) {
   if (!is_array($prev)) return $inc;
   $out = $inc;
   $claves = [
-    'pendientes' => function ($it) { return isset($it['t']) ? mb_strtolower(trim((string)$it['t'])) : json_encode($it); },
-    'bitacora'   => function ($it) { return (isset($it['fecha']) ? $it['fecha'] : '') . '|' . (isset($it['texto']) ? mb_strtolower(trim((string)$it['texto'])) : ''); },
-    'documentos' => function ($it) { return isset($it['nombre']) ? mb_strtolower(trim((string)$it['nombre'])) : json_encode($it); },
+    'pendientes' => function ($it) { return isset($it['uid']) ? $it['uid'] : (isset($it['t']) ? 'p'.mb_strtolower(trim((string)$it['t'])) : json_encode($it)); },
+    'bitacora'   => function ($it) { return isset($it['uid']) ? $it['uid'] : ('m'.(isset($it['fecha']) ? $it['fecha'] : '') . '|' . (isset($it['texto']) ? mb_strtolower(trim((string)$it['texto'])) : '')); },
+    'documentos' => function ($it) { return isset($it['uid']) ? $it['uid'] : (isset($it['n']) ? 'd'.mb_strtolower(trim((string)$it['n'])) : (isset($it['nombre']) ? 'd'.mb_strtolower(trim((string)$it['nombre'])) : json_encode($it))); },
   ];
+  /* Bajas propagadas: si un ítem fue borrado (su uid/clave está en _del), no se
+     vuelve a incorporar aunque siga en la copia de la otra parte. */
+  $delPrev = (isset($prev['_del']) && is_array($prev['_del'])) ? $prev['_del'] : [];
+  $delInc  = (isset($inc['_del'])  && is_array($inc['_del']))  ? $inc['_del']  : [];
+  $out['_del'] = [];
   foreach ($claves as $campo => $key) {
+    $del = array_values(array_unique(array_merge(
+      (isset($delPrev[$campo]) && is_array($delPrev[$campo])) ? $delPrev[$campo] : [],
+      (isset($delInc[$campo])  && is_array($delInc[$campo]))  ? $delInc[$campo]  : []
+    )));
+    $out['_del'][$campo] = $del;
+    $borrados = array_flip($del);
     $p = (isset($prev[$campo]) && is_array($prev[$campo])) ? $prev[$campo] : [];
     $i = (isset($inc[$campo])  && is_array($inc[$campo]))  ? $inc[$campo]  : [];
     if (!$p && !$i) continue;
     $map = [];
-    foreach ($p as $it) { if (is_array($it)) $map[$key($it)] = $it; }
-    foreach ($i as $it) { if (is_array($it)) $map[$key($it)] = $it; } // la entrante agrega/actualiza
+    foreach ($p as $it) { if (is_array($it)) { $k=$key($it); if(!isset($borrados[$k])) $map[$k] = $it; } }
+    foreach ($i as $it) { if (is_array($it)) { $k=$key($it); if(!isset($borrados[$k])) $map[$k] = $it; } }
     $out[$campo] = array_values($map);
   }
   /* Agenda (audiencias/citas de la causa compartida): identidad por 'id', con bajas
