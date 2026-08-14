@@ -23,8 +23,9 @@ function handle_avisos($method, $resto) {
   // Documentos nuevos (últimos 7 días, subidos por otra persona).
   $docs = [];
   try {
-    $st = db()->prepare("SELECT a.id, a.nombre, a.causa_id, a.tipo, a.creado_en, us.nombre AS quien, us.rol AS rol
+    $st = db()->prepare("SELECT a.id, a.nombre, a.causa_id, c.uuid AS causa_uuid, c.caratula AS caratula, a.tipo, a.creado_en, us.nombre AS quien, us.rol AS rol
                          FROM archivos a LEFT JOIN usuarios us ON us.id = a.subido_por
+                         LEFT JOIN causas c ON c.id = a.causa_id
                          WHERE a.estudio_id = ? AND a.creado_en >= DATE_SUB(NOW(), INTERVAL 7 DAY)
                            AND (a.subido_por IS NULL OR a.subido_por <> ?)
                          ORDER BY a.creado_en DESC LIMIT 30");
