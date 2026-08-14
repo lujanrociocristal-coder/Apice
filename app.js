@@ -1921,10 +1921,10 @@ function _seenNov(){try{return JSON.parse(localStorage.getItem('apice_nov_seen')
 function _seenNovSave(o){try{localStorage.setItem('apice_nov_seen',JSON.stringify(o));}catch(e){}}
 function _itemsDeCausa(c){
   var out=[];
-  (c.bitacora||[]).forEach(function(b){if(b&&b.inicio)return;out.push({uid:'b'+itemUid('bitacora',b),tipo:'Movimiento',ic:'✎',tab:'avance',texto:(b.texto||''),fecha:b.fecha});});
-  (c.pendientes||[]).forEach(function(p){out.push({uid:'p'+itemUid('pendientes',p),tipo:'Pendiente',ic:'☑',tab:'pend',texto:(p.t||'')});});
-  (c.documentos||[]).forEach(function(d){out.push({uid:'d'+itemUid('documentos',d),tipo:'Documento',ic:'📄',tab:'docs',texto:(d.n||d.nombre||'')});});
-  (c.agenda||[]).forEach(function(a){if(a&&a.id)out.push({uid:'ag'+a.id,tipo:(a.tipo==='cita'?'Cita':'Audiencia'),ic:'📅',tab:'agenda',texto:((a.cliente?('con '+a.cliente):'')+(a.fecha?(' · '+audFechaDMY(a.fecha)):'')).trim()||'Agenda',fecha:a.fecha});});
+  (c.bitacora||[]).forEach(function(b){if(b&&b.inicio)return;var esDoc=!!(b&&(b.doc||/documento cargado/i.test(b.texto||'')));out.push({uid:'b'+itemUid('bitacora',b),tipo:esDoc?'Documento':'Movimiento',ic:esDoc?'📄':'✎',tab:esDoc?'docs':'avance',col:esDoc?'doc':'mov',texto:(b.texto||'').replace(/^📄\s*/,''),fecha:b.fecha});});
+  (c.pendientes||[]).forEach(function(p){out.push({uid:'p'+itemUid('pendientes',p),tipo:'Pendiente',ic:'☑',tab:'pend',col:'pend',texto:(p.t||'')});});
+  (c.documentos||[]).forEach(function(d){out.push({uid:'d'+itemUid('documentos',d),tipo:'Documento',ic:'📄',tab:'docs',col:'doc',texto:(d.n||d.nombre||'')});});
+  (c.agenda||[]).forEach(function(a){if(a&&a.id)out.push({uid:'ag'+a.id,tipo:(a.tipo==='cita'?'Cita':'Audiencia'),ic:'📅',tab:'agenda',col:'agenda',texto:((a.cliente?('con '+a.cliente):'')+(a.fecha?(' · '+audFechaDMY(a.fecha)):'')).trim()||'Agenda',fecha:a.fecha});});
   return out;
 }
 function marcarColegaVisto(id){
@@ -2009,11 +2009,12 @@ function renderAvisos(){
       <button class="btn-sec" onclick="verCompartida('${c.id}')">Abrir</button></div>`).join('');
   const compSec=avCol('Un colega te compartió una causa',comps.length,comps.length?compCards:'<div class="avi-empty">Sin causas nuevas compartidas.</div>');
   const novs=novedadesColegas();
-  const novCards=novs.map(x=>`<div class="avi-card" onclick="verNovedad('${x.causaId}','${x.uid}','${x.tab}')" style="cursor:pointer">
-      <div class="avi-ic">${x.ic}</div>
-      <div class="avi-body"><div class="avi-top"><b>${esc(cShort(x.caratula))}</b><span class="avi-tag man">${esc(x.tipo)} nuevo</span></div>
+  const NOVCOL={mov:{bg:'#EAF2FF',tx:'#1E4FA3',bd:'#7FA8EE',ic:'#EAF2FF'},doc:{bg:'#E9F6EE',tx:'#1E7A46',bd:'#8FD3AC',ic:'#E9F6EE'},pend:{bg:'#FFF3E3',tx:'#9A5B00',bd:'#F0C378',ic:'#FFF3E3'},agenda:{bg:'#F2ECFB',tx:'#5B3AA6',bd:'#C3AEEB',ic:'#F2ECFB'}};
+  const novCards=novs.map(function(x){var k=NOVCOL[x.col]||NOVCOL.mov;return `<div class="avi-card" onclick="verNovedad('${x.causaId}','${x.uid}','${x.tab}')" style="cursor:pointer;border-left:4px solid ${k.bd}">
+      <div class="avi-ic" style="background:${k.ic}">${x.ic}</div>
+      <div class="avi-body"><div class="avi-top"><b>${esc(cShort(x.caratula))}</b><span class="avi-tag" style="background:${k.bg};color:${k.tx}">${esc(x.tipo)} nuevo</span></div>
       <div class="avi-meta">${esc((x.texto||'').slice(0,90))}</div>
-      <div class="avi-when">Tocá para ver ›</div></div></div>`).join('');
+      <div class="avi-when">Tocá para ver ›</div></div></div>`;}).join('');
   const novSec=`<div class="avi-sec"><div class="avi-sec-h">Novedades de colegas <span class="avi-n">${novs.length}</span></div>${novs.length?`<div class="avi-list">${novCards}</div>`:`<div class="avi-empty">Sin novedades de colegas por ahora. Acá aparece lo que otro colega carga en una causa compartida.</div>`}</div>`;
   const iusSec=((typeof esSuperAdmin==='function'&&esSuperAdmin())&&jurMod('arancel')&&iusDesactualizado())?avCol('Actualizar valor del IUS (administración)',1,`<div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div>`):'';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
