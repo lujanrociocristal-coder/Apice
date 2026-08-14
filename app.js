@@ -582,14 +582,18 @@ function renderFicha(){
       ${c._compartida?`<div style="background:#EEF4FF;border:1px solid #C7D7FE;color:#1E40AF;border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13px">🔗 Causa compartida por <b>${esc(c._origen||'otro estudio')}</b> · ${c._permiso==='edicion'?'podés verla y editarla':'solo lectura'}</div>`:''}
       ${(!c._compartida&&misCompartidas[c.id])?`<div style="background:#ECFDF3;border:1px solid #A6F4C5;color:#067647;border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13px">🔗 Compartís esta causa con ${misCompartidas[c.id]} colega(s) externo(s). Tocá "Compartir con externo" para ver o quitar.</div>`:''}
       <div class="ficha-acciones">
-        <button class="btn-sec" onclick="openModal({tipo:'editar',id:'${c.id}'})">✎ Editar datos</button>
-        <button class="btn-sec" onclick="openModal({tipo:'estado',id:'${c.id}'})">↻ Cambiar estado</button>
+        <div style="display:flex;gap:8px;flex:1 1 100%">
+          <button class="btn-sec" style="flex:1" onclick="openModal({tipo:'editar',id:'${c.id}'})">✎ Editar datos</button>
+          <button class="btn-sec" style="flex:1" onclick="openModal({tipo:'estado',id:'${c.id}'})">↻ Cambiar estado</button>
+        </div>
         <div style="display:flex;gap:8px;flex:1 1 100%">
           <button class="btn-sec" style="flex:1" onclick="toggleCliente(true)">👁 Vista cliente</button>
           ${(!c._compartida||c._permiso==='edicion')?`<button class="btn-sec" style="flex:1" onclick="accesoClienteOverlay('${c.id}')">👤 Acceso cliente</button>`:''}
         </div>
-        ${!c._compartida?`<button class="btn-sec" onclick="compartirCausaOverlay('${c.id}')">🔗 Compartir con externo</button>`:''}
-        ${!c._compartida?`<button class="btn-sec danger" onclick="delCausa('${c.id}')">🗑 Eliminar causa</button>`:''}
+        ${!c._compartida?`<div style="display:flex;gap:8px;flex:1 1 100%">
+          <button class="btn-sec" style="flex:1" onclick="compartirCausaOverlay('${c.id}')">🔗 Compartir</button>
+          <button class="btn-sec danger" style="flex:1" onclick="delCausa('${c.id}')">🗑 Eliminar</button>
+        </div>`:''}
       </div></div>
     <div class="tabs">${tabBtn("datos","Datos de la causa")}${tabBtn("avance","Avance progresivo")}${tabBtn("docs","Documentación")}${tabBtn("pend","Pendientes")}${tabBtn("honorarios","Honorarios")}</div>
     <div class="panel">${panel}</div></div>
