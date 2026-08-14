@@ -1085,6 +1085,29 @@
   .prof-del{flex:none;color:var(--mut);font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--linea-fuerte)}
   .prof-del:hover{background:#FBE9E9;color:#B91C1C;border-color:#f0c9c9}
   @media(max-width:600px){ .prof-row{flex-wrap:wrap} .prof-row input{flex:1 1 100%} }
+  /* ===== Ajustes de celular (solo pantallas chicas; la compu queda igual) ===== */
+  .tab-short{display:none}
+  @media(max-width:560px){
+    .tab-long{display:none}
+    .tab-short{display:inline}
+    .md2-actions{flex-wrap:wrap;gap:8px}
+    .md2-actions .md2-btn.buscar{flex:1 1 100%}
+    .md2-actions .md2-btn.primary{flex:1 1 100%}
+    .md2-actions .md2-btn.out{flex:1 1 0;min-width:0;padding-left:10px;padding-right:10px}
+    .md2-col-r .met-card{display:none}
+  }
+  /* Menú: en la compu se ve toda la lista; en el celular los secundarios se
+     agrupan detrás de "Más herramientas". */
+  .sb-more{display:none}
+  .sb-secmore{display:block}
+  @media(max-width:860px){
+    .sb-more{display:flex;align-items:center;gap:11px;width:100%;text-align:left;color:#c7cfdd;font-size:14px;font-weight:600;padding:11px 20px;background:none;border:none;cursor:pointer}
+    .sb-more .sbi-ic{opacity:.85}
+    .sb-more .sb-more-arr{margin-left:auto;font-size:12px;transition:transform .2s}
+    .sb-more.open .sb-more-arr{transform:rotate(180deg)}
+    .sb-secmore{display:none}
+    .sb-secmore.open{display:block}
+  }
   .rec-btn{font-size:11px;font-weight:600;color:var(--azul);border:1px solid var(--azul);border-radius:7px;padding:3px 9px;background:#fff;white-space:nowrap}
   .rec-btn:hover{background:var(--azul-bg)}
   .rec-btn.done{color:var(--verde-tx);border-color:var(--verde);background:var(--verde-bg)}
