@@ -37,7 +37,7 @@ function itemUid(campo,it){
   if(campo==='documentos')return 'd'+_norm(it&&(it.n||it.nombre));
   return 'x'+_norm(JSON.stringify(it||{}));
 }
-function dedupItems(c){['pendientes','bitacora','documentos'].forEach(function(campo){if(!Array.isArray(c[campo]))return;var seen={},out=[];c[campo].forEach(function(it){var u=itemUid(campo,it);if(!seen[u]){seen[u]=1;out.push(it);}});c[campo]=out;});}
+function dedupItems(c){['pendientes','bitacora','documentos'].forEach(function(campo){if(!Array.isArray(c[campo]))return;var seen={},out=[];c[campo].forEach(function(it){var u=itemUid(campo,it);if(!seen[u]){seen[u]=it;out.push(it);}else if(it&&it.done){seen[u].done=true;}});c[campo]=out;});}
 function aplicarTomb(c){
   if(!c||!c._del)return;
   ['pendientes','bitacora','documentos'].forEach(function(campo){
@@ -472,7 +472,7 @@ function renderInicio(){
   prox.sort((a,b)=>((a.f||"")+(a.h||"")).localeCompare((b.f||"")+(b.h||"")));
   const proxCard=`<div class="mdcard"><div class="mdcard-h"><h3>Próximos 7 días</h3></div><div class="p7-list">${prox.length?prox.map(x=>x.html).join(''):`<div class="md-empty">No se viene nada en los próximos 7 días. 🟢</div>`}</div></div>`;
   // ---- Tareas sin fecha (siempre visibles, se tachan desde acá) ----
-  const tSinCard=tSin.length?`<div class="mdcard"><div class="mdcard-h"><h3>Tareas pendientes</h3><span class="mdcard-sub">tachá al terminar</span></div><div style="display:flex;flex-direction:column">${tSin.map(o=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #eef1f4"><button onclick="tacharPend('${o.c.id}',${o.i})" title="Marcar como hecha" style="width:26px;height:26px;border-radius:7px;border:1.5px solid #b8c4cc;background:#fff;color:#3FC8BD;cursor:pointer;flex:none;font-weight:800;line-height:1">✓</button><div style="flex:1;min-width:0;cursor:pointer" onclick="abrirFicha('${o.c.id}')"><div style="font-weight:600;color:#1C2433;font-size:14px">${esc(o.p.t)}</div><div style="color:#6b7a86;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(cShort(o.c.caratula))}</div></div></div>`).join('')}</div></div>`:'';
+  const tSinCard=tSin.length?`<div class="mdcard"><div class="mdcard-h"><h3>Tareas pendientes</h3><span class="mdcard-sub">tachá al terminar</span></div><div style="display:flex;flex-direction:column">${tSin.map(o=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #eef1f4"><button onclick="tacharPend('${o.c.id}',${o.i})" title="Marcar como hecha" style="width:26px;height:26px;border-radius:7px;border:1.5px solid #b8c4cc;background:#fff;color:#3FC8BD;cursor:pointer;flex:none;font-weight:800;line-height:1">✓</button><div style="flex:1;min-width:0;cursor:pointer" onclick="abrirFicha('${o.c.id}')"><div style="font-weight:600;color:#1C2433;font-size:14px">${esc(o.p.t)}</div><div style="color:#6b7a86;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(cShort(o.c.caratula))}</div></div><span onclick="delPendMiDia('${o.c.id}',${o.i})" title="Eliminar" style="cursor:pointer;color:#b91c1c;padding:0 8px;font-size:18px;line-height:1;flex:none">×</span></div>`).join('')}</div></div>`:'';
   // ---- Columna derecha ----
   const nuevos=totalNuevos();
   const atenCard=`<div class="mdcard aten-card"><div class="mdcard-h"><h3>Requiere tu atención</h3></div>
@@ -525,6 +525,7 @@ function mTareaRapida(){
 function guardarTareaRapida(){const id=(document.getElementById("tr_causa")||{}).value;const t=((document.getElementById("tr_txt")||{}).value||"").trim();const f=(document.getElementById("tr_fecha")||{}).value;if(!id){alert("Elegí una causa.");return;}if(!t){alert("Escribí la tarea.");return;}const c=get(id);if(c){c.pendientes=c.pendientes||[];c.pendientes.push({t:t,done:false,fecha:f||null});persist();}closeModal();render();}
 function savePendFecha(id,i,val){const c=get(id);if(c&&c.pendientes[i]){c.pendientes[i].fecha=val||null;persist();}}
 function tacharPend(id,i){const c=get(id);if(c&&c.pendientes&&c.pendientes[i]){c.pendientes[i].done=true;persist();renderInicio();}}
+function delPendMiDia(id,i){const c=get(id);if(!c||!c.pendientes||!c.pendientes[i])return;if(!confirm('¿Eliminar este pendiente? Se quita para siempre.'))return;try{tombItem(c,'pendientes',c.pendientes[i]);}catch(e){}c.pendientes.splice(i,1);persist();renderInicio();}
 function renderExpedientes(){
   const s=inicioStats();
   let h=`<div class="main-head"><div class="mh-l">

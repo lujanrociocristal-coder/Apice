@@ -196,7 +196,7 @@ function compartida_merge($prev, $inc) {
     if (!$p && !$i) continue;
     $map = [];
     foreach ($p as $it) { if (is_array($it)) { $k=$key($it); if(!isset($borrados[$k])) $map[$k] = $it; } }
-    foreach ($i as $it) { if (is_array($it)) { $k=$key($it); if(!isset($borrados[$k])) $map[$k] = $it; } }
+    foreach ($i as $it) { if (is_array($it)) { $k=$key($it); if(!isset($borrados[$k])){ if($campo==='pendientes' && isset($map[$k]) && !empty($map[$k]['done'])) $it['done']=true; $map[$k]=$it; } } }
     $out[$campo] = array_values($map);
   }
   /* Agenda (audiencias/citas de la causa compartida): identidad por 'id', con bajas
