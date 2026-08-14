@@ -265,7 +265,6 @@ const SBNAV=[
  {id:'audiencias',ic:'⚖',l:'Audiencias'},
  {id:'caducidad',ic:'⏰',l:'Caducidad',mod:'caducidad'},
  {id:'calcplazos',ic:'🧮',l:'Calc. de plazos',mod:'calcplazos'},
- {id:'tareas',ic:'✓',l:'Tareas'},
  {id:'honorarios',ic:'$',l:'Honorarios',mod:'arancel'},
  {id:'clientes',ic:'👥',l:'Clientes'},
  {id:'directorio',ic:'🏛',l:'Guía Judicial'},
@@ -1768,7 +1767,7 @@ async function saveAud(){normAud(audiencias);const d=JSON.stringify(audiencias);
 function persistAud(){saveAud();}
 
 function navHTML(){const s=sideSt.sec;const b=(id,ic,l)=>`<button class="side-tab ${s===id?'on':''}" onclick="setSide('${id}')">${ic} ${l}</button>`;
-  return `<div class="side-nav">${b('calendario','📅','Calendario')}${b('audiencias','⚖','Audiencias')}${b('honorarios','$','Honorarios')}${b('tareas','✓','Tareas')}</div>`;}
+  return `<div class="side-nav">${b('calendario','📅','Calendario')}${b('audiencias','⚖','Audiencias')}${b('honorarios','$','Honorarios')}</div>`;}
 function setSide(sec){sideSt.sec=sec;renderSide();}
 function renderSection(){const s=sideSt.sec;if(s==='honorarios')renderCalc();else if(s==='audiencias')renderAudiencias();else if(s==='tareas')renderTareas();else renderCalendario();}
 function renderSide(){const body=document.getElementById('calcBody');if(!body)return;body.innerHTML=navHTML()+'<div class="side-content" id="sideContent"></div>';renderSection();}
@@ -1856,12 +1855,14 @@ async function cargarAvisosAuto(){
   try{
     const r=await fetch('/api/avisos',{credentials:'same-origin'});const j=await r.json();
     if(!j||j.ok===false)return;
-    const clis=(j.data&&j.data.clientes)||[];
+    const clisAll=(j.data&&j.data.clientes)||[];
+    /* "Documentos nuevos" se quitó (los colegas ya salen en Novedades; los clientes
+       no suben documentos). Clientes que ingresaron: se ven una vez y con "Visto"
+       desaparecen. */
+    const cliSeen=_cliSeen();const clis=clisAll.filter(function(c){return !cliSeen[c.id];});
     __avAuto={docs:0,clis:clis.length};
-    /* "Documentos nuevos" se quitó: las subidas de un colega ya aparecen en el
-       feed unificado "Novedades de colegas", y los clientes no suben documentos. */
     const cc=document.getElementById('avAutoClis');
-    if(cc)cc.innerHTML=clis.length?('<div class="avi-sec"><div class="avi-sec-h">Clientes que ingresaron <span class="avi-n">'+clis.length+'</span></div><div class="avi-list">'+clis.map(c=>'<div class="avi-card"><div class="avi-ic">👤</div><div class="avi-body"><div class="avi-top"><b>'+esc(c.nombre||c.email)+'</b> ingresó por primera vez a su portal.<span class="avi-tag man">NUEVO</span></div><div class="avi-meta">'+esc(c.email||'')+'</div><div class="avi-when">📅 '+esc(String(c.primer_acceso||'').slice(0,10))+'</div></div></div>').join('')+'</div></div>'):'';
+    if(cc)cc.innerHTML=clis.length?avCol('Clientes que ingresaron por primera vez',clis.length,clis.map(function(c){return '<div class="avi-card"><div class="avi-ic">👤</div><div class="avi-body"><div class="avi-top"><b>'+esc(c.nombre||c.email)+'</b> ingresó por primera vez a su portal.<span class="avi-tag man">NUEVO</span></div><div class="avi-meta">'+esc(c.email||'')+'</div><div class="avi-when">📅 '+esc(String(c.primer_acceso||'').slice(0,10))+'</div></div><button class="btn-sec" onclick="dismissCli('+c.id+')">Visto</button></div>';}).join('')):'';
     updateNotifBell();
   }catch(e){}
 }
@@ -1909,7 +1910,7 @@ async function notificarUrgentes(){
     try{localStorage.setItem('apice_notif_vistos',JSON.stringify(vistos));}catch(e){}
   }catch(e){}
 }
-function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=notifs().length+citasProx().length+totalNuevos()+totalAlertas()+pagosInformados().length+caducidadesProximas().length+morosos().length+compartidasConmigo().length+novedadesColegas().length+((jurMod('arancel')&&iusDesactualizado())?1:0)+__avAuto.docs+__avAuto.clis;b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
+function updateNotifBell(){const b=document.getElementById('sbnBadge'),btn=document.getElementById('sbNotif');if(!b||!btn)return;const n=novedadesColegas().length+pagosInformados().length+compartidasNoVistas().length+((typeof esSuperAdmin==='function'&&esSuperAdmin()&&jurMod('arancel')&&iusDesactualizado())?1:0)+(__avAuto.clis||0);b.textContent=n||'';b.style.display=n?'inline-flex':'none';btn.classList.toggle('on',(st.nav==='avisos'));btn.classList.toggle('hasn',n>0);}
 /* ===== #7 Novedades de colegas en causas compartidas (marca local por dispositivo) =====
    Detecta cuándo el otro/a colega agregó movimientos, documentos o pendientes en una
    causa compartida, sin tocar datos del servidor. La "vista" se guarda en este equipo. */
@@ -1943,6 +1944,18 @@ function novedadesColegas(){
   out.sort(function(a,b){return bitKey({fecha:b.fecha})-bitKey({fecha:a.fecha});});
   return out;
 }
+/* Sección colapsable (clic en el título despliega). */
+function avCol(titulo,n,inner){return `<details class="avi-acc"><summary class="avi-sec-h" style="cursor:pointer;list-style:revert">${esc(titulo)} <span class="avi-n">${n}</span></summary><div class="avi-list" style="margin-top:10px">${inner}</div></details>`;}
+/* Causas que OTRO colega me compartió (entrantes), sin las que YO compartí. */
+function compartidasInbox(){return causas.filter(c=>c._compartida&&!(typeof misCompartidas!=='undefined'&&misCompartidas&&misCompartidas[c.id]));}
+function _compSeen(){try{return JSON.parse(localStorage.getItem('apice_comp_seen')||'{}');}catch(e){return {};}}
+function _compSeenSave(o){try{localStorage.setItem('apice_comp_seen',JSON.stringify(o));}catch(e){}}
+function compartidasNoVistas(){var s=_compSeen();return compartidasInbox().filter(function(c){return !s[c.id];});}
+function verCompartida(id){var s=_compSeen();s[id]=1;_compSeenSave(s);irACausa(id);}
+function dismissComp(id){var s=_compSeen();s[id]=1;_compSeenSave(s);if(typeof render==='function')render();}
+function _cliSeen(){try{return JSON.parse(localStorage.getItem('apice_cli_seen')||'{}');}catch(e){return {};}}
+function _cliSeenSave(o){try{localStorage.setItem('apice_cli_seen',JSON.stringify(o));}catch(e){}}
+function dismissCli(id){var s=_cliSeen();s[id]=1;_cliSeenSave(s);try{cargarAvisosAuto();}catch(e){}updateNotifBell();}
 function renderAvisos(){
   const list=notifs();const hk=hoyKey();
   const cards=list.map(a=>{
@@ -1970,7 +1983,7 @@ function renderAvisos(){
       <div class="avi-meta">${esc(x.caratula)}${x.compArch?' · 📎 con comprobante':' · sin comprobante'}</div>
       <div class="avi-when">📅 ${esc(x.fecha||'')}</div></div>
       <button class="btn-sec" onclick="irAHonorarios('${x.cid}')">Ver / confirmar</button></div>`;}).join('');
-  const infoSec=`<div class="avi-sec"><div class="avi-sec-h">Pagos informados por clientes <span class="avi-n">${infos.length}</span></div>${infos.length?`<div class="avi-list">${infoCards}</div>`:`<div class="avi-empty">Sin pagos informados pendientes de confirmar.</div>`}</div>`;
+  const infoSec=avCol('Pagos informados por clientes',infos.length,infos.length?infoCards:'<div class="avi-empty">Sin pagos por confirmar.</div>');
   const cads=caducidadesProximas();
   const cadCards=cads.map(x=>{const txt=x.dias<0?('venció hace '+(-x.dias)+' días'):(x.dias===0?'vence HOY':('vence en '+x.dias+' días'));return `<div class="avi-card"><div class="avi-ic">⏰</div><div class="avi-body"><div class="avi-top"><b>Caducidad de instancia</b> — ${txt}.${x.dias<=0?'<span class="avi-tag hoy">URGENTE</span>':(x.dias<=15?'<span class="avi-tag man">PRONTO</span>':'')}</div>
       <div class="avi-meta">${esc(x.caratula)}${x.cliente?(' · '+esc(x.cliente)):''}</div>
@@ -1989,23 +2002,23 @@ function renderAvisos(){
       <div class="avi-when">📅 ${audFechaDMY(a.fecha)}${a.hora?(' · 🕐 '+esc(a.hora)+' hs'):''}${(virt&&a.link)?(' · <a href="'+attr(a.link)+'" target="_blank" rel="noopener">unirse</a>'):(a.lugar?(' · '+esc(a.lugar)):'')}</div></div>
       <button class="btn-sec" onclick="verEnCalendario('${a.fecha}')">Ver</button></div>`;}).join('');
   const urgSec=`<div class="avi-sec"><div class="avi-sec-h">Para hoy y mañana <span class="avi-n">${urg.length}</span></div>${urg.length?`<div class="avi-list">${urgCards}</div>`:`<div class="avi-empty">Sin audiencias ni citas para hoy o mañana.</div>`}</div>`;
-  const comps=compartidasConmigo();
+  const comps=compartidasNoVistas();
   const compCards=comps.map(c=>`<div class="avi-card"><div class="avi-ic">🔗</div><div class="avi-body"><div class="avi-top"><b>${esc(c._origen||'Otro estudio')}</b> te compartió una causa.<span class="avi-tag man">${c._permiso==='edicion'?'PODÉS EDITAR':'SOLO LECTURA'}</span></div>
       <div class="avi-meta">${esc(cShort(c.caratula))}</div></div>
-      <button class="btn-sec" onclick="irACausa('${c.id}')">Abrir</button></div>`).join('');
-  const compSec=comps.length?`<div class="avi-sec"><div class="avi-sec-h">Causas compartidas con vos <span class="avi-n">${comps.length}</span></div><div class="avi-list">${compCards}</div></div>`:'';
+      <button class="btn-sec" onclick="verCompartida('${c.id}')">Abrir</button></div>`).join('');
+  const compSec=avCol('Un colega te compartió una causa',comps.length,comps.length?compCards:'<div class="avi-empty">Sin causas nuevas compartidas.</div>');
   const novs=novedadesColegas();
   const novCards=novs.map(x=>`<div class="avi-card" onclick="verNovedad('${x.causaId}','${x.uid}','${x.tab}')" style="cursor:pointer">
       <div class="avi-ic">${x.ic}</div>
       <div class="avi-body"><div class="avi-top"><b>${esc(cShort(x.caratula))}</b><span class="avi-tag man">${esc(x.tipo)} nuevo</span></div>
       <div class="avi-meta">${esc((x.texto||'').slice(0,90))}</div>
       <div class="avi-when">Tocá para ver ›</div></div></div>`).join('');
-  const novSec=novs.length?`<div class="avi-sec"><div class="avi-sec-h">Novedades de colegas <span class="avi-n">${novs.length}</span><button class="lk" style="float:right;font-size:12px" onclick="marcarNovedadesVistas()">Marcar todo como visto</button></div><div class="avi-list">${novCards}</div></div>`:'';
-  const iusSec=(jurMod('arancel')&&iusDesactualizado())?`<div class="avi-sec"><div class="avi-sec-h">Valor del IUS</div><div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div></div>`:'';
+  const novSec=`<div class="avi-sec"><div class="avi-sec-h">Novedades de colegas <span class="avi-n">${novs.length}</span></div>${novs.length?`<div class="avi-list">${novCards}</div>`:`<div class="avi-empty">Sin novedades de colegas por ahora. Acá aparece lo que otro colega carga en una causa compartida.</div>`}</div>`;
+  const iusSec=((typeof esSuperAdmin==='function'&&esSuperAdmin())&&jurMod('arancel')&&iusDesactualizado())?avCol('Actualizar valor del IUS (administración)',1,`<div class="avi-row"><span>Conviene actualizar el valor del IUS de este mes (Colegio de Abogados). ${config.iusFecha?('Última carga: '+esc(config.iusFecha)+'.'):'Todavía no lo cargaste.'}</span><button class="btn-sec" onclick="openModal({tipo:'configius'})">Actualizar IUS</button></div>`):'';
   document.getElementById('app').innerHTML=`<div class="tool-wrap wide">
-    <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Todo lo que requiere tu atención, reunido en un solo lugar.</div></div></div>
+    <div class="main-head"><div><div class="eyebrow">Centro de avisos</div><h1>Avisos</h1><div class="mh-sub">Lo que un colega o un cliente modificó, para que no se te pase. (Tus audiencias, citas, pendientes y vencimientos están en Mi día.)</div></div></div>
     ${('Notification' in window)?(Notification.permission!=='granted'?`<div class="avi-sec"><div class="avi-row"><span>📱 Activá las notificaciones en este dispositivo para recibir en el celular los avisos urgentes —vencimientos de plazos y audiencias de hoy/mañana— con el logo de ÁPICE.</span><button class="btn-sec" onclick="activarNotificaciones()">🔔 Activar avisos en el celular</button></div></div>`:`<div class="avi-sec"><div class="avi-row"><span>✅ Notificaciones activadas en este dispositivo. Vas a recibir en el celular los avisos urgentes (vencimientos y audiencias de hoy/mañana).</span><button class="btn-sec" onclick="probarPush()">Probar aviso</button></div></div>`):''}
-    ${novSec}${avSec}<div id="avAutoClis"></div>${compSec}${urgSec}${cadSec}${infoSec}${morSec}${iusSec}${audSec}${citaSec}${verSec}
+    ${novSec}${infoSec}<div id="avAutoClis"></div>${compSec}${iusSec}
     <img src="/apice-trigger.gif" alt="" style="display:none" onerror="cargarAvisosAuto();this.remove()"></div>`;
 }
 function verEnCalendario(key){sideSt.sec='calendario';sideSt.calSel=key;const dt=new Date(key+'T00:00:00');sideSt.calY=dt.getFullYear();sideSt.calM=dt.getMonth();st.nav='calendario';window.scrollTo(0,0);render();}
