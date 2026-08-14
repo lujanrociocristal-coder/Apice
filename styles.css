@@ -1094,7 +1094,8 @@
     .md2-actions .md2-btn.buscar{flex:1 1 100%}
     .md2-actions .md2-btn.primary{flex:1 1 100%}
     .md2-actions .md2-btn.out{flex:1 1 0;min-width:0;padding-left:10px;padding-right:10px}
-    .md2-col-r .met-card{display:none}
+    .md2-actions .md2-btn.sync{flex:1 1 100%}
+    .md2-col-r{display:none}
   }
   /* Menú: en la compu se ve toda la lista; en el celular los secundarios se
      agrupan detrás de "Más herramientas". */
@@ -1107,6 +1108,15 @@
     .sb-more.open .sb-more-arr{transform:rotate(180deg)}
     .sb-secmore{display:none}
     .sb-secmore.open{display:block}
+  }
+  /* Documentos del expediente: en la compu, todas las acciones a la vista; en el
+     celular, solo Ver/Visibilidad y el resto detrás de "⋯". */
+  .doc-morebtn{display:none}
+  .doc-sec{display:contents}
+  @media(max-width:560px){
+    .doc-morebtn{display:inline-block}
+    .doc-sec{display:none}
+    .doc-sec.open{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%;margin-top:4px}
   }
   .rec-btn{font-size:11px;font-weight:600;color:var(--azul);border:1px solid var(--azul);border-radius:7px;padding:3px 9px;background:#fff;white-space:nowrap}
   .rec-btn:hover{background:var(--azul-bg)}

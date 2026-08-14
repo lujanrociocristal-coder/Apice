@@ -515,7 +515,7 @@ function renderInicio(){
         <button class="md2-btn primary" onclick="openModal({tipo:'agregar'})">+ Nueva causa</button>
         <button class="md2-btn out" onclick="navTo('audiencias')"><span class="tab-long">+ Audiencia</span><span class="tab-short">+ Aud.</span></button>
         <button class="md2-btn out" onclick="openModal({tipo:'tarearapida'})">+ Tarea</button>
-        <button class="md2-btn out" onclick="sincronizarApp()" title="Traer los últimos cambios (útil en el celular)"><span class="tab-long">⟳ Actualizar</span><span class="tab-short">⟳</span></button>
+        <button class="md2-btn out sync" onclick="sincronizarApp()" title="Traer los últimos cambios (útil en el celular)">⟳ Actualizar</button>
       </div>
     </div>
     <div class="md2-grid">
@@ -782,12 +782,16 @@ function archRow(cid,a){
     +'<span style="font-size:11px;font-weight:600;color:'+car.c+';background:'+car.c+'18;padding:3px 9px;border-radius:20px">'+car.l+'</span>'
     +'<span style="font-size:11px;color:var(--mut)">.'+esc(a.tipo)+' · '+fmtTam(a.tamano)+(a.fecha_doc?(' · 📅 '+esc(fmtFechaDoc(a.fecha_doc))):'')+'</span>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="toggleVisibleArchivo('+a.id+','+(Number(a.visible_cliente)?0:1)+',\''+cid+'\')">'+vis+'</button>'
+    +'<button class="btn-sec doc-morebtn" style="padding:5px 11px;font-size:14px;line-height:1" onclick="toggleDocSec('+a.id+')" title="Más acciones">⋯</button>'
+    +'<span class="doc-sec" id="docsec-'+a.id+'">'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="cambiarFechaArchivo('+a.id+',\''+cid+'\',\''+(a.fecha_doc||'')+'\')">Fecha</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="moverArchivo('+a.id+',\''+cid+'\')">Carpeta</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px" onclick="renombrarArchivo('+a.id+',\''+cid+'\',\''+nomJs+'\')">Renombrar</button>'
     +'<button class="btn-sec" style="padding:5px 9px;font-size:11px;color:#B42318;border-color:#FDA29B" onclick="eliminarArchivo('+a.id+',\''+cid+'\')">Eliminar</button>'
+    +'</span>'
     +'</div>';
 }
+function toggleDocSec(id){var e=document.getElementById('docsec-'+id);if(e)e.classList.toggle('open');}
 function docSetCarp(k){docSt.carpeta=k;renderDocLista();}
 function docFiltVis(v){docSt.fVis=v;renderDocLista();}
 function docBuscar(v){docSt.q=v;renderDocLista();}
@@ -1881,7 +1885,10 @@ async function cargarAvisosAuto(){
     const cliSeen=_cliSeen();const clis=clisAll.filter(function(c){return !cliSeen[c.id];});
     __avAuto={docs:0,clis:clis.length};
     const cc=document.getElementById('avAutoClis');
-    if(cc)cc.innerHTML=clis.length?avCol('Clientes que ingresaron por primera vez',clis.length,clis.map(function(c){return '<div class="avi-card"><div class="avi-ic">👤</div><div class="avi-body"><div class="avi-top"><b>'+esc(c.nombre||c.email)+'</b> ingresó por primera vez a su portal.<span class="avi-tag man">NUEVO</span></div><div class="avi-meta">'+esc(c.email||'')+'</div><div class="avi-when">📅 '+esc(String(c.primer_acceso||'').slice(0,10))+'</div></div><button class="btn-sec" onclick="dismissCli('+c.id+')">Visto</button></div>';}).join('')):'';
+    if(cc)cc.innerHTML=clis.length?avCol('Clientes que ingresaron por primera vez',clis.length,clis.map(function(c){return '<div class="avi-card"><div class="avi-ic">👤</div><div class="avi-body"><div class="avi-top"><b>'+esc(c.nombre||c.email)+'</b> ingresó por primera vez a su portal.<span class="avi-tag man">NUEVO</span></div><div class="avi-meta">'+esc(c.email||'')+'</div><div class="avi-when">📅 '+esc(String(c.primer_acceso||'').slice(0,10))+'</div></div></div>';}).join('')):'';
+    /* Se ven una vez: quedan marcados como vistos, así en la próxima entrada a
+       Avisos ya no aparecen (y el contador no vuelve a sumarlos). */
+    if(clis.length){clis.forEach(function(c){cliSeen[c.id]=1;});_cliSeenSave(cliSeen);}
     updateNotifBell();
   }catch(e){}
 }
