@@ -2695,7 +2695,7 @@ async function cargarEstadoBackup(){
 }
 /* ===== CHATBOT DE SOPORTE "CIMA" (v27) — árbol de decisión, sin IA ===== */
 const CIMA={
- root:{m:["Hola, soy Cima, tu guía en ÁPICE. ¿Por dónde querés empezar? ✦"],o:[{t:"🚀 Primeros pasos",go:"pasos"},{t:"📁 Cargar un expediente",go:"exp"},{t:"📄 Documentos",go:"docs"},{t:"📅 Agenda y audiencias",go:"agenda"},{t:"💰 Honorarios y reportes",go:"hon"},{t:"🆘 Tengo un problema",go:"sos"}]},
+ root:{m:["Hola, soy Cima, tu guía en ÁPICE. Elegí un tema o **escribí tu pregunta abajo** y te respondo. ✦"],o:[{t:"🚀 Primeros pasos",go:"pasos"},{t:"📁 Cargar un expediente",go:"exp"},{t:"📄 Documentos",go:"docs"},{t:"📅 Agenda y audiencias",go:"agenda"},{t:"💰 Honorarios y reportes",go:"hon"},{t:"🆘 Tengo un problema",go:"sos"}]},
  pasos:{m:["ÁPICE ordena todo tu estudio en un solo lugar: expedientes, documentos, plazos, agenda, clientes, honorarios y reportes.","Lo más rápido para verle el valor es crear tu primer expediente. ¿Vamos?"],o:[{t:"Sí, crear expediente",go:"exp"},{t:"Ver el panel de Inicio",nav:"dashboard"},{t:"↩ Menú",menu:true}]},
  exp:{m:["Para cargar un expediente: %menu%%clic% en **+ Nueva causa**, arriba a la derecha.","Completá carátula, materia y cliente. El resto lo cargás cuando quieras."],o:[{t:"✨ ¿Y si el cliente es nuevo?",go:"expcli"},{t:"Llevame al Inicio",nav:"dashboard"},{t:"↩ Menú",menu:true}]},
  expcli:{m:["Si el cliente no existía, apenas guardás ÁPICE te abre la ficha para cargar sus datos (persona física o jurídica). Quedan guardados y editables.","Ese es el momento ÁPICE: tu causa ya vive con bitácora, documentos, plazos y honorarios adentro."],o:[{t:"Ver Documentos",go:"docs"},{t:"↩ Menú",menu:true}]},
@@ -2730,7 +2730,8 @@ function injectCima(){
       <div class="cima-head"><div class="cima-h-id"><span class="cima-star">${CIMA_AV}</span><div><div class="cima-h-n">Cima</div><div class="cima-h-s">Tu guía en ÁPICE</div></div></div>
         <div class="cima-h-acc"><button onclick="cimaReset()" title="Volver al inicio">⟲</button><button onclick="cimaToggle()" title="Cerrar">✕</button></div></div>
       <div class="cima-body" id="cimaBody"></div>
-      <div class="cima-foot">Guía paso a paso · no reemplaza asesoramiento legal</div>
+      <div class="cima-ask"><input id="cimaInput" type="text" placeholder="Escribí tu pregunta sobre la app…" onkeydown="if(event.key==='Enter')cimaPreguntar()" aria-label="Escribí tu pregunta"><button id="cimaSend" onclick="cimaPreguntar()">Preguntar</button></div>
+      <div class="cima-foot">Ayuda de uso · no reemplaza asesoramiento legal</div>
     </div>`;
   document.body.appendChild(wrap);
 }
@@ -2761,6 +2762,27 @@ function renderCima(){
   const opts=`<div class="cima-opts">${cimaOpts(node).map((o,i)=>`<button class="cima-opt" onclick="cimaPick(${i})">${esc(o.t)}</button>`).join('')}</div>`;
   body.innerHTML=bubbles+opts;
   body.scrollTop=body.scrollHeight;
+}
+/* Formato de la respuesta de la IA: negritas, saltos de línea y viñetas simples. */
+function cimaFmtIA(raw){let t=esc(String(raw||''));t=t.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');t=t.replace(/^\s*[-*]\s+/gm,'• ');t=t.replace(/\n/g,'<br>');return t;}
+let cimaBusy=false;
+async function cimaPreguntar(){
+  const inp=document.getElementById('cimaInput');if(!inp)return;
+  const q=(inp.value||'').trim();if(!q||cimaBusy)return;
+  cimaBusy=true;inp.value='';const send=document.getElementById('cimaSend');if(send)send.disabled=true;
+  cimaSt.ai=cimaSt.ai||[];
+  const hist=cimaSt.ai.slice(-6);
+  cimaPush('user',esc(q));
+  cimaPush('bot','<span class="cima-typing">Cima está pensando…</span>');
+  renderCima();
+  try{
+    const r=await fetch('/api/ia/asistente',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({pregunta:q,historial:hist})});
+    const j=await r.json();
+    cimaSt.log.pop(); // saca "pensando…"
+    if(!j||j.ok===false){cimaPush('bot',esc((j&&j.error)||'No pude responder ahora. Probá de nuevo.'));}
+    else{const t=(j.data&&j.data.respuesta)||'';cimaPush('bot',cimaFmtIA(t));cimaSt.ai.push({rol:'user',texto:q});cimaSt.ai.push({rol:'assistant',texto:t});}
+  }catch(e){cimaSt.log.pop();cimaPush('bot','No pude conectarme al asistente. Probá de nuevo en un momento.');}
+  cimaBusy=false;if(send)send.disabled=false;renderCima();if(inp)inp.focus();
 }
 /* ===== LEGALES (v29) — textos consultables dentro de la app ===== */
 const LEGAL={

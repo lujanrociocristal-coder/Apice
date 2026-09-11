@@ -1244,6 +1244,12 @@
   .cima-opts{display:flex;flex-direction:column;gap:7px;margin-top:12px}
   .cima-opt{text-align:left;background:var(--tarjeta);border:1px solid var(--linea-fuerte);border-radius:10px;padding:10px 13px;font-size:12.5px;font-weight:500;color:var(--tinta);transition:.12s}
   .cima-opt:hover{border-color:var(--amar);background:#C49A630a;transform:translateX(2px)}
+  .cima-ask{display:flex;gap:8px;padding:9px 10px;border-top:1px solid var(--linea);background:var(--tarjeta)}
+  .cima-ask input{flex:1;min-width:0;border:1px solid var(--linea-fuerte);border-radius:9px;padding:9px 11px;font-family:inherit;font-size:13px;background:#fff;color:var(--tinta);outline:none}
+  .cima-ask input:focus{border-color:var(--azul)}
+  .cima-ask button{flex:none;background:var(--tinta);color:#fff;border-radius:9px;padding:0 14px;font-weight:600;font-size:13px;cursor:pointer}
+  .cima-ask button:disabled{opacity:.5;cursor:default}
+  .cima-typing{opacity:.7;font-style:italic}
   .cima-foot{padding:9px 14px;font-size:10px;color:var(--mut);text-align:center;border-top:1px solid var(--linea);background:var(--tarjeta)}
   @media(max-width:560px){ .cima-panel{right:10px;left:10px;bottom:80px;width:auto;height:calc(100vh - 150px)} #cimaBtn{right:16px;bottom:16px} }
   @media print{ #cimaWrap{display:none!important} }
